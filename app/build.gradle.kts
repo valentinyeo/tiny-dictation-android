@@ -19,20 +19,24 @@ android {
         create("release") {
             // Try to get signing config from environment variables first
             val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
-            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
-            val keyAlias = System.getenv("KEY_ALIAS")
-            val keyPassword = System.getenv("KEY_PASSWORD")
+            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
+            val keyAliasEnv = System.getenv("KEY_ALIAS")
+            val keyPasswordEnv = System.getenv("KEY_PASSWORD")
 
-            if (keystoreBase64 != null && keystorePassword != null && keyAlias != null && keyPassword != null) {
-                // Decode base64 keystore to temporary file
-                val keystoreFile = File(rootProject.buildDir, "keystore.jks")
-                keystoreFile.parentFile?.mkdirs()
-                keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(keystoreBase64))
+            if (!keystoreBase64.isNullOrEmpty() && !keystorePasswordEnv.isNullOrEmpty() &&
+                !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
+                try {
+                    // Decode base64 keystore to temp file
+                    val keystoreFile = File(System.getProperty("java.io.tmpdir"), "release-keystore.jks")
+                    keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(keystoreBase64))
 
-                storeFile = keystoreFile
-                storePassword = keystorePassword
-                this.keyAlias = keyAlias
-                this.keyPassword = keyPassword
+                    storeFile = keystoreFile
+                    storePassword = keystorePasswordEnv
+                    this.keyAlias = keyAliasEnv
+                    this.keyPassword = keyPasswordEnv
+                } catch (e: Exception) {
+                    println("Warning: Failed to decode keystore: ${e.message}")
+                }
             } else {
                 // Fall back to debug keystore for local development
                 val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
