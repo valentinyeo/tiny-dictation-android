@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tiny Dictation</string>
+
+    <!-- Permissions -->
+    <string name="permission_microphone_title">Microphone Access</string>
+    <string name="permission_microphone_desc">Required to record your voice for dictation</string>
+    <string name="permission_overlay_title">Display Over Other Apps</string>
+    <string name="permission_overlay_desc">Required to show the floating dictation bubble</string>
+    <string name="permission_accessibility_title">Accessibility Service</string>
+    <string name="permission_accessibility_desc">Required to insert text into any app</string>
+
+    <!-- Main Activity -->
+    <string name="welcome_title">Welcome to Tiny Dictation</string>
+    <string name="welcome_desc">Seamless voice-to-text anywhere on your device</string>
+    <string name="setup_permissions">Set Up Permissions</string>
+    <string name="start_dictation">Start Dictation</string>
+    <string name="stop_dictation">Stop Dictation</string>
+    <string name="open_settings">Settings</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="api_key_label">Deepgram API Key</string>
+    <string name="api_key_hint">Enter your Deepgram API key</string>
+    <string name="vad_sensitivity">VAD Sensitivity</string>
+    <string name="auto_punctuation">Auto-punctuation</string>
+    <string name="save_settings">Save</string>
+
+    <!-- Bubble States -->
+    <string name="bubble_idle">Tap to start</string>
+    <string name="bubble_listening">Listening…</string>
+    <string name="bubble_recording">Recording…</string>
+    <string name="bubble_processing">Processing…</string>
+
+    <!-- Notification -->
+    <string name="notification_channel_name">Dictation Service</string>
+    <string name="notification_channel_desc">Shows when dictation is active</string>
+    <string name="notification_title">Tiny Dictation Active</string>
+    <string name="notification_text">Tap to open settings</string>
+
+    <!-- Accessibility -->
+    <string name="accessibility_service_description">Tiny Dictation uses accessibility to insert transcribed text directly into any text field you\'re focused on.</string>
+
+    <!-- Errors -->
+    <string name="error_no_api_key">Please enter your Deepgram API key in Settings</string>
+    <string name="error_no_permission">Required permissions not granted</string>
+    <string name="error_connection_failed">Connection failed. Check your internet.</string>
+</resources>
