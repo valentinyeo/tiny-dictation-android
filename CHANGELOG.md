@@ -2,7 +2,7 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
-## [1.1.0] - 2025-01-08
+## [1.1.0] - 2026-01-08
 
 ### Fixed
 - **Crash on dictation start** - Added null safety checks and error handling throughout the app
@@ -12,6 +12,8 @@ All notable changes to Tiny Dictation will be documented in this file.
 ### Added
 - **Comprehensive logging** - Added debug logging for troubleshooting (filter by "TinyDictation" in Logcat)
 - **Better error messages** - App now shows helpful error messages instead of crashing
+- **Telegram notifications** - Get notified when new releases are available
+- **Direct APK downloads** - Releases now provide direct APK download links
 
 ### Changed
 - Improved AudioRecorder initialization with proper exception handling
@@ -21,7 +23,7 @@ All notable changes to Tiny Dictation will be documented in this file.
 
 ---
 
-## [1.0.0] - 2025-01-08
+## [1.0.0] - 2026-01-08
 
 ### Initial Release
 - Floating bubble dictation interface
