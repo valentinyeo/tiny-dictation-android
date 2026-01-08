@@ -24,6 +24,7 @@ import androidx.lifecycle.lifecycleScope
 import com.tinydictation.android.MainActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
+import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.launch
 
 /**
@@ -49,9 +50,14 @@ class BubbleService : LifecycleService() {
     // Drag threshold to distinguish between tap and drag
     private val dragThreshold = 10
 
+    // Double-tap detection
+    private var lastTapTime: Long = 0
+    private val doubleTapThreshold = 300L // milliseconds
+
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "BubbleService onCreate")
+        DebugLog.i("BubbleService: Service created")
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
@@ -62,6 +68,7 @@ class BubbleService : LifecycleService() {
         when (intent?.action) {
             ACTION_STOP -> {
                 Log.i(TAG, "BubbleService received STOP action")
+                DebugLog.i("BubbleService: Received STOP action")
                 stopSelf()
                 return START_NOT_STICKY
             }
@@ -69,12 +76,14 @@ class BubbleService : LifecycleService() {
                 val stateOrdinal = intent.getIntExtra(EXTRA_STATE, BubbleState.IDLE.ordinal)
                 val newState = BubbleState.entries.getOrElse(stateOrdinal) { BubbleState.IDLE }
                 Log.d(TAG, "BubbleService updating state to: $newState")
+                DebugLog.d("BubbleService: Updating state to $newState")
                 updateState(newState)
                 return START_STICKY
             }
         }
 
         Log.i(TAG, "BubbleService starting foreground")
+        DebugLog.i("BubbleService: Starting foreground service")
         startForeground(NOTIFICATION_ID, createNotification())
         createBubble()
 
@@ -84,6 +93,7 @@ class BubbleService : LifecycleService() {
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "BubbleService onDestroy")
+        DebugLog.i("BubbleService: Service destroyed")
         removeBubble()
         instance = null
     }
@@ -174,8 +184,19 @@ class BubbleService : LifecycleService() {
                 if (!isDragging) {
                     // This was a tap, not a drag
                     val currentTime = System.currentTimeMillis()
+
+                    // Check for double-tap
+                    if (currentTime - lastTapTime < doubleTapThreshold) {
+                        Log.i(TAG, "Double-tap detected - closing bubble service")
+                        DebugLog.i("BubbleService: Double-tap detected, closing service")
+                        stopSelf()
+                        return true
+                    }
+
+                    // Single tap with debounce
                     if (currentTime - lastClickTime > CLICK_DEBOUNCE_MS) {
                         lastClickTime = currentTime
+                        lastTapTime = currentTime
                         onBubbleTapped()
                     }
                 }
@@ -191,22 +212,26 @@ class BubbleService : LifecycleService() {
      */
     private fun onBubbleTapped() {
         Log.d(TAG, "Bubble tapped - current state: $currentState")
+        DebugLog.d("BubbleService: Bubble tapped in state $currentState")
         lifecycleScope.launch {
             when (currentState) {
                 BubbleState.IDLE -> {
                     Log.i(TAG, "Starting listening from bubble tap")
+                    DebugLog.i("BubbleService: Starting listening")
                     // Start listening - communicate with TranscriptionManager
                     updateState(BubbleState.LISTENING)
                     onListeningStarted?.invoke()
                 }
                 BubbleState.LISTENING, BubbleState.RECORDING -> {
                     Log.i(TAG, "Stopping listening from bubble tap")
+                    DebugLog.i("BubbleService: Stopping listening")
                     // Stop listening
                     updateState(BubbleState.IDLE)
                     onListeningStopped?.invoke()
                 }
                 BubbleState.PROCESSING -> {
                     Log.d(TAG, "Bubble tap ignored - currently processing")
+                    DebugLog.d("BubbleService: Tap ignored (processing)")
                     // Don't allow interaction while processing
                 }
             }

@@ -7,6 +7,7 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
+import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.vad.VADResult
 import com.tinydictation.android.vad.VoiceActivityDetector
 import kotlinx.coroutines.CoroutineScope
@@ -102,12 +103,14 @@ class TranscriptionManager(
 
         if (apiKey.isBlank()) {
             Log.e(TAG, "Cannot start listening - API key is blank")
+            DebugLog.e("TranscriptionManager: Cannot start - API key is blank")
             updateState(TranscriptionState.ERROR)
             onError?.invoke("API key is not set")
             return
         }
 
         Log.i(TAG, "TranscriptionManager starting listening")
+        DebugLog.i("TranscriptionManager: Starting listening")
         isListening = true
         voiceActivityDetector.reset()
         pendingAudioBuffer.clear()
@@ -130,6 +133,7 @@ class TranscriptionManager(
             }
         } catch (e: Exception) {
             Log.e(TAG, "Failed to start audio recording", e)
+            DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
             updateState(TranscriptionState.ERROR)
             onError?.invoke("Failed to start audio recording: ${e.message}")
             scope?.cancel()
@@ -147,6 +151,7 @@ class TranscriptionManager(
         }
 
         Log.i(TAG, "TranscriptionManager stopping listening")
+        DebugLog.i("TranscriptionManager: Stopping listening")
         isListening = false
 
         audioRecorder.stopRecording()
@@ -176,6 +181,7 @@ class TranscriptionManager(
 
             VADResult.SPEECH_START -> {
                 Log.i(TAG, "Speech start detected")
+                DebugLog.i("TranscriptionManager: Speech start detected")
                 handleSpeechStart(samples)
             }
 
@@ -185,6 +191,7 @@ class TranscriptionManager(
 
             VADResult.SPEECH_END -> {
                 Log.i(TAG, "Speech end detected")
+                DebugLog.i("TranscriptionManager: Speech end detected")
                 handleSpeechEnd()
             }
         }
@@ -195,6 +202,7 @@ class TranscriptionManager(
      */
     private fun handleSpeechStart(samples: ShortArray) {
         Log.i(TAG, "Handling speech start - connecting to Deepgram")
+        DebugLog.i("TranscriptionManager: Connecting to Deepgram")
         updateState(TranscriptionState.TRANSCRIBING)
 
         // Buffer this chunk while we connect
@@ -221,6 +229,7 @@ class TranscriptionManager(
                 onError = { error ->
                     scope?.launch(Dispatchers.Main) {
                         if (isListening) {
+                            DebugLog.e("TranscriptionManager: Deepgram error - $error")
                             onError?.invoke(error)
                             // Don't stop listening on error - just go back to listening state
                             updateState(TranscriptionState.LISTENING)
@@ -274,6 +283,7 @@ class TranscriptionManager(
      */
     private fun handleSpeechEnd() {
         Log.i(TAG, "Handling speech end - closing Deepgram connection")
+        DebugLog.i("TranscriptionManager: Closing Deepgram connection")
         isConnecting = false
         pendingAudioBuffer.clear()
 

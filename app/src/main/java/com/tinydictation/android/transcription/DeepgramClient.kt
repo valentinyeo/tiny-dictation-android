@@ -1,6 +1,7 @@
 package com.tinydictation.android.transcription
 
 import android.util.Log
+import com.tinydictation.android.util.DebugLog
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -71,17 +72,20 @@ class DeepgramClient {
     ) {
         if (isConnected) {
             Log.d(TAG, "DeepgramClient already connected")
+            DebugLog.d("DeepgramClient: Already connected")
             onError("Already connected")
             return
         }
 
         if (apiKey.isBlank()) {
             Log.e(TAG, "Cannot connect - API key is blank")
+            DebugLog.e("DeepgramClient: Cannot connect - API key is blank")
             onError("API key is required")
             return
         }
 
         Log.i(TAG, "Connecting to Deepgram WebSocket")
+        DebugLog.i("DeepgramClient: Connecting to Deepgram WebSocket")
         onInterimCallback = onInterim
         onFinalCallback = onFinal
         onErrorCallback = onError
@@ -106,6 +110,7 @@ class DeepgramClient {
             webSocket = client.newWebSocket(request, createWebSocketListener())
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create WebSocket connection", e)
+            DebugLog.e("DeepgramClient: Failed to create WebSocket - ${e.message}")
             onError("Failed to connect: ${e.message}")
         }
     }
@@ -117,6 +122,7 @@ class DeepgramClient {
         return object : WebSocketListener() {
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.i(TAG, "Deepgram WebSocket connection opened")
+                DebugLog.i("DeepgramClient: WebSocket connection opened")
                 isConnected = true
             }
 
@@ -134,17 +140,20 @@ class DeepgramClient {
 
             override fun onClosing(webSocket: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "Deepgram WebSocket closing: code=$code, reason=$reason")
+                DebugLog.d("DeepgramClient: WebSocket closing - code=$code")
                 webSocket.close(1000, null)
                 isConnected = false
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "Deepgram WebSocket closed: code=$code, reason=$reason")
+                DebugLog.i("DeepgramClient: WebSocket closed")
                 isConnected = false
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 Log.e(TAG, "Deepgram WebSocket failure", t)
+                DebugLog.e("DeepgramClient: WebSocket failure - ${t.message}")
                 isConnected = false
                 val errorMessage = t.message ?: "Unknown WebSocket error"
                 onErrorCallback?.invoke(errorMessage)
@@ -168,6 +177,7 @@ class DeepgramClient {
             if (json.has("error")) {
                 val error = json.optString("error", "Unknown error")
                 Log.e(TAG, "Deepgram error: $error")
+                DebugLog.e("DeepgramClient: API error - $error")
                 onErrorCallback?.invoke(error)
                 return
             }
@@ -262,6 +272,7 @@ class DeepgramClient {
      */
     fun close() {
         Log.i(TAG, "Closing Deepgram WebSocket connection")
+        DebugLog.i("DeepgramClient: Closing WebSocket connection")
         isConnected = false
 
         val socket = webSocket

@@ -41,6 +41,11 @@
     <!-- Accessibility -->
     <string name="accessibility_service_description">Tiny Dictation uses accessibility to insert transcribed text directly into any text field you\'re focused on.</string>
 
+    <!-- Debug -->
+    <string name="debug_title">Debug</string>
+    <string name="copy_debug_log">Copy Debug Log</string>
+    <string name="debug_log_copied">Debug log copied to clipboard</string>
+
     <!-- Errors -->
     <string name="error_no_api_key">Please enter your Deepgram API key in Settings</string>
     <string name="error_no_permission">Required permissions not granted</string>

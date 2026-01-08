@@ -1,5 +1,8 @@
 package com.tinydictation.android
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.os.Bundle
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -8,6 +11,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
 class SettingsActivity : AppCompatActivity() {
@@ -18,6 +22,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var vadSensitivitySlider: Slider
     private lateinit var autoPunctuationSwitch: MaterialSwitch
+    private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -36,6 +41,7 @@ class SettingsActivity : AppCompatActivity() {
         apiKeyInput = findViewById(R.id.etApiKey)
         vadSensitivitySlider = findViewById(R.id.sliderVadSensitivity)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
+        copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         saveButton = findViewById(R.id.btnSave)
 
         setSupportActionBar(toolbar)
@@ -59,6 +65,10 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupClickListeners() {
         toolbar.setNavigationOnClickListener {
             finish()
+        }
+
+        copyDebugLogButton.setOnClickListener {
+            copyDebugLogToClipboard()
         }
 
         saveButton.setOnClickListener {
@@ -85,6 +95,16 @@ class SettingsActivity : AppCompatActivity() {
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()
+    }
+
+    private fun copyDebugLogToClipboard() {
+        val logText = DebugLog.exportLog()
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Tiny Dictation Debug Log", logText)
+        clipboard.setPrimaryClip(clip)
+
+        Toast.makeText(this, R.string.debug_log_copied, Toast.LENGTH_SHORT).show()
     }
 
     override fun onSupportNavigateUp(): Boolean {
