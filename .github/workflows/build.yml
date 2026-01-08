@@ -7,6 +7,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -29,31 +32,31 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Setup signing configuration
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+      - name: Setup debug keystore
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "Setting up release signing configuration"
-            echo "$KEYSTORE_BASE64" | base64 -d > app/keystore.jks
-            echo "KEYSTORE_FILE=$PWD/app/keystore.jks" >> $GITHUB_ENV
-            echo "KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> $GITHUB_ENV
-            echo "KEY_ALIAS=$KEY_ALIAS" >> $GITHUB_ENV
-            echo "KEY_PASSWORD=$KEY_PASSWORD" >> $GITHUB_ENV
+          # Check if debug keystore exists in repo, if not create one
+          if [ ! -f "app/debug.keystore" ]; then
+            echo "Creating debug keystore..."
+            keytool -genkeypair -v -keystore app/debug.keystore \
+              -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+              -storepass android -keypass android \
+              -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, ST=Debug, C=US"
+            echo "KEYSTORE_CREATED=true" >> $GITHUB_ENV
           else
-            echo "Using debug signing (no secrets configured)"
+            echo "Using existing debug keystore from repo"
           fi
 
       - name: Build APK
+        run: ./gradlew assembleDebug
+
+      - name: Commit debug keystore if newly created
+        if: env.KEYSTORE_CREATED == 'true'
         run: |
-          if [ -n "$KEYSTORE_FILE" ]; then
-            ./gradlew assembleRelease
-          else
-            ./gradlew assembleDebug
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add app/debug.keystore
+          git commit -m "Add debug keystore for consistent signing"
+          git push
 
       - name: Get version info
         id: version
@@ -68,11 +71,7 @@ jobs:
 
       - name: Rename APK
         run: |
-          if [ -f "app/build/outputs/apk/release/app-release.apk" ]; then
-            mv app/build/outputs/apk/release/app-release.apk app/build/outputs/apk/release/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
-          else
-            mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
-          fi
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

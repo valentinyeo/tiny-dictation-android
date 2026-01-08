@@ -16,20 +16,21 @@ android {
     }
 
     signingConfigs {
-        val keystoreFile = System.getenv("KEYSTORE_FILE")
-        if (keystoreFile != null) {
-            create("release") {
-                storeFile = file(keystoreFile)
-                storePassword = System.getenv("KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("KEY_ALIAS")
-                keyPassword = System.getenv("KEY_PASSWORD")
+        // Use consistent debug keystore for reproducible signatures
+        val debugKeystoreFile = file("debug.keystore")
+        if (debugKeystoreFile.exists()) {
+            getByName("debug") {
+                storeFile = debugKeystoreFile
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
             }
         }
     }
 
     buildTypes {
         debug {
-            // Uses default debug signing
+            signingConfig = signingConfigs.getByName("debug")
         }
         release {
             isMinifyEnabled = false
