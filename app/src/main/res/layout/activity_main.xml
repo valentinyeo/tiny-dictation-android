@@ -68,7 +68,7 @@
                         android:text="@string/welcome_desc"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textAlignment="center"
-                        android:alpha="0.7" />
+                        android:textColor="@color/text_secondary" />
 
                 </LinearLayout>
 
@@ -126,7 +126,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_microphone_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:alpha="0.7" />
+                            android:textColor="@color/text_secondary" />
 
                     </LinearLayout>
 
@@ -185,7 +185,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_overlay_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:alpha="0.7" />
+                            android:textColor="@color/text_secondary" />
 
                     </LinearLayout>
 
@@ -244,7 +244,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_accessibility_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:alpha="0.7" />
+                            android:textColor="@color/text_secondary" />
 
                     </LinearLayout>
 

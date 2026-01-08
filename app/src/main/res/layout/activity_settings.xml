@@ -122,7 +122,7 @@
                                 android:layout_height="wrap_content"
                                 android:text="0.5"
                                 android:textAppearance="?attr/textAppearanceBodyMedium"
-                                android:alpha="0.7" />
+                                android:textColor="@color/text_secondary" />
 
                         </LinearLayout>
 
@@ -148,14 +148,14 @@
                                 android:layout_weight="1"
                                 android:text="Less sensitive"
                                 android:textAppearance="?attr/textAppearanceBodySmall"
-                                android:alpha="0.5" />
+                                android:textColor="@color/text_tertiary" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
                                 android:text="More sensitive"
                                 android:textAppearance="?attr/textAppearanceBodySmall"
-                                android:alpha="0.5" />
+                                android:textColor="@color/text_tertiary" />
 
                         </LinearLayout>
 
@@ -188,7 +188,7 @@
                                 android:layout_marginTop="2dp"
                                 android:text="Automatically add punctuation to transcribed text"
                                 android:textAppearance="?attr/textAppearanceBodySmall"
-                                android:alpha="0.7" />
+                                android:textColor="@color/text_secondary" />
 
                         </LinearLayout>
 

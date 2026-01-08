@@ -23,4 +23,10 @@
     <color name="bubble_listening">#2196F3</color>
     <color name="bubble_recording">#F44336</color>
     <color name="bubble_processing">#FF9800</color>
+
+    <!-- Text colors for better readability -->
+    <color name="text_primary">#1C1B1F</color>
+    <color name="text_secondary">#49454F</color>
+    <color name="text_tertiary">#79747E</color>
+    <color name="bubble_text">#FFFFFF</color>
 </resources>
