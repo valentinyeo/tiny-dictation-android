@@ -78,65 +78,88 @@ class AudioRecorder {
         val bufferSize = getMinBufferSize()
         Log.d(TAG, "Audio buffer size: $bufferSize bytes")
 
-        audioRecord = AudioRecord(
-            MediaRecorder.AudioSource.MIC,
-            SAMPLE_RATE,
-            CHANNEL_CONFIG,
-            AUDIO_FORMAT,
-            bufferSize
-        ).also { record ->
-            if (record.state != AudioRecord.STATE_INITIALIZED) {
-                record.release()
-                Log.e(TAG, "Failed to initialize AudioRecord")
-                throw IllegalStateException("Failed to initialize AudioRecord")
+        try {
+            audioRecord = AudioRecord(
+                MediaRecorder.AudioSource.MIC,
+                SAMPLE_RATE,
+                CHANNEL_CONFIG,
+                AUDIO_FORMAT,
+                bufferSize
+            ).also { record ->
+                if (record.state != AudioRecord.STATE_INITIALIZED) {
+                    record.release()
+                    Log.e(TAG, "Failed to initialize AudioRecord - state: ${record.state}")
+                    throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
+                }
             }
+        } catch (e: SecurityException) {
+            Log.e(TAG, "Permission denied for audio recording", e)
+            throw SecurityException("Microphone permission not granted", e)
+        } catch (e: IllegalArgumentException) {
+            Log.e(TAG, "Invalid audio configuration", e)
+            throw IllegalStateException("Invalid audio recording configuration", e)
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected error initializing AudioRecord", e)
+            throw IllegalStateException("Failed to initialize audio recording: ${e.message}", e)
         }
 
         isRecording = true
 
         recordingJob = scope.launch {
             withContext(Dispatchers.IO) {
-                audioRecord?.startRecording()
-                Log.i(TAG, "AudioRecord started successfully")
+                try {
+                    val record = audioRecord
+                    if (record == null) {
+                        Log.e(TAG, "AudioRecord is null, cannot start recording")
+                        return@withContext
+                    }
 
-                val buffer = ShortArray(SAMPLES_PER_CHUNK)
+                    record.startRecording()
+                    Log.i(TAG, "AudioRecord started successfully")
 
-                while (isActive && isRecording) {
-                    val readResult = audioRecord?.read(
-                        buffer,
-                        0,
-                        SAMPLES_PER_CHUNK
-                    ) ?: AudioRecord.ERROR
+                    val buffer = ShortArray(SAMPLES_PER_CHUNK)
 
-                    when {
-                        readResult == AudioRecord.ERROR_INVALID_OPERATION -> {
-                            Log.e(TAG, "AudioRecord read error: INVALID_OPERATION")
-                            // AudioRecord is not properly initialized
-                            break
-                        }
-                        readResult == AudioRecord.ERROR_BAD_VALUE -> {
-                            Log.e(TAG, "AudioRecord read error: BAD_VALUE")
-                            // Invalid parameters
-                            break
-                        }
-                        readResult == AudioRecord.ERROR_DEAD_OBJECT -> {
-                            Log.e(TAG, "AudioRecord read error: DEAD_OBJECT")
-                            // AudioRecord has become invalid
-                            break
-                        }
-                        readResult > 0 -> {
-                            // Successfully read audio data
-                            if (readResult == SAMPLES_PER_CHUNK) {
-                                onAudioChunk(buffer.copyOf())
-                            } else {
-                                // Partial read - still deliver what we got
-                                Log.d(TAG, "Partial audio read: $readResult samples")
-                                onAudioChunk(buffer.copyOf(readResult))
+                    while (isActive && isRecording) {
+                        val readResult = record.read(
+                            buffer,
+                            0,
+                            SAMPLES_PER_CHUNK
+                        )
+
+                        when {
+                            readResult == AudioRecord.ERROR_INVALID_OPERATION -> {
+                                Log.e(TAG, "AudioRecord read error: INVALID_OPERATION")
+                                // AudioRecord is not properly initialized
+                                break
+                            }
+                            readResult == AudioRecord.ERROR_BAD_VALUE -> {
+                                Log.e(TAG, "AudioRecord read error: BAD_VALUE")
+                                // Invalid parameters
+                                break
+                            }
+                            readResult == AudioRecord.ERROR_DEAD_OBJECT -> {
+                                Log.e(TAG, "AudioRecord read error: DEAD_OBJECT")
+                                // AudioRecord has become invalid
+                                break
+                            }
+                            readResult > 0 -> {
+                                // Successfully read audio data
+                                if (readResult == SAMPLES_PER_CHUNK) {
+                                    onAudioChunk(buffer.copyOf())
+                                } else {
+                                    // Partial read - still deliver what we got
+                                    Log.d(TAG, "Partial audio read: $readResult samples")
+                                    onAudioChunk(buffer.copyOf(readResult))
+                                }
                             }
                         }
                     }
+                    Log.i(TAG, "Audio recording loop ended")
+                } catch (e: IllegalStateException) {
+                    Log.e(TAG, "AudioRecord illegal state during recording", e)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Unexpected error during audio recording", e)
                 }
-                Log.i(TAG, "Audio recording loop ended")
             }
         }
     }

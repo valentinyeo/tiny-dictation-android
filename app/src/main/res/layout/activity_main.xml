@@ -36,6 +36,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
+                app:cardBackgroundColor="?attr/colorSurface"
                 app:cardElevation="2dp"
                 app:strokeWidth="1dp"
                 app:strokeColor="?attr/colorOutline">
@@ -60,6 +61,7 @@
                         android:layout_marginTop="16dp"
                         android:text="@string/welcome_title"
                         android:textAppearance="?attr/textAppearanceHeadlineSmall"
+                        android:textColor="?attr/colorOnSurface"
                         android:textAlignment="center" />
 
                     <TextView
@@ -69,7 +71,7 @@
                         android:text="@string/welcome_desc"
                         android:textAppearance="?attr/textAppearanceBodyMedium"
                         android:textAlignment="center"
-                        android:textColor="@color/text_secondary" />
+                        android:textColor="?attr/colorOnSurfaceVariant" />
 
                 </LinearLayout>
 
@@ -81,7 +83,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="12dp"
                 android:text="@string/setup_permissions"
-                android:textAppearance="?attr/textAppearanceTitleMedium" />
+                android:textAppearance="?attr/textAppearanceTitleMedium"
+                android:textColor="?attr/colorOnSurface" />
 
             <!-- Microphone Permission Card -->
             <com.google.android.material.card.MaterialCardView
@@ -89,6 +92,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
+                app:cardBackgroundColor="?attr/colorSurface"
                 app:cardElevation="1dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
@@ -119,7 +123,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/permission_microphone_title"
-                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorOnSurface" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -127,7 +132,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_microphone_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
 
@@ -148,6 +153,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
+                app:cardBackgroundColor="?attr/colorSurface"
                 app:cardElevation="1dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
@@ -178,7 +184,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/permission_overlay_title"
-                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorOnSurface" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -186,7 +193,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_overlay_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
 
@@ -207,6 +214,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
+                app:cardBackgroundColor="?attr/colorSurface"
                 app:cardElevation="1dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
@@ -237,7 +245,8 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="@string/permission_accessibility_title"
-                            android:textAppearance="?attr/textAppearanceTitleSmall" />
+                            android:textAppearance="?attr/textAppearanceTitleSmall"
+                            android:textColor="?attr/colorOnSurface" />
 
                         <TextView
                             android:layout_width="wrap_content"
@@ -245,7 +254,7 @@
                             android:layout_marginTop="2dp"
                             android:text="@string/permission_accessibility_desc"
                             android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:textColor="@color/text_secondary" />
+                            android:textColor="?attr/colorOnSurfaceVariant" />
 
                     </LinearLayout>
 

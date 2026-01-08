@@ -75,28 +75,39 @@ class DeepgramClient {
             return
         }
 
+        if (apiKey.isBlank()) {
+            Log.e(TAG, "Cannot connect - API key is blank")
+            onError("API key is required")
+            return
+        }
+
         Log.i(TAG, "Connecting to Deepgram WebSocket")
         onInterimCallback = onInterim
         onFinalCallback = onFinal
         onErrorCallback = onError
 
-        val client = OkHttpClient.Builder()
-            .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-            .build()
-        okHttpClient = client
+        try {
+            val client = OkHttpClient.Builder()
+                .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+                .build()
+            okHttpClient = client
 
-        val params = customParams ?: DEFAULT_PARAMS
-        val url = "$BASE_URL?$params"
-        Log.d(TAG, "Deepgram URL: $url")
+            val params = customParams ?: DEFAULT_PARAMS
+            val url = "$BASE_URL?$params"
+            Log.d(TAG, "Deepgram URL: $url")
 
-        val request = Request.Builder()
-            .url(url)
-            .header("Authorization", "Token $apiKey")
-            .build()
+            val request = Request.Builder()
+                .url(url)
+                .header("Authorization", "Token $apiKey")
+                .build()
 
-        webSocket = client.newWebSocket(request, createWebSocketListener())
+            webSocket = client.newWebSocket(request, createWebSocketListener())
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to create WebSocket connection", e)
+            onError("Failed to connect: ${e.message}")
+        }
     }
 
     /**
@@ -146,6 +157,11 @@ class DeepgramClient {
      */
     private fun parseAndDispatchMessage(jsonString: String) {
         try {
+            if (jsonString.isBlank()) {
+                Log.w(TAG, "Received empty message from Deepgram")
+                return
+            }
+
             val json = JSONObject(jsonString)
 
             // Check for error messages
@@ -158,13 +174,21 @@ class DeepgramClient {
 
             // Check for transcription results
             if (json.has("channel")) {
-                val channel = json.getJSONObject("channel")
+                val channel = json.optJSONObject("channel")
+                if (channel == null) {
+                    Log.w(TAG, "Channel object is null")
+                    return
+                }
+
                 val alternatives = channel.optJSONArray("alternatives")
-
                 if (alternatives != null && alternatives.length() > 0) {
-                    val firstAlternative = alternatives.getJSONObject(0)
-                    val transcript = firstAlternative.optString("transcript", "")
+                    val firstAlternative = alternatives.optJSONObject(0)
+                    if (firstAlternative == null) {
+                        Log.w(TAG, "First alternative is null")
+                        return
+                    }
 
+                    val transcript = firstAlternative.optString("transcript", "")
                     if (transcript.isNotEmpty()) {
                         val isFinal = json.optBoolean("is_final", false)
                         Log.d(TAG, "Transcript (final=$isFinal): $transcript")
@@ -192,6 +216,10 @@ class DeepgramClient {
                     }
                 }
             }
+        } catch (e: org.json.JSONException) {
+            val errorMessage = "Invalid JSON from Deepgram: ${e.message}"
+            Log.e(TAG, errorMessage, e)
+            onErrorCallback?.invoke(errorMessage)
         } catch (e: Exception) {
             val errorMessage = "Failed to parse Deepgram response: ${e.message}"
             Log.e(TAG, errorMessage, e)
@@ -207,14 +235,20 @@ class DeepgramClient {
      * @return true if the data was sent, false if not connected
      */
     fun sendAudio(audioBytes: ByteArray): Boolean {
-        if (!isConnected || webSocket == null) {
+        val socket = webSocket
+        if (!isConnected || socket == null) {
             Log.d(TAG, "Cannot send audio - not connected")
             return false
         }
 
         return try {
-            webSocket?.send(audioBytes.toByteString())
+            socket.send(audioBytes.toByteString())
             true
+        } catch (e: IllegalStateException) {
+            Log.e(TAG, "WebSocket in invalid state", e)
+            onErrorCallback?.invoke("Connection error: ${e.message}")
+            isConnected = false
+            false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send audio", e)
             onErrorCallback?.invoke("Failed to send audio: ${e.message}")
@@ -230,9 +264,12 @@ class DeepgramClient {
         Log.i(TAG, "Closing Deepgram WebSocket connection")
         isConnected = false
 
+        val socket = webSocket
+        val client = okHttpClient
+
         try {
             // Send close frame to Deepgram
-            webSocket?.close(1000, "Client closing")
+            socket?.close(1000, "Client closing")
         } catch (e: Exception) {
             Log.e(TAG, "Error during WebSocket close", e)
             // Ignore errors during close
@@ -240,9 +277,15 @@ class DeepgramClient {
 
         webSocket = null
 
-        // Shutdown the OkHttp client's connection pool
-        okHttpClient?.dispatcher?.executorService?.shutdown()
-        okHttpClient?.connectionPool?.evictAll()
+        try {
+            // Shutdown the OkHttp client's connection pool
+            client?.dispatcher?.executorService?.shutdown()
+            client?.connectionPool?.evictAll()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error shutting down OkHttp client", e)
+            // Ignore errors during shutdown
+        }
+
         okHttpClient = null
 
         // Clear callbacks

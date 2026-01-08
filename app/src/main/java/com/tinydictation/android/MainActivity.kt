@@ -218,46 +218,87 @@ class MainActivity : AppCompatActivity() {
 
     private fun startDictation() {
         Log.i(TAG, "Starting dictation service")
+
+        // Verify microphone permission before starting
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.e(TAG, "Microphone permission not granted")
+            Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
+            return
+        }
+
         BubbleService.start(this)
 
         // Set up transcription manager with callbacks
-        val apiKey = preferenceManager.getApiKey() ?: return
-
-        transcriptionManager = TranscriptionManager(
-            apiKey = apiKey,
-            onTranscript = { text, isFinal ->
-                Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
-                if (isFinal && text.isNotBlank()) {
-                    DictationAccessibilityService.inject(text + " ")
-                }
-            },
-            onError = { error ->
-                Log.e(TAG, "Transcription error: $error")
-                runOnUiThread {
-                    Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
-                }
-            },
-            onStateChange = { state ->
-                Log.d(TAG, "Transcription state changed: $state")
-                val bubbleState = when (state) {
-                    TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
-                    TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
-                    TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleService.BubbleState.RECORDING
-                    TranscriptionManager.TranscriptionState.ERROR -> BubbleService.BubbleState.IDLE
-                }
-                BubbleService.updateBubbleState(this, bubbleState)
-            }
-        )
-
-        // Connect bubble callbacks to transcription manager
-        BubbleService.onListeningStarted = {
-            Log.d(TAG, "Bubble listening started callback")
-            transcriptionManager?.startListening()
+        val apiKey = preferenceManager.getApiKey()
+        if (apiKey == null) {
+            Log.e(TAG, "API key is null")
+            Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
+            return
         }
 
-        BubbleService.onListeningStopped = {
-            Log.d(TAG, "Bubble listening stopped callback")
-            transcriptionManager?.stopListening()
+        try {
+            transcriptionManager = TranscriptionManager(
+                apiKey = apiKey,
+                onTranscript = { text, isFinal ->
+                    Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
+                    if (isFinal && text.isNotBlank()) {
+                        DictationAccessibilityService.inject(text + " ")
+                    }
+                },
+                onError = { error ->
+                    Log.e(TAG, "Transcription error: $error")
+                    runOnUiThread {
+                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                    }
+                },
+                onStateChange = { state ->
+                    Log.d(TAG, "Transcription state changed: $state")
+                    val bubbleState = when (state) {
+                        TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
+                        TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
+                        TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleService.BubbleState.RECORDING
+                        TranscriptionManager.TranscriptionState.ERROR -> BubbleService.BubbleState.IDLE
+                    }
+                    BubbleService.updateBubbleState(this, bubbleState)
+                },
+                context = this
+            )
+
+            // Connect bubble callbacks to transcription manager
+            BubbleService.onListeningStarted = {
+                Log.d(TAG, "Bubble listening started callback")
+                try {
+                    transcriptionManager?.startListening()
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception starting listening", e)
+                    runOnUiThread {
+                        Toast.makeText(this, "Microphone permission denied", Toast.LENGTH_SHORT).show()
+                        stopDictation()
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting listening", e)
+                    runOnUiThread {
+                        Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+                        stopDictation()
+                    }
+                }
+            }
+
+            BubbleService.onListeningStopped = {
+                Log.d(TAG, "Bubble listening stopped callback")
+                try {
+                    transcriptionManager?.stopListening()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error stopping listening", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error initializing transcription manager", e)
+            Toast.makeText(this, "Failed to initialize: ${e.message}", Toast.LENGTH_SHORT).show()
+            stopDictation()
         }
     }
 

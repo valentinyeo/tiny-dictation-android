@@ -1,8 +1,11 @@
 package com.tinydictation.android.transcription
 
 import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.vad.VADResult
 import com.tinydictation.android.vad.VoiceActivityDetector
@@ -31,7 +34,8 @@ class TranscriptionManager(
     private val apiKey: String,
     private val onTranscript: (text: String, isFinal: Boolean) -> Unit,
     private val onError: ((String) -> Unit)? = null,
-    private val onStateChange: ((TranscriptionState) -> Unit)? = null
+    private val onStateChange: ((TranscriptionState) -> Unit)? = null,
+    private val context: Context? = null
 ) {
 
     companion object {
@@ -82,6 +86,20 @@ class TranscriptionManager(
             return
         }
 
+        // Runtime permission check
+        if (context != null) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e(TAG, "RECORD_AUDIO permission not granted")
+                updateState(TranscriptionState.ERROR)
+                onError?.invoke("Microphone permission not granted")
+                return
+            }
+        }
+
         if (apiKey.isBlank()) {
             Log.e(TAG, "Cannot start listening - API key is blank")
             updateState(TranscriptionState.ERROR)
@@ -98,8 +116,24 @@ class TranscriptionManager(
 
         updateState(TranscriptionState.LISTENING)
 
-        audioRecorder.startRecording(scope!!) { samples ->
-            processAudioChunk(samples)
+        val currentScope = scope
+        if (currentScope == null) {
+            Log.e(TAG, "Failed to create coroutine scope")
+            updateState(TranscriptionState.ERROR)
+            onError?.invoke("Failed to initialize transcription manager")
+            return
+        }
+
+        try {
+            audioRecorder.startRecording(currentScope) { samples ->
+                processAudioChunk(samples)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start audio recording", e)
+            updateState(TranscriptionState.ERROR)
+            onError?.invoke("Failed to start audio recording: ${e.message}")
+            scope?.cancel()
+            scope = null
         }
     }
 

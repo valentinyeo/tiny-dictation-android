@@ -14,10 +14,10 @@
     <color name="error">#F2B8B5</color>
     <color name="on_error">#FFFFFF</color>
 
-    <!-- Surface (Dark Mode) -->
-    <color name="surface">#1C1B1F</color>
+    <!-- Surface (Dark Mode) - Using Material Design 3 dark mode standards -->
+    <color name="surface">#121212</color>
     <color name="on_surface">#E6E1E5</color>
-    <color name="surface_variant">#2B2930</color>
+    <color name="surface_variant">#1E1E1E</color>
     <color name="on_surface_variant">#CAC4D0</color>
 
     <!-- Outline (Dark Mode) -->
@@ -29,9 +29,9 @@
     <color name="bubble_recording">#EF5350</color>
     <color name="bubble_processing">#FFB74D</color>
 
-    <!-- Text colors for better readability - full opacity, no alpha -->
+    <!-- Text colors for better readability - full opacity, high contrast -->
     <color name="text_primary">#FFFFFF</color>
     <color name="text_secondary">#E0E0E0</color>
-    <color name="text_tertiary">#B0B0B0</color>
+    <color name="text_tertiary">#BDBDBD</color>
     <color name="bubble_text">#FFFFFF</color>
 </resources>
