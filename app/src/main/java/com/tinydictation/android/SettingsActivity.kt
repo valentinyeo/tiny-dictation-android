@@ -28,6 +28,24 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
     private lateinit var versionInfo: TextView
+    private lateinit var changelog: TextView
+
+    companion object {
+        // Changelog - update this with each version
+        private val CHANGELOG = """
+            v1.3.0:
+            • Version displayed on main screen
+            • Changelog in Settings (What's New)
+
+            v1.2.0:
+            • Version display in Settings
+            • Auto-start listening on Start
+            • Uses phone mic (not headphones)
+            • Improved speech detection
+            • Double-tap bubble to close
+            • Copy debug log from Settings
+        """.trimIndent()
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,13 +66,15 @@ class SettingsActivity : AppCompatActivity() {
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         saveButton = findViewById(R.id.btnSave)
         versionInfo = findViewById(R.id.tvVersionInfo)
+        changelog = findViewById(R.id.tvChangelog)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.settings_title)
 
-        // Display version info
+        // Display version info and changelog
         displayVersionInfo()
+        changelog.text = CHANGELOG
     }
 
     private fun displayVersionInfo() {

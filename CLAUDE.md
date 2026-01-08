@@ -12,9 +12,15 @@
    - `TinyDictation-v{versionName}-{gitShortHash}.apk`
    - Example: `TinyDictation-v1.2.0-e6da897.apk`
 
-3. **Version display**: Version is shown in Settings screen at the bottom
+3. **Version display**: Version is shown in:
+   - Main screen (bottom): "v1.3.0"
+   - Settings screen (About section): "Version 1.3.0 (6)"
 
-4. **Telegram notifications**: Include version in build notifications
+4. **Changelog**: Update changelog in `SettingsActivity.kt` companion object
+   - Add new version at the top with bullet points
+   - Keep previous versions for history
+
+5. **Telegram notifications**: Include version in build notifications
 
 ## When to bump version
 

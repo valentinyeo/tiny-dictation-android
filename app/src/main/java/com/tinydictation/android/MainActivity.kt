@@ -6,12 +6,14 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.ImageView
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -48,6 +50,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var accessibilityButton: MaterialButton
     private lateinit var startButton: MaterialButton
     private lateinit var settingsButton: MaterialButton
+    private lateinit var versionInfo: TextView
 
     private val requestMicrophonePermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -93,6 +96,24 @@ class MainActivity : AppCompatActivity() {
 
         startButton = findViewById(R.id.btnStartDictation)
         settingsButton = findViewById(R.id.btnSettings)
+        versionInfo = findViewById(R.id.tvVersionInfo)
+
+        // Display version info
+        displayVersionInfo()
+    }
+
+    private fun displayVersionInfo() {
+        try {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            versionInfo.text = "v${packageInfo.versionName}"
+        } catch (e: PackageManager.NameNotFoundException) {
+            versionInfo.text = ""
+        }
     }
 
     private fun setupClickListeners() {

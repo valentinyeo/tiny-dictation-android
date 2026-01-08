@@ -285,6 +285,17 @@
                 android:text="@string/open_settings"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
 
+            <!-- Version Info -->
+            <TextView
+                android:id="@+id/tvVersionInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="v1.2.0" />
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
