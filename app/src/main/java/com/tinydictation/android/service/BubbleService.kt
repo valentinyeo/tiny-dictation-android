@@ -117,6 +117,10 @@ class BubbleService : LifecycleService() {
         val inflater = LayoutInflater.from(this)
         bubbleView = inflater.inflate(R.layout.view_bubble, null)
 
+        // Get screen width to position bubble on the right side
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+
         bubbleParams = WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
@@ -126,8 +130,8 @@ class BubbleService : LifecycleService() {
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = 100
-            y = 200
+            x = screenWidth - 150  // Position on right side
+            y = 300  // A bit below the status bar
         }
 
         bubbleView?.setOnTouchListener { view, event ->

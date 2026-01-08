@@ -39,11 +39,15 @@
             android:layout_marginTop="4dp"
             android:text="@string/bubble_idle"
             android:textAppearance="?attr/textAppearanceLabelSmall"
-            android:textColor="@color/bubble_text"
-            android:background="@drawable/bubble_background"
+            android:textColor="@android:color/white"
+            android:background="@android:color/transparent"
             android:paddingHorizontal="8dp"
             android:paddingVertical="2dp"
             android:visibility="gone"
+            android:shadowColor="@android:color/black"
+            android:shadowDx="1"
+            android:shadowDy="1"
+            android:shadowRadius="2"
             tools:visibility="visible" />
 
     </LinearLayout>

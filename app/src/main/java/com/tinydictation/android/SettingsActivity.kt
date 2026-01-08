@@ -33,17 +33,19 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.1:
+            • Fixed bubble display (no more double bubble)
+            • Bubble now appears on right side of screen
+
             v1.3.0:
             • Version displayed on main screen
             • Changelog in Settings (What's New)
 
             v1.2.0:
-            • Version display in Settings
             • Auto-start listening on Start
             • Uses phone mic (not headphones)
             • Improved speech detection
             • Double-tap bubble to close
-            • Copy debug log from Settings
         """.trimIndent()
     }
 
