@@ -53,12 +53,18 @@ jobs:
       - name: Get version info
         id: version
         run: |
+          # Extract versionName from build.gradle.kts
+          VERSION_NAME=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+          VERSION_CODE=$(grep 'versionCode' app/build.gradle.kts | head -1 | sed 's/[^0-9]*//g')
+          echo "version_name=${VERSION_NAME}" >> $GITHUB_OUTPUT
+          echo "version_code=${VERSION_CODE}" >> $GITHUB_OUTPUT
           echo "date=$(date +'%Y-%m-%d_%H-%M')" >> $GITHUB_OUTPUT
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "Extracted version: ${VERSION_NAME} (code: ${VERSION_CODE})"
 
       - name: Rename APK
         run: |
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-${{ steps.version.outputs.date }}-${{ steps.version.outputs.sha_short }}.apk
+          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -76,7 +82,7 @@ jobs:
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="*Tiny Dictation Build ${{ steps.version.outputs.sha_short }}*%0A%0A[Download APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+              -d text="*Tiny Dictation v${{ steps.version.outputs.version_name }}* (${{ steps.version.outputs.sha_short }})%0A%0A[Download APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
               -d parse_mode="Markdown"
           else
             echo "Telegram secrets not configured, skipping notification"

@@ -3,7 +3,10 @@ package com.tinydictation.android
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
+import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
@@ -24,6 +27,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
+    private lateinit var versionInfo: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,10 +47,35 @@ class SettingsActivity : AppCompatActivity() {
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         saveButton = findViewById(R.id.btnSave)
+        versionInfo = findViewById(R.id.tvVersionInfo)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
         supportActionBar?.title = getString(R.string.settings_title)
+
+        // Display version info
+        displayVersionInfo()
+    }
+
+    private fun displayVersionInfo() {
+        try {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            val versionName = packageInfo.versionName
+            val versionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                packageInfo.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageInfo.versionCode.toLong()
+            }
+            versionInfo.text = "Version $versionName ($versionCode)"
+        } catch (e: PackageManager.NameNotFoundException) {
+            versionInfo.text = "Version unknown"
+        }
     }
 
     private fun loadSettings() {

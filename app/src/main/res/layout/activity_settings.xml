@@ -254,6 +254,17 @@
                 android:textAppearance="?attr/textAppearanceTitleMedium"
                 style="@style/Widget.Material3.Button" />
 
+            <!-- Version Info -->
+            <TextView
+                android:id="@+id/tvVersionInfo"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceBodySmall"
+                android:textColor="?attr/colorOnSurfaceVariant"
+                tools:text="Version 1.1.2 (4)" />
+
         </LinearLayout>
 
     </androidx.core.widget.NestedScrollView>
