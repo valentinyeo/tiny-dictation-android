@@ -8,6 +8,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityManager
 import android.widget.ImageView
@@ -23,6 +24,10 @@ import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.PreferenceManager
 
 class MainActivity : AppCompatActivity() {
+
+    companion object {
+        private const val TAG = "TinyDictation"
+    }
 
     private lateinit var preferenceManager: PreferenceManager
     private var transcriptionManager: TranscriptionManager? = null
@@ -47,14 +52,17 @@ class MainActivity : AppCompatActivity() {
     private val requestMicrophonePermission = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { isGranted ->
+        Log.i(TAG, "Microphone permission result: $isGranted")
         updatePermissionStatus()
         if (!isGranted) {
+            Log.e(TAG, "Microphone permission denied")
             Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
         }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i(TAG, "MainActivity onCreate")
         setContentView(R.layout.activity_main)
 
         preferenceManager = PreferenceManager(this)
@@ -65,6 +73,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d(TAG, "MainActivity onResume")
         updatePermissionStatus()
         updateStartButton()
     }
@@ -88,10 +97,12 @@ class MainActivity : AppCompatActivity() {
 
     private fun setupClickListeners() {
         microphoneButton.setOnClickListener {
+            Log.d(TAG, "Microphone button clicked - requesting permission")
             requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
         }
 
         overlayButton.setOnClickListener {
+            Log.d(TAG, "Overlay button clicked - opening settings")
             val intent = Intent(
                 Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
                 Uri.parse("package:$packageName")
@@ -100,6 +111,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         accessibilityButton.setOnClickListener {
+            Log.d(TAG, "Accessibility button clicked - opening settings")
             val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
             startActivity(intent)
             Toast.makeText(
@@ -110,25 +122,31 @@ class MainActivity : AppCompatActivity() {
         }
 
         startButton.setOnClickListener {
+            Log.d(TAG, "Start/Stop button clicked")
             if (allPermissionsGranted()) {
                 if (!preferenceManager.hasApiKey()) {
+                    Log.e(TAG, "No API key configured")
                     Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
                     startActivity(Intent(this, SettingsActivity::class.java))
                     return@setOnClickListener
                 }
 
                 if (BubbleService.isRunning()) {
+                    Log.i(TAG, "Stopping dictation")
                     stopDictation()
                 } else {
+                    Log.i(TAG, "Starting dictation")
                     startDictation()
                 }
                 updateStartButton()
             } else {
+                Log.e(TAG, "Cannot start - missing permissions")
                 Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
             }
         }
 
         settingsButton.setOnClickListener {
+            Log.d(TAG, "Settings button clicked")
             startActivity(Intent(this, SettingsActivity::class.java))
         }
     }
@@ -138,15 +156,18 @@ class MainActivity : AppCompatActivity() {
         val hasMicrophone = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
+        Log.d(TAG, "Permission status - Microphone: $hasMicrophone")
 
         updatePermissionCard(microphoneIcon, microphoneButton, hasMicrophone)
 
         // Overlay permission
         val hasOverlay = Settings.canDrawOverlays(this)
+        Log.d(TAG, "Permission status - Overlay: $hasOverlay")
         updatePermissionCard(overlayIcon, overlayButton, hasOverlay)
 
         // Accessibility service
         val hasAccessibility = isAccessibilityServiceEnabled()
+        Log.d(TAG, "Permission status - Accessibility: $hasAccessibility")
         updatePermissionCard(accessibilityIcon, accessibilityButton, hasAccessibility)
     }
 
@@ -196,6 +217,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun startDictation() {
+        Log.i(TAG, "Starting dictation service")
         BubbleService.start(this)
 
         // Set up transcription manager with callbacks
@@ -204,16 +226,19 @@ class MainActivity : AppCompatActivity() {
         transcriptionManager = TranscriptionManager(
             apiKey = apiKey,
             onTranscript = { text, isFinal ->
+                Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 if (isFinal && text.isNotBlank()) {
                     DictationAccessibilityService.inject(text + " ")
                 }
             },
             onError = { error ->
+                Log.e(TAG, "Transcription error: $error")
                 runOnUiThread {
                     Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
                 }
             },
             onStateChange = { state ->
+                Log.d(TAG, "Transcription state changed: $state")
                 val bubbleState = when (state) {
                     TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
                     TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
@@ -226,15 +251,18 @@ class MainActivity : AppCompatActivity() {
 
         // Connect bubble callbacks to transcription manager
         BubbleService.onListeningStarted = {
+            Log.d(TAG, "Bubble listening started callback")
             transcriptionManager?.startListening()
         }
 
         BubbleService.onListeningStopped = {
+            Log.d(TAG, "Bubble listening stopped callback")
             transcriptionManager?.stopListening()
         }
     }
 
     private fun stopDictation() {
+        Log.i(TAG, "Stopping dictation service")
         transcriptionManager?.stopListening()
         transcriptionManager = null
         BubbleService.stop(this)

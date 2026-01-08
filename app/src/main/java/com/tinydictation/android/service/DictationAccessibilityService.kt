@@ -7,6 +7,7 @@ import android.content.Context
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
+import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.CoroutineScope
@@ -21,10 +22,65 @@ import kotlinx.coroutines.launch
  */
 class DictationAccessibilityService : AccessibilityService() {
 
+    companion object {
+        private const val TAG = "TinyDictation"
+
+        @Volatile
+        private var instance: DictationAccessibilityService? = null
+
+        /**
+         * Gets the current service instance, if available.
+         */
+        fun getInstance(): DictationAccessibilityService? = instance
+
+        /**
+         * Checks if the accessibility service is enabled in system settings.
+         *
+         * @param context Application context
+         * @return true if the service is enabled, false otherwise
+         */
+        fun isServiceEnabled(context: Context): Boolean {
+            val serviceName = "${context.packageName}/${DictationAccessibilityService::class.java.canonicalName}"
+
+            val enabledServices = try {
+                Settings.Secure.getString(
+                    context.contentResolver,
+                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
+                )
+            } catch (e: Exception) {
+                null
+            }
+
+            return enabledServices?.contains(serviceName) == true
+        }
+
+        /**
+         * Checks if the service is currently running and connected.
+         *
+         * @return true if the service is active, false otherwise
+         */
+        fun isServiceRunning(): Boolean = instance != null
+
+        /**
+         * Convenience method to inject text if service is available.
+         *
+         * @param text The text to inject
+         * @return true if successful, false if service unavailable or injection failed
+         */
+        fun inject(text: String): Boolean {
+            Log.d(TAG, "Inject requested: $text")
+            return instance?.injectText(text) ?: run {
+                Log.e(TAG, "Cannot inject text - accessibility service not running")
+                false
+            }
+        }
+    }
+
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onServiceConnected() {
         super.onServiceConnected()
+        Log.i(TAG, "DictationAccessibilityService connected")
         instance = this
     }
 
@@ -35,11 +91,13 @@ class DictationAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        Log.w(TAG, "DictationAccessibilityService interrupted")
         // Handle service interruption if needed
     }
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.i(TAG, "DictationAccessibilityService destroyed")
         serviceScope.cancel()
         instance = null
     }
@@ -52,13 +110,20 @@ class DictationAccessibilityService : AccessibilityService() {
      * @return true if text was successfully injected, false otherwise
      */
     fun injectText(text: String): Boolean {
-        val focusedNode = findFocusedEditableNode() ?: return false
+        Log.d(TAG, "Injecting text: $text")
+        val focusedNode = findFocusedEditableNode()
+        if (focusedNode == null) {
+            Log.e(TAG, "Cannot inject text - no focused editable field found")
+            return false
+        }
 
         return try {
             val success = injectTextWithSetText(focusedNode, text)
             if (!success) {
+                Log.d(TAG, "ACTION_SET_TEXT failed, trying clipboard method")
                 injectTextWithClipboard(focusedNode, text)
             } else {
+                Log.i(TAG, "Text injected successfully using ACTION_SET_TEXT")
                 true
             }
         } finally {
@@ -132,6 +197,7 @@ class DictationAccessibilityService : AccessibilityService() {
             "$existingText$text"
         }
 
+        Log.d(TAG, "Setting text via ACTION_SET_TEXT: $newText")
         val arguments = Bundle().apply {
             putCharSequence(
                 AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
@@ -147,6 +213,7 @@ class DictationAccessibilityService : AccessibilityService() {
      * Used when ACTION_SET_TEXT is not supported.
      */
     private fun injectTextWithClipboard(node: AccessibilityNodeInfo, text: String): Boolean {
+        Log.d(TAG, "Using clipboard method for text injection")
         val clipboardManager = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
 
         // Save current clipboard content to restore later
@@ -174,6 +241,7 @@ class DictationAccessibilityService : AccessibilityService() {
 
             // Perform paste
             val pasteSuccess = node.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            Log.i(TAG, "Clipboard paste ${if (pasteSuccess) "succeeded" else "failed"}")
 
             // Restore previous clipboard content
             if (previousClip != null) {
@@ -182,56 +250,10 @@ class DictationAccessibilityService : AccessibilityService() {
 
             pasteSuccess
         } catch (e: Exception) {
+            Log.e(TAG, "Error during clipboard text injection", e)
             e.printStackTrace()
             false
         }
     }
 
-    companion object {
-        @Volatile
-        private var instance: DictationAccessibilityService? = null
-
-        /**
-         * Gets the current service instance, if available.
-         */
-        fun getInstance(): DictationAccessibilityService? = instance
-
-        /**
-         * Checks if the accessibility service is enabled in system settings.
-         *
-         * @param context Application context
-         * @return true if the service is enabled, false otherwise
-         */
-        fun isServiceEnabled(context: Context): Boolean {
-            val serviceName = "${context.packageName}/${DictationAccessibilityService::class.java.canonicalName}"
-
-            val enabledServices = try {
-                Settings.Secure.getString(
-                    context.contentResolver,
-                    Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-                )
-            } catch (e: Exception) {
-                null
-            }
-
-            return enabledServices?.contains(serviceName) == true
-        }
-
-        /**
-         * Checks if the service is currently running and connected.
-         *
-         * @return true if the service is active, false otherwise
-         */
-        fun isServiceRunning(): Boolean = instance != null
-
-        /**
-         * Convenience method to inject text if service is available.
-         *
-         * @param text The text to inject
-         * @return true if successful, false if service unavailable or injection failed
-         */
-        fun inject(text: String): Boolean {
-            return instance?.injectText(text) ?: false
-        }
-    }
 }

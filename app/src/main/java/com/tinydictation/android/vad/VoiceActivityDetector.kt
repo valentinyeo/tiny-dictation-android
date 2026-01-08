@@ -1,5 +1,6 @@
 package com.tinydictation.android.vad
 
+import android.util.Log
 import kotlin.math.sqrt
 
 /**
@@ -40,6 +41,8 @@ class VoiceActivityDetector(
 ) {
 
     companion object {
+        private const val TAG = "TinyDictation"
+
         /** Default RMS threshold for detecting speech */
         const val DEFAULT_SPEECH_THRESHOLD = 500
 
@@ -73,6 +76,7 @@ class VoiceActivityDetector(
             !isSpeaking -> {
                 if (rms >= speechThreshold) {
                     // Speech detected - start speaking
+                    Log.i(TAG, "VAD: Speech detected (RMS=$rms >= threshold=$speechThreshold)")
                     isSpeaking = true
                     silenceDurationAccumulated = 0
                     VADResult.SPEECH_START
@@ -93,6 +97,7 @@ class VoiceActivityDetector(
 
                     if (silenceDurationAccumulated >= silenceDurationMs) {
                         // Enough silence accumulated - end speech
+                        Log.i(TAG, "VAD: Silence detected (${silenceDurationAccumulated}ms accumulated)")
                         isSpeaking = false
                         silenceDurationAccumulated = 0
                         VADResult.SPEECH_END
@@ -130,6 +135,7 @@ class VoiceActivityDetector(
      * Call this when starting a new recording session.
      */
     fun reset() {
+        Log.d(TAG, "VAD: Resetting detector")
         isSpeaking = false
         silenceDurationAccumulated = 0
     }

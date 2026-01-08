@@ -8,6 +8,7 @@ import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -50,6 +51,7 @@ class BubbleService : LifecycleService() {
 
     override fun onCreate() {
         super.onCreate()
+        Log.i(TAG, "BubbleService onCreate")
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
@@ -59,17 +61,20 @@ class BubbleService : LifecycleService() {
 
         when (intent?.action) {
             ACTION_STOP -> {
+                Log.i(TAG, "BubbleService received STOP action")
                 stopSelf()
                 return START_NOT_STICKY
             }
             ACTION_UPDATE_STATE -> {
                 val stateOrdinal = intent.getIntExtra(EXTRA_STATE, BubbleState.IDLE.ordinal)
                 val newState = BubbleState.entries.getOrElse(stateOrdinal) { BubbleState.IDLE }
+                Log.d(TAG, "BubbleService updating state to: $newState")
                 updateState(newState)
                 return START_STICKY
             }
         }
 
+        Log.i(TAG, "BubbleService starting foreground")
         startForeground(NOTIFICATION_ID, createNotification())
         createBubble()
 
@@ -78,6 +83,7 @@ class BubbleService : LifecycleService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        Log.i(TAG, "BubbleService onDestroy")
         removeBubble()
         instance = null
     }
@@ -92,8 +98,12 @@ class BubbleService : LifecycleService() {
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun createBubble() {
-        if (bubbleView != null) return
+        if (bubbleView != null) {
+            Log.d(TAG, "Bubble already exists, skipping creation")
+            return
+        }
 
+        Log.i(TAG, "Creating bubble overlay")
         val inflater = LayoutInflater.from(this)
         bubbleView = inflater.inflate(R.layout.view_bubble, null)
 
@@ -117,7 +127,9 @@ class BubbleService : LifecycleService() {
         try {
             windowManager.addView(bubbleView, bubbleParams)
             updateBubbleUI()
+            Log.i(TAG, "Bubble created successfully")
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to create bubble", e)
             e.printStackTrace()
         }
     }
@@ -178,19 +190,23 @@ class BubbleService : LifecycleService() {
      * Toggles the listening state.
      */
     private fun onBubbleTapped() {
+        Log.d(TAG, "Bubble tapped - current state: $currentState")
         lifecycleScope.launch {
             when (currentState) {
                 BubbleState.IDLE -> {
+                    Log.i(TAG, "Starting listening from bubble tap")
                     // Start listening - communicate with TranscriptionManager
                     updateState(BubbleState.LISTENING)
                     onListeningStarted?.invoke()
                 }
                 BubbleState.LISTENING, BubbleState.RECORDING -> {
+                    Log.i(TAG, "Stopping listening from bubble tap")
                     // Stop listening
                     updateState(BubbleState.IDLE)
                     onListeningStopped?.invoke()
                 }
                 BubbleState.PROCESSING -> {
+                    Log.d(TAG, "Bubble tap ignored - currently processing")
                     // Don't allow interaction while processing
                 }
             }
@@ -201,6 +217,7 @@ class BubbleService : LifecycleService() {
      * Updates the bubble state and refreshes the UI.
      */
     fun updateState(newState: BubbleState) {
+        Log.d(TAG, "Bubble state changed: $currentState -> $newState")
         currentState = newState
         updateBubbleUI()
     }
@@ -251,8 +268,10 @@ class BubbleService : LifecycleService() {
     private fun removeBubble() {
         bubbleView?.let { view ->
             try {
+                Log.i(TAG, "Removing bubble overlay")
                 windowManager.removeView(view)
             } catch (e: Exception) {
+                Log.e(TAG, "Failed to remove bubble", e)
                 e.printStackTrace()
             }
         }
@@ -308,6 +327,7 @@ class BubbleService : LifecycleService() {
     }
 
     companion object {
+        private const val TAG = "TinyDictation"
         private const val NOTIFICATION_ID = 1001
         private const val ACTION_STOP = "com.tinydictation.android.action.STOP"
         private const val ACTION_UPDATE_STATE = "com.tinydictation.android.action.UPDATE_STATE"
@@ -335,6 +355,7 @@ class BubbleService : LifecycleService() {
          * Starts the bubble service.
          */
         fun start(context: Context) {
+            Log.i(TAG, "Starting BubbleService")
             val intent = Intent(context, BubbleService::class.java)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 context.startForegroundService(intent)
@@ -347,6 +368,7 @@ class BubbleService : LifecycleService() {
          * Stops the bubble service.
          */
         fun stop(context: Context) {
+            Log.i(TAG, "Stopping BubbleService")
             val intent = Intent(context, BubbleService::class.java).apply {
                 action = ACTION_STOP
             }

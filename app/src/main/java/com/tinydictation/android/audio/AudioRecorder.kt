@@ -4,6 +4,7 @@ import android.Manifest
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,6 +20,8 @@ import kotlinx.coroutines.withContext
 class AudioRecorder {
 
     companion object {
+        private const val TAG = "TinyDictation"
+
         /** Sample rate required by Deepgram */
         const val SAMPLE_RATE = 16000
 
@@ -67,10 +70,13 @@ class AudioRecorder {
         onAudioChunk: (ShortArray) -> Unit
     ) {
         if (isRecording) {
+            Log.d(TAG, "AudioRecorder already recording, ignoring start request")
             return
         }
 
+        Log.i(TAG, "Starting audio recording at $SAMPLE_RATE Hz")
         val bufferSize = getMinBufferSize()
+        Log.d(TAG, "Audio buffer size: $bufferSize bytes")
 
         audioRecord = AudioRecord(
             MediaRecorder.AudioSource.MIC,
@@ -81,6 +87,7 @@ class AudioRecorder {
         ).also { record ->
             if (record.state != AudioRecord.STATE_INITIALIZED) {
                 record.release()
+                Log.e(TAG, "Failed to initialize AudioRecord")
                 throw IllegalStateException("Failed to initialize AudioRecord")
             }
         }
@@ -90,6 +97,7 @@ class AudioRecorder {
         recordingJob = scope.launch {
             withContext(Dispatchers.IO) {
                 audioRecord?.startRecording()
+                Log.i(TAG, "AudioRecord started successfully")
 
                 val buffer = ShortArray(SAMPLES_PER_CHUNK)
 
@@ -102,14 +110,17 @@ class AudioRecorder {
 
                     when {
                         readResult == AudioRecord.ERROR_INVALID_OPERATION -> {
+                            Log.e(TAG, "AudioRecord read error: INVALID_OPERATION")
                             // AudioRecord is not properly initialized
                             break
                         }
                         readResult == AudioRecord.ERROR_BAD_VALUE -> {
+                            Log.e(TAG, "AudioRecord read error: BAD_VALUE")
                             // Invalid parameters
                             break
                         }
                         readResult == AudioRecord.ERROR_DEAD_OBJECT -> {
+                            Log.e(TAG, "AudioRecord read error: DEAD_OBJECT")
                             // AudioRecord has become invalid
                             break
                         }
@@ -119,11 +130,13 @@ class AudioRecorder {
                                 onAudioChunk(buffer.copyOf())
                             } else {
                                 // Partial read - still deliver what we got
+                                Log.d(TAG, "Partial audio read: $readResult samples")
                                 onAudioChunk(buffer.copyOf(readResult))
                             }
                         }
                     }
                 }
+                Log.i(TAG, "Audio recording loop ended")
             }
         }
     }
@@ -132,6 +145,12 @@ class AudioRecorder {
      * Stops audio recording and releases resources.
      */
     fun stopRecording() {
+        if (!isRecording) {
+            Log.d(TAG, "AudioRecorder not recording, ignoring stop request")
+            return
+        }
+
+        Log.i(TAG, "Stopping audio recording")
         isRecording = false
 
         recordingJob?.cancel()
@@ -141,8 +160,10 @@ class AudioRecorder {
             try {
                 if (record.recordingState == AudioRecord.RECORDSTATE_RECORDING) {
                     record.stop()
+                    Log.i(TAG, "AudioRecord stopped successfully")
                 }
             } catch (e: IllegalStateException) {
+                Log.e(TAG, "Error stopping AudioRecord", e)
                 // Already stopped, ignore
             }
             record.release()

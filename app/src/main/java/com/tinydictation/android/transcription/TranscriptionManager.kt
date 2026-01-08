@@ -1,6 +1,7 @@
 package com.tinydictation.android.transcription
 
 import android.Manifest
+import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.vad.VADResult
@@ -32,6 +33,10 @@ class TranscriptionManager(
     private val onError: ((String) -> Unit)? = null,
     private val onStateChange: ((TranscriptionState) -> Unit)? = null
 ) {
+
+    companion object {
+        private const val TAG = "TinyDictation"
+    }
 
     /**
      * Current state of the transcription manager.
@@ -73,15 +78,18 @@ class TranscriptionManager(
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startListening() {
         if (isListening) {
+            Log.d(TAG, "TranscriptionManager already listening")
             return
         }
 
         if (apiKey.isBlank()) {
+            Log.e(TAG, "Cannot start listening - API key is blank")
             updateState(TranscriptionState.ERROR)
             onError?.invoke("API key is not set")
             return
         }
 
+        Log.i(TAG, "TranscriptionManager starting listening")
         isListening = true
         voiceActivityDetector.reset()
         pendingAudioBuffer.clear()
@@ -100,9 +108,11 @@ class TranscriptionManager(
      */
     fun stopListening() {
         if (!isListening) {
+            Log.d(TAG, "TranscriptionManager not listening")
             return
         }
 
+        Log.i(TAG, "TranscriptionManager stopping listening")
         isListening = false
 
         audioRecorder.stopRecording()
@@ -131,6 +141,7 @@ class TranscriptionManager(
             }
 
             VADResult.SPEECH_START -> {
+                Log.i(TAG, "Speech start detected")
                 handleSpeechStart(samples)
             }
 
@@ -139,6 +150,7 @@ class TranscriptionManager(
             }
 
             VADResult.SPEECH_END -> {
+                Log.i(TAG, "Speech end detected")
                 handleSpeechEnd()
             }
         }
@@ -148,6 +160,7 @@ class TranscriptionManager(
      * Handles the start of speech - connects to Deepgram.
      */
     private fun handleSpeechStart(samples: ShortArray) {
+        Log.i(TAG, "Handling speech start - connecting to Deepgram")
         updateState(TranscriptionState.TRANSCRIBING)
 
         // Buffer this chunk while we connect
@@ -190,12 +203,14 @@ class TranscriptionManager(
                 isConnecting = false
 
                 if (deepgramClient.isConnected()) {
+                    Log.d(TAG, "Deepgram connected, sending ${pendingAudioBuffer.size} buffered chunks")
                     // Send all buffered audio
                     for (bufferedSamples in pendingAudioBuffer) {
                         sendAudioToDeepgram(bufferedSamples)
                     }
                     pendingAudioBuffer.clear()
                 } else {
+                    Log.e(TAG, "Deepgram connection failed, discarding buffered audio")
                     pendingAudioBuffer.clear()
                 }
             }
@@ -224,6 +239,7 @@ class TranscriptionManager(
      * Handles end of speech - closes Deepgram connection.
      */
     private fun handleSpeechEnd() {
+        Log.i(TAG, "Handling speech end - closing Deepgram connection")
         isConnecting = false
         pendingAudioBuffer.clear()
 
@@ -250,6 +266,7 @@ class TranscriptionManager(
      */
     private fun updateState(newState: TranscriptionState) {
         if (currentState != newState) {
+            Log.d(TAG, "Transcription state changed: $currentState -> $newState")
             currentState = newState
             onStateChange?.invoke(newState)
         }
