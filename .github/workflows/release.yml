@@ -4,12 +4,14 @@ on:
   push:
     tags:
       - 'v*'
+    branches:
+      - 'claude/**'
   workflow_dispatch:
     inputs:
       version:
         description: 'Version name (e.g., 1.0.0)'
         required: true
-        default: '1.0.0'
+        default: '1.1.0'
 
 jobs:
   release:
@@ -43,9 +45,14 @@ jobs:
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "version=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
             echo "tag=v${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
-          else
+          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
             echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
             echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+          else
+            # Extract version from build.gradle.kts
+            VERSION=$(grep 'versionName' app/build.gradle.kts | head -1 | sed 's/.*"\(.*\)".*/\1/')
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "tag=v$VERSION" >> $GITHUB_OUTPUT
           fi
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
