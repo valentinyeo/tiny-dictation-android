@@ -2,6 +2,13 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.1.2] - 2026-01-08
+
+### Fixed
+- **APK signing** - Configured release signing with consistent keystore for seamless updates
+
+---
+
 ## [1.1.1] - 2026-01-08
 
 ### Fixed
