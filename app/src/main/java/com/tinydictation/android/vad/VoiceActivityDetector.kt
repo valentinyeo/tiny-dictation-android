@@ -43,11 +43,11 @@ class VoiceActivityDetector(
     companion object {
         private const val TAG = "TinyDictation"
 
-        /** Default RMS threshold for detecting speech */
-        const val DEFAULT_SPEECH_THRESHOLD = 500
+        /** Default RMS threshold for detecting speech (lowered for better sensitivity) */
+        const val DEFAULT_SPEECH_THRESHOLD = 300
 
-        /** Default RMS threshold for detecting silence */
-        const val DEFAULT_SILENCE_THRESHOLD = 200
+        /** Default RMS threshold for detecting silence (lowered for better sensitivity) */
+        const val DEFAULT_SILENCE_THRESHOLD = 150
 
         /** Default silence duration to end speech (500ms) */
         const val DEFAULT_SILENCE_DURATION_MS = 500
@@ -62,6 +62,9 @@ class VoiceActivityDetector(
     /** Accumulated silence duration in milliseconds */
     private var silenceDurationAccumulated = 0
 
+    /** Counter for periodic RMS logging */
+    private var chunkCount = 0
+
     /**
      * Processes an audio chunk and returns the VAD result.
      *
@@ -70,6 +73,12 @@ class VoiceActivityDetector(
      */
     fun processSamples(samples: ShortArray): VADResult {
         val rms = calculateRMS(samples)
+        chunkCount++
+
+        // Log RMS values periodically (every 50 chunks = ~1 second)
+        if (chunkCount % 50 == 0) {
+            Log.d(TAG, "VAD: RMS=$rms (speech threshold=$speechThreshold, silence threshold=$silenceThreshold, speaking=$isSpeaking)")
+        }
 
         return when {
             // Currently not speaking
@@ -81,6 +90,10 @@ class VoiceActivityDetector(
                     silenceDurationAccumulated = 0
                     VADResult.SPEECH_START
                 } else {
+                    // Log when we're close to threshold to help debug
+                    if (rms > speechThreshold * 0.5) {
+                        Log.d(TAG, "VAD: Close to threshold - RMS=$rms (need $speechThreshold)")
+                    }
                     VADResult.NO_SPEECH
                 }
             }
@@ -97,12 +110,13 @@ class VoiceActivityDetector(
 
                     if (silenceDurationAccumulated >= silenceDurationMs) {
                         // Enough silence accumulated - end speech
-                        Log.i(TAG, "VAD: Silence detected (${silenceDurationAccumulated}ms accumulated)")
+                        Log.i(TAG, "VAD: Silence detected (${silenceDurationAccumulated}ms accumulated, RMS=$rms)")
                         isSpeaking = false
                         silenceDurationAccumulated = 0
                         VADResult.SPEECH_END
                     } else {
                         // Not enough silence yet - continue speaking
+                        Log.d(TAG, "VAD: Silence accumulating - ${silenceDurationAccumulated}ms (need ${silenceDurationMs}ms)")
                         VADResult.SPEECH_CONTINUE
                     }
                 }
@@ -138,6 +152,7 @@ class VoiceActivityDetector(
         Log.d(TAG, "VAD: Resetting detector")
         isSpeaking = false
         silenceDurationAccumulated = 0
+        chunkCount = 0
     }
 
     /**

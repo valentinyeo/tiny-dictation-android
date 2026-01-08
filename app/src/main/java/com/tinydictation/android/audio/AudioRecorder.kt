@@ -41,6 +41,7 @@ class AudioRecorder {
     private var audioRecord: AudioRecord? = null
     private var recordingJob: Job? = null
     private var isRecording = false
+    private var chunksDelivered = 0
 
     /**
      * Calculates the minimum buffer size required for AudioRecord.
@@ -104,6 +105,7 @@ class AudioRecorder {
         }
 
         isRecording = true
+        chunksDelivered = 0
 
         recordingJob = scope.launch {
             withContext(Dispatchers.IO) {
@@ -115,7 +117,7 @@ class AudioRecorder {
                     }
 
                     record.startRecording()
-                    Log.i(TAG, "AudioRecord started successfully")
+                    Log.i(TAG, "AudioRecord started successfully - recording state: ${record.recordingState}")
 
                     val buffer = ShortArray(SAMPLES_PER_CHUNK)
 
@@ -144,6 +146,13 @@ class AudioRecorder {
                             }
                             readResult > 0 -> {
                                 // Successfully read audio data
+                                chunksDelivered++
+
+                                // Log periodically to confirm audio is flowing
+                                if (chunksDelivered % 100 == 0) {
+                                    Log.d(TAG, "AudioRecorder: Delivered $chunksDelivered audio chunks")
+                                }
+
                                 if (readResult == SAMPLES_PER_CHUNK) {
                                     onAudioChunk(buffer.copyOf())
                                 } else {
@@ -154,7 +163,7 @@ class AudioRecorder {
                             }
                         }
                     }
-                    Log.i(TAG, "Audio recording loop ended")
+                    Log.i(TAG, "Audio recording loop ended - delivered $chunksDelivered total chunks")
                 } catch (e: IllegalStateException) {
                     Log.e(TAG, "AudioRecord illegal state during recording", e)
                 } catch (e: Exception) {

@@ -21,7 +21,7 @@ object DebugLog {
      * Log levels for categorizing entries.
      */
     enum class Level {
-        DEBUG, INFO, ERROR
+        DEBUG, INFO, WARN, ERROR
     }
 
     /**
@@ -51,6 +51,13 @@ object DebugLog {
      */
     fun i(message: String) {
         addEntry(Level.INFO, message)
+    }
+
+    /**
+     * Adds a WARN level log entry.
+     */
+    fun w(message: String) {
+        addEntry(Level.WARN, message)
     }
 
     /**

@@ -48,6 +48,8 @@ class DeepgramClient {
     private var webSocket: WebSocket? = null
     private var okHttpClient: OkHttpClient? = null
     private var isConnected = false
+    private var audioBytesSent = 0
+    private var audioChunksSent = 0
 
     // Callbacks
     private var onInterimCallback: ((String) -> Unit)? = null
@@ -89,6 +91,8 @@ class DeepgramClient {
         onInterimCallback = onInterim
         onFinalCallback = onFinal
         onErrorCallback = onError
+        audioBytesSent = 0
+        audioChunksSent = 0
 
         try {
             val client = OkHttpClient.Builder()
@@ -127,7 +131,12 @@ class DeepgramClient {
             }
 
             override fun onMessage(webSocket: WebSocket, text: String) {
-                Log.d(TAG, "Received Deepgram message: ${text.take(100)}...")
+                if (text.length > 100) {
+                    Log.d(TAG, "Received Deepgram message: ${text.take(100)}...")
+                } else {
+                    Log.d(TAG, "Received Deepgram message: $text")
+                }
+                DebugLog.d("DeepgramClient: Received message (${text.length} chars)")
                 parseAndDispatchMessage(text)
             }
 
@@ -201,13 +210,16 @@ class DeepgramClient {
                     val transcript = firstAlternative.optString("transcript", "")
                     if (transcript.isNotEmpty()) {
                         val isFinal = json.optBoolean("is_final", false)
-                        Log.d(TAG, "Transcript (final=$isFinal): $transcript")
+                        Log.i(TAG, "Transcript (final=$isFinal): $transcript")
+                        DebugLog.i("DeepgramClient: Transcript received - final=$isFinal, text='$transcript'")
 
                         if (isFinal) {
                             onFinalCallback?.invoke(transcript)
                         } else {
                             onInterimCallback?.invoke(transcript)
                         }
+                    } else {
+                        Log.d(TAG, "Received empty transcript")
                     }
                 }
             }
@@ -247,20 +259,38 @@ class DeepgramClient {
     fun sendAudio(audioBytes: ByteArray): Boolean {
         val socket = webSocket
         if (!isConnected || socket == null) {
-            Log.d(TAG, "Cannot send audio - not connected")
+            Log.d(TAG, "Cannot send audio - not connected (isConnected=$isConnected, socket=$socket)")
+            DebugLog.d("DeepgramClient: Cannot send audio - not connected")
             return false
         }
 
         return try {
             socket.send(audioBytes.toByteString())
+            audioBytesSent += audioBytes.size
+            audioChunksSent++
+
+            // Log periodically (every 50 chunks = ~1 second at 20ms chunks)
+            if (audioChunksSent % 50 == 0) {
+                Log.d(TAG, "DeepgramClient: Sent $audioChunksSent chunks ($audioBytesSent bytes total)")
+                DebugLog.d("DeepgramClient: Sent $audioChunksSent chunks")
+            }
+
+            // Log first chunk to confirm sending works
+            if (audioChunksSent == 1) {
+                Log.i(TAG, "DeepgramClient: First audio chunk sent successfully (${audioBytes.size} bytes)")
+                DebugLog.i("DeepgramClient: First audio chunk sent (${audioBytes.size} bytes)")
+            }
+
             true
         } catch (e: IllegalStateException) {
             Log.e(TAG, "WebSocket in invalid state", e)
+            DebugLog.e("DeepgramClient: WebSocket invalid state - ${e.message}")
             onErrorCallback?.invoke("Connection error: ${e.message}")
             isConnected = false
             false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send audio", e)
+            DebugLog.e("DeepgramClient: Failed to send audio - ${e.message}")
             onErrorCallback?.invoke("Failed to send audio: ${e.message}")
             false
         }
@@ -271,8 +301,8 @@ class DeepgramClient {
      * Sends a close frame and cleans up resources.
      */
     fun close() {
-        Log.i(TAG, "Closing Deepgram WebSocket connection")
-        DebugLog.i("DeepgramClient: Closing WebSocket connection")
+        Log.i(TAG, "Closing Deepgram WebSocket connection (sent $audioChunksSent chunks, $audioBytesSent bytes)")
+        DebugLog.i("DeepgramClient: Closing WebSocket connection (sent $audioChunksSent chunks)")
         isConnected = false
 
         val socket = webSocket

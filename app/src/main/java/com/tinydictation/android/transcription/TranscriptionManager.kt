@@ -114,6 +114,9 @@ class TranscriptionManager(
         isListening = true
         voiceActivityDetector.reset()
         pendingAudioBuffer.clear()
+        audioChunkCount = 0
+        speechContinueCount = 0
+        audioSentCount = 0
 
         scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -166,13 +169,30 @@ class TranscriptionManager(
         updateState(TranscriptionState.IDLE)
     }
 
+    /** Counter for tracking audio chunks */
+    private var audioChunkCount = 0
+
     /**
      * Processes an audio chunk through VAD and handles state transitions.
      */
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
 
+        audioChunkCount++
+
+        // Log audio chunk reception periodically (every 50 chunks = ~1 second)
+        if (audioChunkCount % 50 == 0) {
+            Log.d(TAG, "TranscriptionManager: Processed $audioChunkCount audio chunks (${samples.size} samples)")
+            DebugLog.d("TranscriptionManager: Processed $audioChunkCount chunks")
+        }
+
         val vadResult = voiceActivityDetector.processSamples(samples)
+
+        // Log VAD results (except NO_SPEECH to avoid spam)
+        if (vadResult != VADResult.NO_SPEECH) {
+            Log.d(TAG, "TranscriptionManager: VAD result = $vadResult")
+            DebugLog.d("TranscriptionManager: VAD result = $vadResult")
+        }
 
         when (vadResult) {
             VADResult.NO_SPEECH -> {
@@ -260,13 +280,24 @@ class TranscriptionManager(
         }
     }
 
+    /** Counter for speech continue events */
+    private var speechContinueCount = 0
+
     /**
      * Handles continuing speech - streams audio to Deepgram.
      */
     private fun handleSpeechContinue(samples: ShortArray) {
+        speechContinueCount++
+
         if (isConnecting) {
             // Still connecting - buffer the audio
             pendingAudioBuffer.add(samples.copyOf())
+
+            // Log buffering periodically
+            if (pendingAudioBuffer.size % 10 == 0) {
+                Log.d(TAG, "Buffering audio while connecting - ${pendingAudioBuffer.size} chunks buffered")
+                DebugLog.d("TranscriptionManager: Buffering ${pendingAudioBuffer.size} chunks")
+            }
 
             // Limit buffer size to prevent memory issues
             if (pendingAudioBuffer.size > 100) { // ~2 seconds of audio
@@ -275,6 +306,10 @@ class TranscriptionManager(
         } else if (deepgramClient.isConnected()) {
             // Send audio to Deepgram
             sendAudioToDeepgram(samples)
+        } else {
+            // Not connected and not connecting - this shouldn't happen
+            Log.w(TAG, "Speech continuing but Deepgram not connected (isConnecting=$isConnecting)")
+            DebugLog.w("TranscriptionManager: Speech continuing but not connected")
         }
     }
 
@@ -294,14 +329,28 @@ class TranscriptionManager(
         updateState(TranscriptionState.LISTENING)
     }
 
+    /** Counter for audio chunks sent to Deepgram */
+    private var audioSentCount = 0
+
     /**
      * Sends audio samples to Deepgram.
      */
     private fun sendAudioToDeepgram(samples: ShortArray) {
         val audioBytes = audioRecorder.shortArrayToByteArray(samples)
+        audioSentCount++
+
+        // Log first few sends to confirm it's working
+        if (audioSentCount <= 3) {
+            Log.d(TAG, "Sending audio chunk #$audioSentCount to Deepgram (${audioBytes.size} bytes)")
+            DebugLog.d("TranscriptionManager: Sending chunk #$audioSentCount to Deepgram")
+        }
 
         scope?.launch(Dispatchers.IO) {
-            deepgramClient.sendAudio(audioBytes)
+            val sent = deepgramClient.sendAudio(audioBytes)
+            if (!sent && audioSentCount <= 5) {
+                Log.w(TAG, "Failed to send audio chunk #$audioSentCount")
+                DebugLog.w("TranscriptionManager: Failed to send chunk #$audioSentCount")
+            }
         }
     }
 
