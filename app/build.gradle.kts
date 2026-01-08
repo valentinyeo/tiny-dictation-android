@@ -16,9 +16,9 @@ android {
     }
 
     signingConfigs {
-        create("release") {
-            val keystoreFile = System.getenv("KEYSTORE_FILE")
-            if (keystoreFile != null) {
+        val keystoreFile = System.getenv("KEYSTORE_FILE")
+        if (keystoreFile != null) {
+            create("release") {
                 storeFile = file(keystoreFile)
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS")
@@ -32,8 +32,9 @@ android {
             // Uses default debug signing
         }
         release {
-            isMinifyEnabled = false  // Disable minification for easier debugging
-            signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = false
+            // Use release signing if available, otherwise fall back to debug
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
