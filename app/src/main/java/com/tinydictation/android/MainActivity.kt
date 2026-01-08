@@ -25,7 +25,7 @@ import com.tinydictation.android.util.PreferenceManager
 class MainActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
-    private lateinit var transcriptionManager: TranscriptionManager
+    private var transcriptionManager: TranscriptionManager? = null
 
     // Permission cards
     private lateinit var microphoneCard: MaterialCardView
@@ -58,7 +58,6 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
 
         preferenceManager = PreferenceManager(this)
-        transcriptionManager = TranscriptionManager(this)
 
         initViews()
         setupClickListeners()
@@ -199,38 +198,45 @@ class MainActivity : AppCompatActivity() {
     private fun startDictation() {
         BubbleService.start(this)
 
-        // Set up transcription callbacks
+        // Set up transcription manager with callbacks
         val apiKey = preferenceManager.getApiKey() ?: return
-        transcriptionManager.apiKey = apiKey
 
-        transcriptionManager.onTranscript = { text, isFinal ->
-            if (isFinal && text.isNotBlank()) {
-                DictationAccessibilityService.inject(text + " ")
+        transcriptionManager = TranscriptionManager(
+            apiKey = apiKey,
+            onTranscript = { text, isFinal ->
+                if (isFinal && text.isNotBlank()) {
+                    DictationAccessibilityService.inject(text + " ")
+                }
+            },
+            onError = { error ->
+                runOnUiThread {
+                    Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onStateChange = { state ->
+                val bubbleState = when (state) {
+                    TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
+                    TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
+                    TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleService.BubbleState.RECORDING
+                    TranscriptionManager.TranscriptionState.ERROR -> BubbleService.BubbleState.IDLE
+                }
+                BubbleService.updateBubbleState(this, bubbleState)
             }
-        }
-
-        transcriptionManager.onStateChanged = { state ->
-            val bubbleState = when (state) {
-                TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
-                TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
-                TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleService.BubbleState.RECORDING
-                TranscriptionManager.TranscriptionState.ERROR -> BubbleService.BubbleState.IDLE
-            }
-            BubbleService.updateBubbleState(this, bubbleState)
-        }
+        )
 
         // Connect bubble callbacks to transcription manager
         BubbleService.onListeningStarted = {
-            transcriptionManager.startListening()
+            transcriptionManager?.startListening()
         }
 
         BubbleService.onListeningStopped = {
-            transcriptionManager.stopListening()
+            transcriptionManager?.stopListening()
         }
     }
 
     private fun stopDictation() {
-        transcriptionManager.stopListening()
+        transcriptionManager?.stopListening()
+        transcriptionManager = null
         BubbleService.stop(this)
         BubbleService.onListeningStarted = null
         BubbleService.onListeningStopped = null

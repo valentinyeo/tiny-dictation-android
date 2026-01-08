@@ -27,7 +27,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
 
         // Default values
-        const val DEFAULT_VAD_SENSITIVITY = 50 // 0-100 scale
+        const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
         const val DEFAULT_AUTO_PUNCTUATION = true
         const val DEFAULT_SMART_FORMAT = true
         const val DEFAULT_LANGUAGE = "en"
@@ -88,31 +88,32 @@ class PreferenceManager(context: Context) {
 
     /**
      * Gets the VAD sensitivity setting.
-     * @return Sensitivity value from 0 (least sensitive) to 100 (most sensitive)
+     * @return Sensitivity value from 0.3 (least sensitive) to 0.8 (most sensitive)
      */
-    fun getVadSensitivity(): Int {
-        return prefs.getInt(KEY_VAD_SENSITIVITY, DEFAULT_VAD_SENSITIVITY)
+    fun getVadSensitivity(): Float {
+        return prefs.getFloat(KEY_VAD_SENSITIVITY, DEFAULT_VAD_SENSITIVITY)
     }
 
     /**
      * Sets the VAD sensitivity.
-     * @param sensitivity Value from 0 to 100
+     * @param sensitivity Value from 0.3 to 0.8
      */
-    fun setVadSensitivity(sensitivity: Int) {
-        val clampedValue = sensitivity.coerceIn(0, 100)
-        prefs.edit().putInt(KEY_VAD_SENSITIVITY, clampedValue).apply()
+    fun setVadSensitivity(sensitivity: Float) {
+        val clampedValue = sensitivity.coerceIn(0.3f, 0.8f)
+        prefs.edit().putFloat(KEY_VAD_SENSITIVITY, clampedValue).apply()
     }
 
     /**
-     * Converts VAD sensitivity (0-100) to speech threshold for VoiceActivityDetector.
+     * Converts VAD sensitivity (0.3-0.8) to speech threshold for VoiceActivityDetector.
      * Higher sensitivity = lower threshold (easier to trigger)
      * @return Speech threshold value
      */
     fun getSpeechThreshold(): Int {
         val sensitivity = getVadSensitivity()
-        // Map sensitivity (0-100) to threshold (1000-100)
+        // Map sensitivity (0.3-0.8) to threshold (800-200)
         // Higher sensitivity = lower threshold
-        return (1000 - (sensitivity * 9)).coerceIn(100, 1000)
+        val normalized = (sensitivity - 0.3f) / 0.5f // 0.0 to 1.0
+        return (800 - (normalized * 600)).toInt().coerceIn(200, 800)
     }
 
     /**
@@ -121,8 +122,9 @@ class PreferenceManager(context: Context) {
      */
     fun getSilenceThreshold(): Int {
         val sensitivity = getVadSensitivity()
-        // Map sensitivity (0-100) to threshold (500-50)
-        return (500 - (sensitivity * 4.5)).toInt().coerceIn(50, 500)
+        // Map sensitivity (0.3-0.8) to threshold (400-100)
+        val normalized = (sensitivity - 0.3f) / 0.5f // 0.0 to 1.0
+        return (400 - (normalized * 300)).toInt().coerceIn(100, 400)
     }
 
     // ========== Auto Punctuation ==========

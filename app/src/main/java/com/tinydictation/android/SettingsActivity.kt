@@ -5,8 +5,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
-import com.google.android.material.switchmaterial.SwitchMaterial
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.util.PreferenceManager
 
@@ -17,7 +17,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var vadSensitivitySlider: Slider
-    private lateinit var autoPunctuationSwitch: SwitchMaterial
+    private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var saveButton: MaterialButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -33,10 +33,10 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun initViews() {
         toolbar = findViewById(R.id.toolbar)
-        apiKeyInput = findViewById(R.id.apiKeyInput)
-        vadSensitivitySlider = findViewById(R.id.vadSensitivitySlider)
-        autoPunctuationSwitch = findViewById(R.id.autoPunctuationSwitch)
-        saveButton = findViewById(R.id.saveButton)
+        apiKeyInput = findViewById(R.id.etApiKey)
+        vadSensitivitySlider = findViewById(R.id.sliderVadSensitivity)
+        autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
+        saveButton = findViewById(R.id.btnSave)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
