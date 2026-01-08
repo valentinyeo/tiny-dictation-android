@@ -295,6 +295,21 @@ class MainActivity : AppCompatActivity() {
                     Log.e(TAG, "Error stopping listening", e)
                 }
             }
+
+            // Auto-start listening immediately after starting the service
+            // This way user doesn't need to tap the bubble again
+            Log.i(TAG, "Auto-starting transcription after service start")
+            try {
+                // Small delay to ensure service is fully started
+                android.os.Handler(mainLooper).postDelayed({
+                    if (BubbleService.isRunning()) {
+                        BubbleService.updateBubbleState(this, BubbleService.BubbleState.LISTENING)
+                        transcriptionManager?.startListening()
+                    }
+                }, 300)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error auto-starting transcription", e)
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error initializing transcription manager", e)
             Toast.makeText(this, "Failed to initialize: ${e.message}", Toast.LENGTH_SHORT).show()

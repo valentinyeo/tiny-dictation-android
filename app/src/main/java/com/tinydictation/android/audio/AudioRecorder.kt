@@ -6,6 +6,7 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.util.Log
 import androidx.annotation.RequiresPermission
+import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -76,12 +77,14 @@ class AudioRecorder {
         }
 
         Log.i(TAG, "Starting audio recording at $SAMPLE_RATE Hz")
+        DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz with VOICE_RECOGNITION source (phone mic)")
         val bufferSize = getMinBufferSize()
         Log.d(TAG, "Audio buffer size: $bufferSize bytes")
 
         try {
+            // Use VOICE_RECOGNITION to prefer phone's built-in mic over headphones
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.MIC,
+                MediaRecorder.AudioSource.VOICE_RECOGNITION,
                 SAMPLE_RATE,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,
@@ -118,6 +121,7 @@ class AudioRecorder {
 
                     record.startRecording()
                     Log.i(TAG, "AudioRecord started successfully - recording state: ${record.recordingState}")
+                    DebugLog.i("AudioRecorder: Recording started successfully")
 
                     val buffer = ShortArray(SAMPLES_PER_CHUNK)
 
@@ -148,9 +152,16 @@ class AudioRecorder {
                                 // Successfully read audio data
                                 chunksDelivered++
 
+                                // Log first chunk to confirm audio is flowing
+                                if (chunksDelivered == 1) {
+                                    Log.i(TAG, "AudioRecorder: First audio chunk delivered ($readResult samples)")
+                                    DebugLog.i("AudioRecorder: First audio chunk delivered")
+                                }
+
                                 // Log periodically to confirm audio is flowing
                                 if (chunksDelivered % 100 == 0) {
                                     Log.d(TAG, "AudioRecorder: Delivered $chunksDelivered audio chunks")
+                                    DebugLog.d("AudioRecorder: Delivered $chunksDelivered chunks")
                                 }
 
                                 if (readResult == SAMPLES_PER_CHUNK) {

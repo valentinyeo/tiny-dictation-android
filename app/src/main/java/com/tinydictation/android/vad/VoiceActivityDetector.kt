@@ -43,11 +43,11 @@ class VoiceActivityDetector(
     companion object {
         private const val TAG = "TinyDictation"
 
-        /** Default RMS threshold for detecting speech (lowered for better sensitivity) */
-        const val DEFAULT_SPEECH_THRESHOLD = 300
+        /** Default RMS threshold for detecting speech (very low for maximum sensitivity) */
+        const val DEFAULT_SPEECH_THRESHOLD = 100
 
-        /** Default RMS threshold for detecting silence (lowered for better sensitivity) */
-        const val DEFAULT_SILENCE_THRESHOLD = 150
+        /** Default RMS threshold for detecting silence (very low for maximum sensitivity) */
+        const val DEFAULT_SILENCE_THRESHOLD = 50
 
         /** Default silence duration to end speech (500ms) */
         const val DEFAULT_SILENCE_DURATION_MS = 500
