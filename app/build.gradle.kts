@@ -15,12 +15,25 @@ android {
         versionName = "1.3.0"
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = System.getenv("KEYSTORE_FILE")
+            if (keystoreFile != null) {
+                storeFile = file(keystoreFile)
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             // Uses default debug signing
         }
         release {
-            isMinifyEnabled = true
+            isMinifyEnabled = false  // Disable minification for easier debugging
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
