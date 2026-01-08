@@ -38,9 +38,6 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Generate Gradle Wrapper
-        run: gradle wrapper --gradle-version 8.2
-
       - name: Setup signing configuration
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
