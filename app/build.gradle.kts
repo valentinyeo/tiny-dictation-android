@@ -15,45 +15,9 @@ android {
         versionName = "1.1.2"
     }
 
-    signingConfigs {
-        create("release") {
-            // Try to get signing config from environment variables first
-            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
-            val keystorePasswordEnv = System.getenv("KEYSTORE_PASSWORD")
-            val keyAliasEnv = System.getenv("KEY_ALIAS")
-            val keyPasswordEnv = System.getenv("KEY_PASSWORD")
-
-            if (!keystoreBase64.isNullOrEmpty() && !keystorePasswordEnv.isNullOrEmpty() &&
-                !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
-                try {
-                    // Decode base64 keystore to temp file
-                    val keystoreFile = File(System.getProperty("java.io.tmpdir"), "release-keystore.jks")
-                    keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(keystoreBase64))
-
-                    storeFile = keystoreFile
-                    storePassword = keystorePasswordEnv
-                    this.keyAlias = keyAliasEnv
-                    this.keyPassword = keyPasswordEnv
-                } catch (e: Exception) {
-                    println("Warning: Failed to decode keystore: ${e.message}")
-                }
-            } else {
-                // Fall back to debug keystore for local development
-                val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
-                if (debugKeystore.exists()) {
-                    storeFile = debugKeystore
-                    storePassword = "android"
-                    this.keyAlias = "androiddebugkey"
-                    this.keyPassword = "android"
-                }
-            }
-        }
-    }
-
     buildTypes {
         debug {
-            // Use release signing config for debug builds to ensure consistency
-            signingConfig = signingConfigs.getByName("release")
+            // Uses default debug signing
         }
         release {
             isMinifyEnabled = true
@@ -61,7 +25,6 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = signingConfigs.getByName("release")
         }
     }
 
