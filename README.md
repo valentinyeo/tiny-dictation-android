@@ -110,3 +110,4 @@ This project uses GitHub Actions for continuous builds:
 ## License
 
 MIT License - See LICENSE file for details
+# Tiny Dictation v1.1.2
