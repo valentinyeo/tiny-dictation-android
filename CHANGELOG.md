@@ -2,6 +2,16 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.1.1] - 2026-01-08
+
+### Fixed
+- **APK signing for seamless updates** - Fixed signing key inconsistency that prevented users from updating the app over previous versions. All builds now use a consistent release signing configuration.
+
+### Added
+- **Keystore generation script** - Added `generate-keystore.sh` to help developers create and configure release signing keys
+
+---
+
 ## [1.1.0] - 2026-01-08
 
 ### Fixed

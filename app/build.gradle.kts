@@ -11,17 +11,53 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.1.1"
+    }
+
+    signingConfigs {
+        create("release") {
+            // Try to get signing config from environment variables first
+            val keystoreBase64 = System.getenv("KEYSTORE_BASE64")
+            val keystorePassword = System.getenv("KEYSTORE_PASSWORD")
+            val keyAlias = System.getenv("KEY_ALIAS")
+            val keyPassword = System.getenv("KEY_PASSWORD")
+
+            if (keystoreBase64 != null && keystorePassword != null && keyAlias != null && keyPassword != null) {
+                // Decode base64 keystore to temporary file
+                val keystoreFile = File(rootProject.buildDir, "keystore.jks")
+                keystoreFile.parentFile?.mkdirs()
+                keystoreFile.writeBytes(java.util.Base64.getDecoder().decode(keystoreBase64))
+
+                storeFile = keystoreFile
+                storePassword = keystorePassword
+                this.keyAlias = keyAlias
+                this.keyPassword = keyPassword
+            } else {
+                // Fall back to debug keystore for local development
+                val debugKeystore = File(System.getProperty("user.home"), ".android/debug.keystore")
+                if (debugKeystore.exists()) {
+                    storeFile = debugKeystore
+                    storePassword = "android"
+                    this.keyAlias = "androiddebugkey"
+                    this.keyPassword = "android"
+                }
+            }
+        }
     }
 
     buildTypes {
+        debug {
+            // Use release signing config for debug builds to ensure consistency
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
             isMinifyEnabled = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
