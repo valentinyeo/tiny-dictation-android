@@ -37,9 +37,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
                 app:cardBackgroundColor="?attr/colorSurface"
-                app:cardElevation="2dp"
-                app:strokeWidth="1dp"
-                app:strokeColor="?attr/colorOutline">
+                app:cardElevation="0dp"
+                style="@style/Widget.Material3.CardView.Outlined">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -93,7 +92,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
                 app:cardBackgroundColor="?attr/colorSurface"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
                 <LinearLayout
@@ -154,7 +153,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="8dp"
                 app:cardBackgroundColor="?attr/colorSurface"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
                 <LinearLayout
@@ -215,7 +214,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 app:cardBackgroundColor="?attr/colorSurface"
-                app:cardElevation="1dp"
+                app:cardElevation="0dp"
                 style="@style/Widget.Material3.CardView.Outlined">
 
                 <LinearLayout
