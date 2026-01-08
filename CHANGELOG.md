@@ -42,3 +42,4 @@ All notable changes to Tiny Dictation will be documented in this file.
 - Accessibility service for text injection into any app
 - Secure API key storage
 - Dark mode support
+
