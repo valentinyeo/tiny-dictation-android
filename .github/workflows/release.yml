@@ -93,7 +93,8 @@ jobs:
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="🎉 *Tiny Dictation v${{ steps.version.outputs.version }} Released!*%0A%0A📦 [Download APK](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/TinyDictation-${{ steps.version.outputs.version }}.apk)%0A📋 [Release Notes](https://github.com/${{ github.repository }}/releases/tag/${{ steps.version.outputs.tag }})" \
-              -d parse_mode="Markdown" \
-              -d disable_web_page_preview="true"
+              -d text="*Tiny Dictation v${{ steps.version.outputs.version }}*%0A%0A[Download APK](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/TinyDictation-${{ steps.version.outputs.version }}.apk)" \
+              -d parse_mode="Markdown"
+          else
+            echo "Telegram secrets not configured, skipping notification"
           fi

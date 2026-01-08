@@ -50,11 +50,6 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           retention-days: 30
 
-      - name: Get APK download URL
-        id: apk_url
-        run: |
-          echo "url=https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}" >> $GITHUB_OUTPUT
-
       - name: Send Telegram notification
         if: success()
         env:
@@ -64,9 +59,8 @@ jobs:
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="🚀 *Tiny Dictation Build Complete*%0A%0A📦 Version: ${{ steps.version.outputs.sha_short }}%0A📅 Date: ${{ steps.version.outputs.date }}%0A🔗 [Download APK](${{ steps.apk_url.outputs.url }})" \
-              -d parse_mode="Markdown" \
-              -d disable_web_page_preview="true"
+              -d text="*Tiny Dictation Build ${{ steps.version.outputs.sha_short }}*%0A%0A[Download APK](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+              -d parse_mode="Markdown"
           else
             echo "Telegram secrets not configured, skipping notification"
           fi
@@ -80,6 +74,8 @@ jobs:
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="❌ *Tiny Dictation Build Failed*%0A%0A📅 Date: $(date +'%Y-%m-%d %H:%M')%0A🔗 [View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
+              -d text="*Tiny Dictation Build Failed*%0A%0A[View Logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})" \
               -d parse_mode="Markdown"
+          else
+            echo "Telegram secrets not configured, skipping notification"
           fi
