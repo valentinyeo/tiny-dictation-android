@@ -64,10 +64,21 @@
     <string name="history_delete_title">Delete Entry?</string>
     <string name="history_delete_message">This entry will be permanently deleted.</string>
     <string name="history_deleted">Entry deleted</string>
+    <string name="history_copy_selected">Copy selected</string>
     <string name="delete">Delete</string>
     <string name="cancel">Cancel</string>
     <string name="clear_all">Clear All</string>
     <string name="view_history">History</string>
+
+    <!-- Plurals for multi-select -->
+    <plurals name="history_selected_count">
+        <item quantity="one">%d selected</item>
+        <item quantity="other">%d selected</item>
+    </plurals>
+    <plurals name="history_copied_count">
+        <item quantity="one">%d item copied</item>
+        <item quantity="other">%d items copied</item>
+    </plurals>
 
     <!-- Errors -->
     <string name="error_no_api_key">Please enter your Deepgram API key in Settings</string>
