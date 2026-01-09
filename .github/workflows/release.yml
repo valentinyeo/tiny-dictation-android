@@ -76,9 +76,23 @@ jobs:
           fi
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-${{ steps.version.outputs.version }}.apk
+          # With ABI splits, APKs are named app-{abi}-debug.apk
+          cd app/build/outputs/apk/debug
+          for apk in app-*-debug.apk; do
+            if [ -f "$apk" ]; then
+              ABI=$(echo "$apk" | sed 's/app-\(.*\)-debug.apk/\1/')
+              NEW_NAME="TinyDictation-${{ steps.version.outputs.version }}-${ABI}.apk"
+              mv "$apk" "$NEW_NAME"
+              echo "Renamed $apk to $NEW_NAME"
+            fi
+          done
+          # Fallback for universal APK
+          if [ -f "app-debug.apk" ]; then
+            mv app-debug.apk "TinyDictation-${{ steps.version.outputs.version }}.apk"
+          fi
+          ls -la
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -88,17 +102,19 @@ jobs:
           body: |
             ## Tiny Dictation v${{ steps.version.outputs.version }}
 
-            📅 Released: ${{ steps.version.outputs.date }}
+            Released: ${{ steps.version.outputs.date }}
 
             ### Download
-            Download the APK below and install on your Android device.
+            Choose the APK for your device architecture:
+            - **arm64-v8a** - Most modern Android devices (recommended)
+            - **armeabi-v7a** - Older 32-bit ARM devices
 
             ### Installation
-            1. Download `TinyDictation-${{ steps.version.outputs.version }}.apk`
+            1. Download the appropriate APK for your device
             2. Enable "Install from unknown sources" if prompted
             3. Open the APK to install
             4. Grant permissions when asked
-          files: app/build/outputs/apk/debug/TinyDictation-${{ steps.version.outputs.version }}.apk
+          files: app/build/outputs/apk/debug/TinyDictation-*.apk
           draft: false
           prerelease: false
         env:
@@ -111,10 +127,13 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
+            BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="*Tiny Dictation v${{ steps.version.outputs.version }}*%0A%0A[Download APK](https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/TinyDictation-${{ steps.version.outputs.version }}.apk)" \
-              -d parse_mode="Markdown"
+              --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=<b>Tiny Dictation v${{ steps.version.outputs.version }}</b>
+
+<a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-arm64-v8a.apk\">Download (ARM64)</a> | <a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-armeabi-v7a.apk\">ARM32</a>" \
+              --data-urlencode "parse_mode=HTML"
           else
             echo "Telegram secrets not configured, skipping notification"
           fi

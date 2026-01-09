@@ -77,6 +77,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.2:
+            • Reduced APK size from ~70MB to ~20MB per architecture
+            • Separate APKs for ARM64 and ARM32 devices
+            • Offline models still downloaded on-demand via Settings
+
             v1.7.1:
             • Engine selection in Settings! Choose Deepgram, Vosk, or Whisper
             • Model download manager - download offline models directly

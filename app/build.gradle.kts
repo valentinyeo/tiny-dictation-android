@@ -11,8 +11,21 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 38
-        versionName = "1.7.1"
+        versionCode = 39
+        versionName = "1.7.2"
+    }
+
+    // Generate separate APKs per ABI to reduce size
+    // Vosk native libs are ~15-20MB per architecture
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            // Only include ARM64 (most modern devices) and ARM32 (older devices)
+            // x86/x86_64 only needed for emulators, skip to reduce complexity
+            include("arm64-v8a", "armeabi-v7a")
+            isUniversalApk = false // Don't generate a fat universal APK
+        }
     }
 
     signingConfigs {

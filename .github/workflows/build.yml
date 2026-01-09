@@ -70,9 +70,25 @@ jobs:
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
           echo "Extracted version: ${VERSION_NAME} (code: ${VERSION_CODE})"
 
-      - name: Rename APK
+      - name: Rename APKs
         run: |
-          mv app/build/outputs/apk/debug/app-debug.apk app/build/outputs/apk/debug/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
+          # With ABI splits, APKs are named app-{abi}-debug.apk
+          # Rename each one to include version and architecture
+          cd app/build/outputs/apk/debug
+          for apk in app-*-debug.apk; do
+            if [ -f "$apk" ]; then
+              # Extract ABI from filename (e.g., app-arm64-v8a-debug.apk -> arm64-v8a)
+              ABI=$(echo "$apk" | sed 's/app-\(.*\)-debug.apk/\1/')
+              NEW_NAME="TinyDictation-v${{ steps.version.outputs.version_name }}-${ABI}-${{ steps.version.outputs.sha_short }}.apk"
+              mv "$apk" "$NEW_NAME"
+              echo "Renamed $apk to $NEW_NAME"
+            fi
+          done
+          # Fallback: if no ABI split APKs found, try the universal APK
+          if [ -f "app-debug.apk" ]; then
+            mv app-debug.apk "TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk"
+          fi
+          ls -la
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
@@ -88,7 +104,11 @@ jobs:
           name: Tiny Dictation v${{ steps.version.outputs.version_name }}
           body: |
             Build from commit ${{ steps.version.outputs.sha_short }}
-          files: app/build/outputs/apk/debug/TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk
+
+            **APK Downloads:**
+            - `arm64-v8a` - For most modern Android devices (recommended)
+            - `armeabi-v7a` - For older 32-bit ARM devices
+          files: app/build/outputs/apk/debug/TinyDictation-*.apk
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -117,8 +137,9 @@ jobs:
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
-            APK_NAME="TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk"
-            DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}/${APK_NAME}"
+            BASE_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}"
+            ARM64_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-arm64-v8a-${{ steps.version.outputs.sha_short }}.apk"
+            ARM32_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-armeabi-v7a-${{ steps.version.outputs.sha_short }}.apk"
 
             # Build message - put download link first to ensure it's always visible
             CHANGELOG="${{ steps.changelog.outputs.changelog }}"
@@ -128,11 +149,11 @@ jobs:
 
 ${CHANGELOG}
 
-<a href=\"${DOWNLOAD_URL}\">Download APK</a>"
+<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
             else
               MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b> (${{ steps.version.outputs.sha_short }})
 
-<a href=\"${DOWNLOAD_URL}\">Download APK</a>"
+<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
             fi
 
             # Use --data-urlencode to properly encode the message
