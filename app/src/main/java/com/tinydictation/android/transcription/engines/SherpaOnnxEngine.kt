@@ -13,6 +13,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
 /**
@@ -500,6 +502,62 @@ class SherpaOnnxEngine : TranscriptionEngine {
     override fun getSupportedLanguages(): List<String> {
         // Whisper supports many languages
         return listOf("en", "de", "es", "fr", "it", "pt", "nl", "pl", "ru", "zh", "ja", "ko")
+    }
+
+    /**
+     * Check if there is pending audio in the buffer or a processing job running.
+     */
+    override fun hasPendingAudio(): Boolean {
+        val hasBufferedAudio = synchronized(audioBuffer) { audioBuffer.isNotEmpty() }
+        val isProcessing = processingJob?.isActive == true
+        Log.d(TAG, "SherpaOnnxEngine: hasPendingAudio - buffer=${hasBufferedAudio}, processing=${isProcessing}")
+        return hasBufferedAudio || isProcessing
+    }
+
+    /**
+     * Flush any pending audio and wait for processing to complete.
+     * This ensures all buffered audio is transcribed before returning.
+     */
+    override suspend fun flushPendingAudio(timeoutMs: Long): Boolean {
+        Log.i(TAG, "SherpaOnnxEngine: Flushing pending audio (timeout=${timeoutMs}ms)")
+        DebugLog.i("SherpaOnnxEngine: Flushing pending audio")
+
+        // First, wait for any currently running processing job
+        processingJob?.let { job ->
+            Log.d(TAG, "SherpaOnnxEngine: Waiting for current processing job")
+            withTimeoutOrNull(timeoutMs / 2) {
+                job.join()
+            }
+        }
+
+        // Process any remaining audio in the buffer
+        val hasBufferedAudio = synchronized(audioBuffer) { audioBuffer.isNotEmpty() }
+        if (hasBufferedAudio && recognizer != null) {
+            Log.d(TAG, "SherpaOnnxEngine: Processing remaining buffer")
+            DebugLog.d("SherpaOnnxEngine: Processing remaining ${audioBuffer.size} samples")
+
+            // Process buffer synchronously
+            processBuffer()
+        }
+
+        // Wait for that processing to complete if it started a new job
+        processingJob?.let { job ->
+            Log.d(TAG, "SherpaOnnxEngine: Waiting for final processing")
+            val completed = withTimeoutOrNull(timeoutMs / 2) {
+                job.join()
+                true
+            } ?: false
+
+            if (!completed) {
+                Log.w(TAG, "SherpaOnnxEngine: Flush timed out")
+                DebugLog.w("SherpaOnnxEngine: Flush timed out")
+                return false
+            }
+        }
+
+        Log.i(TAG, "SherpaOnnxEngine: Flush completed")
+        DebugLog.i("SherpaOnnxEngine: Flush completed")
+        return true
     }
 
     override fun release() {

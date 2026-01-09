@@ -516,17 +516,60 @@ class BubbleService : LifecycleService() {
 
     /**
      * Handles note button click - sends transcription to configured note app.
+     * If there's pending transcription, waits for it to complete first.
      */
     private fun handleNoteButtonClick() {
-        val text = textBuffer.toString().trim()
-        if (text.isEmpty()) {
-            Toast.makeText(this, "Nothing to send", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         val noteAppPackage = preferenceManager.getNoteAppPackage()
         if (noteAppPackage == null) {
             Toast.makeText(this, "Please configure a note app in Settings", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Check if there's pending audio being transcribed
+        val hasPending = transcriptionManager?.hasPendingAudio() == true
+
+        if (hasPending) {
+            Log.i(TAG, "Note button pressed with pending audio - flushing first")
+            DebugLog.i("BubbleService: Flushing pending audio before sending to note app")
+
+            Toast.makeText(this, "Processing...", Toast.LENGTH_SHORT).show()
+
+            // Flush pending audio, then send
+            lifecycleScope.launch {
+                try {
+                    val success = transcriptionManager?.flushPendingTranscription(10000) ?: true
+
+                    if (!success) {
+                        Log.w(TAG, "Flush timed out, sending what we have")
+                        DebugLog.w("BubbleService: Flush timed out for note")
+                    }
+
+                    // Small delay to allow any final transcription callbacks to process
+                    kotlinx.coroutines.delay(100)
+
+                    // Now send the complete buffer
+                    performSendToNoteApp(noteAppPackage)
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error during flush for note", e)
+                    DebugLog.e("BubbleService: Error flushing for note - ${e.message}")
+                    // Still try to send what we have
+                    performSendToNoteApp(noteAppPackage)
+                }
+            }
+        } else {
+            // No pending audio, send immediately
+            performSendToNoteApp(noteAppPackage)
+        }
+    }
+
+    /**
+     * Actually sends the transcription to the configured note app.
+     * Called after any pending transcription has been flushed.
+     */
+    private fun performSendToNoteApp(noteAppPackage: String) {
+        val text = textBuffer.toString().trim()
+        if (text.isEmpty()) {
+            Toast.makeText(this, "Nothing to send", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -575,11 +618,59 @@ class BubbleService : LifecycleService() {
     /**
      * Copies the text buffer to clipboard and switches to paste mode.
      * Also saves the transcription to history.
+     * If there's pending transcription, waits for it to complete first.
      */
     private fun copyBufferToClipboard() {
+        // Check if there's pending audio being transcribed
+        val hasPending = transcriptionManager?.hasPendingAudio() == true
+
+        if (hasPending) {
+            Log.i(TAG, "Copy requested with pending audio - flushing first")
+            DebugLog.i("BubbleService: Flushing pending audio before copy")
+
+            // Show loading indicator
+            val pasteButton = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
+            pasteButton?.text = "⏳"  // Hourglass while waiting
+            pasteButton?.setTextColor(android.graphics.Color.parseColor("#FFA500"))  // Orange
+
+            // Flush pending audio, then copy
+            lifecycleScope.launch {
+                try {
+                    val success = transcriptionManager?.flushPendingTranscription(10000) ?: true
+
+                    if (!success) {
+                        Log.w(TAG, "Flush timed out, copying what we have")
+                        DebugLog.w("BubbleService: Flush timed out")
+                    }
+
+                    // Small delay to allow any final transcription callbacks to process
+                    kotlinx.coroutines.delay(100)
+
+                    // Now copy the complete buffer
+                    performCopyToClipboard()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error during flush", e)
+                    DebugLog.e("BubbleService: Error flushing - ${e.message}")
+                    // Still try to copy what we have
+                    performCopyToClipboard()
+                }
+            }
+        } else {
+            // No pending audio, copy immediately
+            performCopyToClipboard()
+        }
+    }
+
+    /**
+     * Actually performs the copy to clipboard operation.
+     * Called after any pending transcription has been flushed.
+     */
+    private fun performCopyToClipboard() {
         val text = textBuffer.toString().trim()
         if (text.isEmpty()) {
             Toast.makeText(this, "Nothing to copy", Toast.LENGTH_SHORT).show()
+            // Reset button state
+            updatePasteButtonIcon()
             return
         }
 

@@ -324,6 +324,30 @@ class TranscriptionManager(
     fun getActiveEngineId(): String? = currentEngine?.engineId
 
     /**
+     * Checks if there is pending audio still being processed.
+     *
+     * @return true if there is pending audio to be transcribed
+     */
+    fun hasPendingAudio(): Boolean {
+        return currentEngine?.hasPendingAudio() == true
+    }
+
+    /**
+     * Flushes any pending audio and waits for processing to complete.
+     * This ensures all buffered audio is transcribed before returning.
+     * Use this before copying transcription to clipboard to ensure completeness.
+     *
+     * @param timeoutMs Maximum time to wait for processing
+     * @return true if flush completed successfully, false if timed out
+     */
+    suspend fun flushPendingTranscription(timeoutMs: Long = 10000): Boolean {
+        val engine = currentEngine ?: return true
+        Log.i(TAG, "TranscriptionManager: Flushing pending transcription")
+        DebugLog.i("TranscriptionManager: Flushing pending transcription")
+        return engine.flushPendingAudio(timeoutMs)
+    }
+
+    /**
      * Releases all resources.
      */
     fun release() {

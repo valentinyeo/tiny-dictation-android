@@ -84,4 +84,22 @@ interface TranscriptionEngine {
      * Call when the engine is no longer needed.
      */
     fun release()
+
+    /**
+     * Check if there is any audio still being processed.
+     * Used to determine if transcription is complete before copying.
+     *
+     * @return true if there is pending audio to be transcribed
+     */
+    fun hasPendingAudio(): Boolean = false
+
+    /**
+     * Flush any pending audio buffer and wait for processing to complete.
+     * This is a blocking call that ensures all buffered audio has been transcribed.
+     * Should be called before copying transcription to ensure completeness.
+     *
+     * @param timeoutMs Maximum time to wait for processing (default 10 seconds)
+     * @return true if flush completed successfully, false if timed out
+     */
+    suspend fun flushPendingAudio(timeoutMs: Long = 10000): Boolean = true
 }

@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.9:
+            • Fixed Share Debug Log - now uses dpaste.com with paste.rs fallback
+            • More reliable log sharing across different networks
+
             v1.9.8:
             • Save button now closes settings and returns to previous app
             • New "Type instead of paste" mode: inserts text at cursor position
@@ -1005,8 +1009,41 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private suspend fun uploadToPaste(content: String): String? = withContext(Dispatchers.IO) {
-        try {
-            // Use paste.rs - simple API, just POST raw content
+        // Try dpaste.com first (more reliable), then paste.rs as fallback
+        uploadToDpaste(content) ?: uploadToPasteRs(content)
+    }
+
+    private fun uploadToDpaste(content: String): String? {
+        return try {
+            // dpaste.com uses form-urlencoded POST
+            val formBody = okhttp3.FormBody.Builder()
+                .add("content", content)
+                .build()
+
+            val request = Request.Builder()
+                .url("https://dpaste.com/api/")
+                .post(formBody)
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                // dpaste.com returns the URL as plain text
+                val url = response.body?.string()?.trim()
+                DebugLog.i("dpaste.com upload successful: $url")
+                url
+            } else {
+                DebugLog.e("dpaste.com upload failed: ${response.code}")
+                null
+            }
+        } catch (e: Exception) {
+            DebugLog.e("dpaste.com upload exception: ${e.message}")
+            null
+        }
+    }
+
+    private fun uploadToPasteRs(content: String): String? {
+        return try {
+            // paste.rs - simple API, just POST raw content
             val requestBody = content.toRequestBody("text/plain".toMediaType())
 
             val request = Request.Builder()
@@ -1017,7 +1054,9 @@ class SettingsActivity : AppCompatActivity() {
             val response = httpClient.newCall(request).execute()
             if (response.isSuccessful) {
                 // paste.rs returns the URL as plain text
-                response.body?.string()?.trim()
+                val url = response.body?.string()?.trim()
+                DebugLog.i("paste.rs upload successful: $url")
+                url
             } else {
                 DebugLog.e("paste.rs upload failed: ${response.code}")
                 null
