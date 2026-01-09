@@ -297,8 +297,11 @@ class BubbleService : LifecycleService() {
 
     /**
      * Updates visibility of optional bubbles based on settings.
+     * Called both at creation and when settings change.
      */
-    private fun updateBubbleVisibility() {
+    fun updateBubbleVisibility() {
+        // Don't update visibility if in compact mode (buttons are intentionally hidden)
+        if (isCompactMode) return
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
         val showPaste = prefs.getBoolean("show_paste_bubble", true)
@@ -637,6 +640,14 @@ class BubbleService : LifecycleService() {
          * Gets the current service instance, if running.
          */
         fun getInstance(): BubbleService? = instance
+
+        /**
+         * Refreshes bubble visibility based on current settings.
+         * Call this when settings are changed in SettingsActivity.
+         */
+        fun refreshVisibility() {
+            instance?.updateBubbleVisibility()
+        }
 
         /**
          * Starts the bubble service.

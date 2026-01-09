@@ -17,6 +17,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +56,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.5:
+            • Fixed bubble toggle settings not taking effect immediately
+            • Language and paste buttons now hide/show when settings change
+
             v1.5.4:
             • Smart clipboard button - tap to copy, tap again to paste
             • Icon changes from clipboard to paste after copying
@@ -241,6 +246,9 @@ class SettingsActivity : AppCompatActivity() {
             .putBoolean("show_language_bubble", languageBubbleSwitch.isChecked)
             .putBoolean("show_paste_bubble", pasteBubbleSwitch.isChecked)
             .apply()
+
+        // Notify BubbleService to refresh visibility immediately
+        BubbleService.refreshVisibility()
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()
