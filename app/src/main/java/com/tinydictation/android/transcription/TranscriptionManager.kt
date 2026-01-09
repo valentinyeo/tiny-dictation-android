@@ -149,22 +149,20 @@ class TranscriptionManager(
             )
         }
 
-        // Small delay to let connection establish, then start recording
-        currentScope.launch {
-            kotlinx.coroutines.delay(200)
-            try {
-                audioRecorder.startRecording(currentScope) { samples ->
-                    processAudioChunk(samples)
-                }
-                DebugLog.i("TranscriptionManager: Audio recording started")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to start audio recording", e)
-                DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
-                updateState(TranscriptionState.ERROR)
-                onError?.invoke("Failed to start audio recording: ${e.message}")
-                scope?.cancel()
-                scope = null
+        // Start recording immediately - no delay for lowest latency
+        // Audio will be buffered briefly until connection establishes
+        try {
+            audioRecorder.startRecording(currentScope) { samples ->
+                processAudioChunk(samples)
             }
+            DebugLog.i("TranscriptionManager: Audio recording started immediately")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start audio recording", e)
+            DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
+            updateState(TranscriptionState.ERROR)
+            onError?.invoke("Failed to start audio recording: ${e.message}")
+            scope?.cancel()
+            scope = null
         }
     }
 

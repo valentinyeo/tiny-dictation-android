@@ -26,7 +26,7 @@ class DeepgramClient {
         /** Base WebSocket URL for Deepgram's streaming API */
         private const val BASE_URL = "wss://api.deepgram.com/v1/listen"
 
-        /** Default query parameters for transcription */
+        /** Default query parameters for transcription - optimized for low latency */
         private const val DEFAULT_PARAMS =
             "model=nova-2" +
             "&language=en" +
@@ -36,7 +36,7 @@ class DeepgramClient {
             "&smart_format=true" +
             "&punctuate=true" +
             "&interim_results=true" +
-            "&endpointing=300"
+            "&endpointing=150"  // Reduced from 300ms for faster finals
 
         /** Connection timeout in seconds */
         private const val CONNECT_TIMEOUT_SECONDS = 10L

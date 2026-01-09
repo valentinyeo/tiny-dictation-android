@@ -53,6 +53,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.4.2:
+            • Ultra-low latency optimizations
+            • Reduced endpointing from 300ms to 150ms
+            • Start recording immediately (no 200ms delay)
+
             v1.4.1:
             • Smaller bubble (40dp instead of 56dp)
 
