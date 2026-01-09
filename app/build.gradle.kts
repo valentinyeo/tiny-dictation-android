@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 39
-        versionName = "1.7.2"
+        versionCode = 40
+        versionName = "1.7.3"
     }
 
     // Generate separate APKs per ABI to reduce size
@@ -100,4 +100,7 @@ dependencies {
 
     // JSON parsing
     implementation("com.google.code.gson:gson:2.10.1")
+
+    // Archive extraction (for tar.bz2 Whisper models)
+    implementation("org.apache.commons:commons-compress:1.26.0")
 }

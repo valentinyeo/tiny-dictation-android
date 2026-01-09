@@ -58,13 +58,19 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var engineDropdown: AutoCompleteTextView
     private lateinit var autoFallbackSwitch: MaterialSwitch
 
-    // Model downloads
+    // Model downloads - Vosk
     private lateinit var tvVoskEnStatus: TextView
     private lateinit var tvVoskDeStatus: TextView
-    private lateinit var tvSherpaStatus: TextView
     private lateinit var btnDownloadVoskEn: MaterialButton
     private lateinit var btnDownloadVoskDe: MaterialButton
-    private lateinit var btnDownloadSherpa: MaterialButton
+
+    // Model downloads - Whisper
+    private lateinit var tvWhisperTinyStatus: TextView
+    private lateinit var tvWhisperBaseStatus: TextView
+    private lateinit var tvWhisperSmallStatus: TextView
+    private lateinit var btnDownloadWhisperTiny: MaterialButton
+    private lateinit var btnDownloadWhisperBase: MaterialButton
+    private lateinit var btnDownloadWhisperSmall: MaterialButton
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
@@ -77,6 +83,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.3:
+            • Multiple Whisper models: Tiny (fast), Base (balanced), Small (accurate)
+            • Fixed Whisper model downloads (tar.bz2 support)
+            • Choose speed vs accuracy for offline transcription
+
             v1.7.2:
             • Reduced APK size from ~70MB to ~20MB per architecture
             • Separate APKs for ARM64 and ARM32 devices
@@ -266,10 +277,16 @@ class SettingsActivity : AppCompatActivity() {
         // Model download views
         tvVoskEnStatus = findViewById(R.id.tvVoskEnStatus)
         tvVoskDeStatus = findViewById(R.id.tvVoskDeStatus)
-        tvSherpaStatus = findViewById(R.id.tvSherpaStatus)
         btnDownloadVoskEn = findViewById(R.id.btnDownloadVoskEn)
         btnDownloadVoskDe = findViewById(R.id.btnDownloadVoskDe)
-        btnDownloadSherpa = findViewById(R.id.btnDownloadSherpa)
+
+        // Whisper model views
+        tvWhisperTinyStatus = findViewById(R.id.tvWhisperTinyStatus)
+        tvWhisperBaseStatus = findViewById(R.id.tvWhisperBaseStatus)
+        tvWhisperSmallStatus = findViewById(R.id.tvWhisperSmallStatus)
+        btnDownloadWhisperTiny = findViewById(R.id.btnDownloadWhisperTiny)
+        btnDownloadWhisperBase = findViewById(R.id.btnDownloadWhisperBase)
+        btnDownloadWhisperSmall = findViewById(R.id.btnDownloadWhisperSmall)
 
         // Setup engine dropdown
         setupEngineDropdown()
@@ -379,15 +396,37 @@ class SettingsActivity : AppCompatActivity() {
             btnDownloadVoskDe.text = "Download"
         }
 
-        // Sherpa-ONNX (Whisper)
-        val sherpaAvailable = modelManager.isModelAvailable("sherpa-onnx", "multi")
-        if (sherpaAvailable) {
-            tvSherpaStatus.text = "Downloaded"
-            btnDownloadSherpa.text = "Delete"
+        // Whisper Tiny (Fast)
+        val whisperTinyAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")
+        if (whisperTinyAvailable) {
+            tvWhisperTinyStatus.text = "Downloaded"
+            btnDownloadWhisperTiny.text = "Delete"
         } else {
-            val info = ModelManager.SHERPA_MODEL_INFO["multi"]
-            tvSherpaStatus.text = "Not downloaded (${info?.sizeMB ?: 75} MB)"
-            btnDownloadSherpa.text = "Download"
+            val info = ModelManager.SHERPA_MODEL_INFO["whisper-tiny"]
+            tvWhisperTinyStatus.text = "Not downloaded (${info?.sizeMB ?: 75} MB)"
+            btnDownloadWhisperTiny.text = "Download"
+        }
+
+        // Whisper Base (Balanced)
+        val whisperBaseAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-base")
+        if (whisperBaseAvailable) {
+            tvWhisperBaseStatus.text = "Downloaded"
+            btnDownloadWhisperBase.text = "Delete"
+        } else {
+            val info = ModelManager.SHERPA_MODEL_INFO["whisper-base"]
+            tvWhisperBaseStatus.text = "Not downloaded (${info?.sizeMB ?: 150} MB)"
+            btnDownloadWhisperBase.text = "Download"
+        }
+
+        // Whisper Small (Accurate)
+        val whisperSmallAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-small")
+        if (whisperSmallAvailable) {
+            tvWhisperSmallStatus.text = "Downloaded"
+            btnDownloadWhisperSmall.text = "Delete"
+        } else {
+            val info = ModelManager.SHERPA_MODEL_INFO["whisper-small"]
+            tvWhisperSmallStatus.text = "Not downloaded (${info?.sizeMB ?: 500} MB)"
+            btnDownloadWhisperSmall.text = "Download"
         }
     }
 
@@ -437,8 +476,17 @@ class SettingsActivity : AppCompatActivity() {
             handleModelButton("vosk", "de", btnDownloadVoskDe, tvVoskDeStatus)
         }
 
-        btnDownloadSherpa.setOnClickListener {
-            handleModelButton("sherpa-onnx", "multi", btnDownloadSherpa, tvSherpaStatus)
+        // Whisper model download buttons
+        btnDownloadWhisperTiny.setOnClickListener {
+            handleModelButton("sherpa-onnx", "whisper-tiny", btnDownloadWhisperTiny, tvWhisperTinyStatus)
+        }
+
+        btnDownloadWhisperBase.setOnClickListener {
+            handleModelButton("sherpa-onnx", "whisper-base", btnDownloadWhisperBase, tvWhisperBaseStatus)
+        }
+
+        btnDownloadWhisperSmall.setOnClickListener {
+            handleModelButton("sherpa-onnx", "whisper-small", btnDownloadWhisperSmall, tvWhisperSmallStatus)
         }
     }
 

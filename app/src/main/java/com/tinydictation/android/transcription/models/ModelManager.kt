@@ -10,7 +10,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
+import java.io.BufferedInputStream
 import java.io.File
+import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
@@ -23,12 +28,23 @@ class ModelManager(private val context: Context) {
     companion object {
         private const val TAG = "TinyDictation"
 
-        // Sherpa-ONNX model info
+        // Sherpa-ONNX Whisper model options
+        // Users can choose based on speed vs accuracy preference
         val SHERPA_MODEL_INFO = mapOf(
-            "multi" to ModelInfo(
-                name = "sherpa-onnx-whisper-tiny",
+            "whisper-tiny" to ModelInfo(
+                name = "Whisper Tiny (Fast)",
                 sizeMB = 75,
                 url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2"
+            ),
+            "whisper-base" to ModelInfo(
+                name = "Whisper Base (Balanced)",
+                sizeMB = 150,
+                url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-base.tar.bz2"
+            ),
+            "whisper-small" to ModelInfo(
+                name = "Whisper Small (Accurate)",
+                sizeMB = 500,
+                url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-small.tar.bz2"
             )
         )
 
@@ -130,11 +146,112 @@ class ModelManager(private val context: Context) {
             ?: return Result.failure(IllegalArgumentException("No model for language: $language"))
 
         val modelDir = getSherpaModelDir(language)
-        return downloadAndExtractZip(
+        return downloadAndExtractTarBz2(
             url = modelInfo.url,
             targetDir = modelDir,
             progressKey = "sherpa-onnx-$language"
         )
+    }
+
+    private suspend fun downloadAndExtractTarBz2(
+        url: String,
+        targetDir: File,
+        progressKey: String
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        val progressFlow = downloadProgress.getOrPut(progressKey) { MutableStateFlow(null) }
+
+        try {
+            Log.i(TAG, "ModelManager: Starting download from $url")
+            DebugLog.i("ModelManager: Downloading model from $url")
+            progressFlow.value = 0f
+
+            // Create target directory
+            targetDir.parentFile?.mkdirs()
+            val tempFile = File(context.cacheDir, "model_download_$progressKey.tar.bz2")
+
+            // Download
+            val request = Request.Builder().url(url).build()
+            val response = httpClient.newCall(request).execute()
+
+            if (!response.isSuccessful) {
+                return@withContext Result.failure(Exception("Download failed: ${response.code}"))
+            }
+
+            val contentLength = response.body?.contentLength() ?: -1
+            var downloadedBytes = 0L
+
+            response.body?.byteStream()?.use { input ->
+                FileOutputStream(tempFile).use { output ->
+                    val buffer = ByteArray(8192)
+                    var bytesRead: Int
+                    while (input.read(buffer).also { bytesRead = it } != -1) {
+                        output.write(buffer, 0, bytesRead)
+                        downloadedBytes += bytesRead
+
+                        if (contentLength > 0) {
+                            progressFlow.value = downloadedBytes.toFloat() / contentLength * 0.8f
+                        }
+                    }
+                }
+            }
+
+            Log.i(TAG, "ModelManager: Download complete, extracting tar.bz2...")
+            progressFlow.value = 0.8f
+
+            // Extract tar.bz2
+            extractTarBz2(tempFile, targetDir)
+            progressFlow.value = 1f
+
+            // Cleanup
+            tempFile.delete()
+
+            Log.i(TAG, "ModelManager: Model ready at ${targetDir.absolutePath}")
+            DebugLog.i("ModelManager: Model downloaded and extracted")
+
+            progressFlow.value = null
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e(TAG, "ModelManager: Download failed", e)
+            DebugLog.e("ModelManager: Download failed - ${e.message}")
+            progressFlow.value = null
+            Result.failure(e)
+        }
+    }
+
+    private fun extractTarBz2(tarBz2File: File, targetDir: File) {
+        targetDir.mkdirs()
+
+        FileInputStream(tarBz2File).use { fis ->
+            BufferedInputStream(fis).use { bis ->
+                BZip2CompressorInputStream(bis).use { bzis ->
+                    TarArchiveInputStream(bzis).use { tais ->
+                        var entry: TarArchiveEntry? = tais.nextTarEntry
+                        while (entry != null) {
+                            // Handle nested folder (e.g., sherpa-onnx-whisper-tiny/...)
+                            val relativePath = if (entry.name.contains("/")) {
+                                entry.name.substringAfter("/")
+                            } else {
+                                entry.name
+                            }
+
+                            if (relativePath.isNotEmpty()) {
+                                val outputFile = File(targetDir, relativePath)
+
+                                if (entry.isDirectory) {
+                                    outputFile.mkdirs()
+                                } else {
+                                    outputFile.parentFile?.mkdirs()
+                                    FileOutputStream(outputFile).use { fos ->
+                                        tais.copyTo(fos)
+                                    }
+                                }
+                            }
+                            entry = tais.nextTarEntry
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private suspend fun downloadAndExtractZip(
