@@ -139,17 +139,12 @@ jobs:
             ARM64_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-arm64-v8a-${{ steps.version.outputs.sha_short }}.apk"
             ARM32_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-armeabi-v7a-${{ steps.version.outputs.sha_short }}.apk"
 
-            # Build message with proper formatting
-            MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>
-
-${{ steps.changelog.outputs.changelog }}
-
-<a href=\"${BASE_URL}/${ARM64_APK}\">Download APK (ARM64)</a>
-<a href=\"${BASE_URL}/${ARM32_APK}\">Download APK (ARM32)</a>"
-
+            # Build message - use printf for newlines
+            CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+            MESSAGE=$(printf "<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>\n\n%s\n\n<a href=\"%s/%s\">Download APK (ARM64)</a>\n<a href=\"%s/%s\">Download APK (ARM32)</a>" "$CHANGELOG" "$BASE_URL" "$ARM64_APK" "$BASE_URL" "$ARM32_APK")
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \
-              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": $(echo "$MESSAGE" | jq -Rs .), \"parse_mode\": \"HTML\", \"disable_web_page_preview\": false}"
+              -d "$(jq -n --arg chat_id "$TELEGRAM_CHAT_ID" --arg text "$MESSAGE" '{chat_id: $chat_id, text: $text, parse_mode: "HTML", disable_web_page_preview: false}')"
           else
             echo "Telegram secrets not configured, skipping notification"
           fi
