@@ -1146,7 +1146,7 @@ class BubbleService : LifecycleService() {
      * Creates the foreground service notification.
      */
     private fun createNotification(): Notification {
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(this, SettingsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         }
 

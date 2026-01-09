@@ -1,27 +1,38 @@
 package com.tinydictation.android
 
+import android.Manifest
+import android.accessibilityservice.AccessibilityServiceInfo
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.provider.Settings
+import android.util.Log
 import android.view.View
+import android.view.accessibility.AccessibilityManager
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
+import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
+import com.tinydictation.android.service.BubbleService
+import com.tinydictation.android.service.DictationAccessibilityService
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
@@ -37,57 +48,16 @@ import java.util.concurrent.TimeUnit
 
 class SettingsActivity : AppCompatActivity() {
 
-    private lateinit var preferenceManager: PreferenceManager
-    private lateinit var modelManager: ModelManager
-
-    private lateinit var toolbar: MaterialToolbar
-    private lateinit var apiKeyInput: TextInputEditText
-    private lateinit var autoPunctuationSwitch: MaterialSwitch
-    private lateinit var headphoneMicSwitch: MaterialSwitch
-    private lateinit var languageBubbleSwitch: MaterialSwitch
-    private lateinit var pasteBubbleSwitch: MaterialSwitch
-    private lateinit var noteBubbleSwitch: MaterialSwitch
-    private lateinit var noteAppContainer: LinearLayout
-    private lateinit var tvSelectedNoteApp: TextView
-    private lateinit var btnSelectNoteApp: MaterialButton
-    private lateinit var copyDebugLogButton: MaterialButton
-    private lateinit var shareDebugLogButton: MaterialButton
-    private lateinit var saveButton: MaterialButton
-    private lateinit var versionInfo: TextView
-    private lateinit var changelog: TextView
-    private lateinit var changelogHeader: LinearLayout
-    private lateinit var changelogExpandIcon: ImageView
-    private var isChangelogExpanded = false
-
-    // Engine selection
-    private lateinit var engineDropdown: AutoCompleteTextView
-    private lateinit var autoFallbackSwitch: MaterialSwitch
-
-    // Model downloads - Vosk
-    private lateinit var tvVoskEnStatus: TextView
-    private lateinit var tvVoskDeStatus: TextView
-    private lateinit var btnDownloadVoskEn: MaterialButton
-    private lateinit var btnDownloadVoskDe: MaterialButton
-
-    // Model downloads - Whisper
-    private lateinit var tvWhisperTinyStatus: TextView
-    private lateinit var tvWhisperBaseStatus: TextView
-    private lateinit var tvWhisperSmallStatus: TextView
-    private lateinit var btnDownloadWhisperTiny: MaterialButton
-    private lateinit var btnDownloadWhisperBase: MaterialButton
-    private lateinit var btnDownloadWhisperSmall: MaterialButton
-
-    private val httpClient by lazy {
-        OkHttpClient.Builder()
-            .connectTimeout(30, TimeUnit.SECONDS)
-            .writeTimeout(30, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
     companion object {
+        private const val TAG = "TinyDictation"
+
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.7:
+            • Consolidated app into single screen
+            • Permissions, Start/Stop, and Settings all in one place
+            • Removed separate main screen for simpler navigation
+
             v1.9.6:
             • Fixed language switching crash with Whisper engines
 
@@ -205,7 +175,7 @@ class SettingsActivity : AppCompatActivity() {
             • Long-press bubble now opens main app (was compact mode)
 
             v1.5.7:
-            • Reordered bubbles: Language → Clipboard → Mic (bottom)
+            • Reordered bubbles: Language -> Clipboard -> Mic (bottom)
 
             v1.5.6:
             • Fixed bubble toggle settings (was async race condition)
@@ -288,8 +258,85 @@ class SettingsActivity : AppCompatActivity() {
         """.trimIndent()
     }
 
+    private lateinit var preferenceManager: PreferenceManager
+    private lateinit var modelManager: ModelManager
+
+    // Permission cards
+    private lateinit var microphoneCard: MaterialCardView
+    private lateinit var overlayCard: MaterialCardView
+    private lateinit var accessibilityCard: MaterialCardView
+
+    // Status icons
+    private lateinit var microphoneIcon: ImageView
+    private lateinit var overlayIcon: ImageView
+    private lateinit var accessibilityIcon: ImageView
+
+    // Permission buttons
+    private lateinit var microphoneButton: MaterialButton
+    private lateinit var overlayButton: MaterialButton
+    private lateinit var accessibilityButton: MaterialButton
+    private lateinit var startButton: MaterialButton
+    private lateinit var historyButton: MaterialButton
+
+    private lateinit var toolbar: MaterialToolbar
+    private lateinit var apiKeyInput: TextInputEditText
+    private lateinit var autoPunctuationSwitch: MaterialSwitch
+    private lateinit var headphoneMicSwitch: MaterialSwitch
+    private lateinit var languageBubbleSwitch: MaterialSwitch
+    private lateinit var pasteBubbleSwitch: MaterialSwitch
+    private lateinit var noteBubbleSwitch: MaterialSwitch
+    private lateinit var noteAppContainer: LinearLayout
+    private lateinit var tvSelectedNoteApp: TextView
+    private lateinit var btnSelectNoteApp: MaterialButton
+    private lateinit var copyDebugLogButton: MaterialButton
+    private lateinit var shareDebugLogButton: MaterialButton
+    private lateinit var saveButton: MaterialButton
+    private lateinit var versionInfo: TextView
+    private lateinit var changelog: TextView
+    private lateinit var changelogHeader: LinearLayout
+    private lateinit var changelogExpandIcon: ImageView
+    private var isChangelogExpanded = false
+
+    // Engine selection
+    private lateinit var engineDropdown: AutoCompleteTextView
+    private lateinit var autoFallbackSwitch: MaterialSwitch
+
+    // Model downloads - Vosk
+    private lateinit var tvVoskEnStatus: TextView
+    private lateinit var tvVoskDeStatus: TextView
+    private lateinit var btnDownloadVoskEn: MaterialButton
+    private lateinit var btnDownloadVoskDe: MaterialButton
+
+    // Model downloads - Whisper
+    private lateinit var tvWhisperTinyStatus: TextView
+    private lateinit var tvWhisperBaseStatus: TextView
+    private lateinit var tvWhisperSmallStatus: TextView
+    private lateinit var btnDownloadWhisperTiny: MaterialButton
+    private lateinit var btnDownloadWhisperBase: MaterialButton
+    private lateinit var btnDownloadWhisperSmall: MaterialButton
+
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
+    private val requestMicrophonePermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { isGranted ->
+        Log.i(TAG, "Microphone permission result: $isGranted")
+        updatePermissionStatus()
+        if (!isGranted) {
+            Log.e(TAG, "Microphone permission denied")
+            Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.i(TAG, "SettingsActivity onCreate")
         setContentView(R.layout.activity_settings)
 
         preferenceManager = PreferenceManager(this)
@@ -300,8 +347,168 @@ class SettingsActivity : AppCompatActivity() {
         setupClickListeners()
     }
 
+    override fun onResume() {
+        super.onResume()
+        Log.d(TAG, "SettingsActivity onResume")
+        updatePermissionStatus()
+        updateStartButton()
+
+        // Auto-start dictation if all permissions granted and API key configured
+        autoStartDictationIfReady()
+    }
+
+    private fun autoStartDictationIfReady() {
+        // Only auto-start if not already running
+        if (BubbleService.isRunning()) {
+            return
+        }
+
+        // Check all conditions
+        if (!allPermissionsGranted()) {
+            Log.d(TAG, "Auto-start skipped: missing permissions")
+            return
+        }
+
+        if (!preferenceManager.hasApiKey()) {
+            Log.d(TAG, "Auto-start skipped: no API key")
+            return
+        }
+
+        Log.i(TAG, "Auto-starting dictation")
+        startDictation()
+        updateStartButton()
+    }
+
+    private fun updatePermissionStatus() {
+        // Microphone permission
+        val hasMicrophone = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        Log.d(TAG, "Permission status - Microphone: $hasMicrophone")
+
+        updatePermissionCard(microphoneIcon, microphoneButton, hasMicrophone)
+
+        // Overlay permission
+        val hasOverlay = Settings.canDrawOverlays(this)
+        Log.d(TAG, "Permission status - Overlay: $hasOverlay")
+        updatePermissionCard(overlayIcon, overlayButton, hasOverlay)
+
+        // Accessibility service
+        val hasAccessibility = isAccessibilityServiceEnabled()
+        Log.d(TAG, "Permission status - Accessibility: $hasAccessibility")
+        updatePermissionCard(accessibilityIcon, accessibilityButton, hasAccessibility)
+    }
+
+    private fun updatePermissionCard(icon: ImageView, button: MaterialButton, isEnabled: Boolean) {
+        if (isEnabled) {
+            icon.setImageResource(R.drawable.ic_check)
+            icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_listening))
+            button.visibility = View.GONE
+        } else {
+            icon.setImageResource(R.drawable.ic_warning)
+            icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
+            button.visibility = View.VISIBLE
+        }
+    }
+
+    private fun updateStartButton() {
+        updateStartButtonState(BubbleService.isRunning())
+    }
+
+    private fun updateStartButtonState(isRunning: Boolean) {
+        if (isRunning) {
+            startButton.text = getString(R.string.stop_dictation)
+            startButton.setBackgroundColor(ContextCompat.getColor(this, R.color.bubble_recording))
+        } else {
+            startButton.text = getString(R.string.start_dictation)
+            startButton.setBackgroundColor(ContextCompat.getColor(this, R.color.primary))
+        }
+
+        startButton.isEnabled = allPermissionsGranted()
+    }
+
+    private fun allPermissionsGranted(): Boolean {
+        val hasMicrophone = ContextCompat.checkSelfPermission(
+            this, Manifest.permission.RECORD_AUDIO
+        ) == PackageManager.PERMISSION_GRANTED
+        val hasOverlay = Settings.canDrawOverlays(this)
+        val hasAccessibility = isAccessibilityServiceEnabled()
+
+        return hasMicrophone && hasOverlay && hasAccessibility
+    }
+
+    private fun isAccessibilityServiceEnabled(): Boolean {
+        val am = getSystemService(Context.ACCESSIBILITY_SERVICE) as AccessibilityManager
+        val enabledServices = am.getEnabledAccessibilityServiceList(
+            AccessibilityServiceInfo.FEEDBACK_GENERIC
+        )
+        return enabledServices.any {
+            it.resolveInfo.serviceInfo.packageName == packageName &&
+            it.resolveInfo.serviceInfo.name == DictationAccessibilityService::class.java.name
+        }
+    }
+
+    /**
+     * Starts dictation by launching the BubbleService.
+     * TranscriptionManager is now owned by BubbleService to survive activity lifecycle
+     * and properly handle lock screen events.
+     */
+    private fun startDictation() {
+        Log.i(TAG, "Starting dictation service")
+
+        // Verify microphone permission before starting
+        if (ContextCompat.checkSelfPermission(
+                this, Manifest.permission.RECORD_AUDIO
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            Log.e(TAG, "Microphone permission not granted")
+            Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Verify API key before starting
+        if (!preferenceManager.hasApiKey()) {
+            Log.e(TAG, "API key is null")
+            Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Start the bubble service - it now owns the TranscriptionManager
+        BubbleService.start(this)
+        Log.i(TAG, "BubbleService started - TranscriptionManager is now managed by service")
+    }
+
+    /**
+     * Stops dictation by stopping the BubbleService.
+     */
+    private fun stopDictation() {
+        Log.i(TAG, "Stopping dictation service")
+        BubbleService.stop(this)
+    }
+
     private fun initViews() {
         toolbar = findViewById(R.id.toolbar)
+
+        // Permission cards
+        microphoneCard = findViewById(R.id.cardMicrophone)
+        overlayCard = findViewById(R.id.cardOverlay)
+        accessibilityCard = findViewById(R.id.cardAccessibility)
+
+        // Permission icons
+        microphoneIcon = findViewById(R.id.iconMicrophone)
+        overlayIcon = findViewById(R.id.iconOverlay)
+        accessibilityIcon = findViewById(R.id.iconAccessibility)
+
+        // Permission buttons
+        microphoneButton = findViewById(R.id.btnEnableMicrophone)
+        overlayButton = findViewById(R.id.btnEnableOverlay)
+        accessibilityButton = findViewById(R.id.btnEnableAccessibility)
+
+        // Action buttons
+        startButton = findViewById(R.id.btnStartDictation)
+        historyButton = findViewById(R.id.btnHistory)
+
+        // Settings views
         apiKeyInput = findViewById(R.id.etApiKey)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
@@ -320,8 +527,8 @@ class SettingsActivity : AppCompatActivity() {
         changelogExpandIcon = findViewById(R.id.ivChangelogExpand)
 
         setSupportActionBar(toolbar)
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
-        supportActionBar?.title = getString(R.string.settings_title)
+        supportActionBar?.setDisplayHomeAsUpEnabled(false)
+        supportActionBar?.title = getString(R.string.app_name)
 
         // Display version info and changelog
         displayVersionInfo()
@@ -540,8 +747,66 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        toolbar.setNavigationOnClickListener {
-            finish()
+        // Permission buttons
+        microphoneButton.setOnClickListener {
+            Log.d(TAG, "Microphone button clicked - requesting permission")
+            requestMicrophonePermission.launch(Manifest.permission.RECORD_AUDIO)
+        }
+
+        overlayButton.setOnClickListener {
+            Log.d(TAG, "Overlay button clicked - opening settings")
+            val intent = Intent(
+                Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                Uri.parse("package:$packageName")
+            )
+            startActivity(intent)
+        }
+
+        accessibilityButton.setOnClickListener {
+            Log.d(TAG, "Accessibility button clicked - opening settings")
+            val intent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+            startActivity(intent)
+            Toast.makeText(
+                this,
+                "Find 'Tiny Dictation' and enable it",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+
+        // Start/Stop dictation button
+        startButton.setOnClickListener {
+            Log.d(TAG, "Start/Stop button clicked")
+            if (allPermissionsGranted()) {
+                if (!preferenceManager.hasApiKey()) {
+                    Log.e(TAG, "No API key configured")
+                    Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
+                    return@setOnClickListener
+                }
+
+                val wasRunning = BubbleService.isRunning()
+                if (wasRunning) {
+                    Log.i(TAG, "Stopping dictation")
+                    stopDictation()
+                } else {
+                    Log.i(TAG, "Starting dictation")
+                    startDictation()
+                }
+                // Update button immediately with expected state (opposite of previous)
+                updateStartButtonState(!wasRunning)
+                // Also update after delay to sync with actual service state
+                android.os.Handler(mainLooper).postDelayed({
+                    updateStartButton()
+                }, 500)
+            } else {
+                Log.e(TAG, "Cannot start - missing permissions")
+                Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
+            }
+        }
+
+        // History button
+        historyButton.setOnClickListener {
+            Log.d(TAG, "History button clicked")
+            startActivity(Intent(this, HistoryActivity::class.java))
         }
 
         // Bubble toggles apply immediately - no save needed
