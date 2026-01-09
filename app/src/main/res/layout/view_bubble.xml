@@ -6,18 +6,48 @@
     android:layout_height="wrap_content"
     android:padding="4dp">
 
-    <!-- Vertical stack of bubbles -->
+    <!-- Vertical stack of bubbles (top to bottom: Language, Clipboard, Mic) -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
-        <!-- Main Mic Bubble -->
+        <!-- Language Toggle Button -->
+        <TextView
+            android:id="@+id/tvLanguageToggle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:text="EN"
+            android:textColor="@color/bubble_text"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Paste/Clipboard Button -->
+        <TextView
+            android:id="@+id/tvPasteButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:text="📋"
+            android:textSize="18sp"
+            android:visibility="gone"
+            tools:visibility="visible" />
+
+        <!-- Main Mic Bubble (at bottom) -->
         <FrameLayout
             android:id="@+id/bubbleContainer"
             android:layout_width="40dp"
             android:layout_height="40dp"
+            android:layout_marginTop="4dp"
             android:background="@drawable/bubble_background"
             android:elevation="6dp">
 
@@ -31,36 +61,6 @@
                 android:contentDescription="@string/app_name" />
 
         </FrameLayout>
-
-        <!-- Language Toggle Button (same size as mic) -->
-        <TextView
-            android:id="@+id/tvLanguageToggle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:gravity="center"
-            android:text="EN"
-            android:textColor="@color/bubble_text"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <!-- Paste/Clipboard Button (same size as mic) -->
-        <TextView
-            android:id="@+id/tvPasteButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:gravity="center"
-            android:text="📋"
-            android:textSize="18sp"
-            android:visibility="gone"
-            tools:visibility="visible" />
 
     </LinearLayout>
 

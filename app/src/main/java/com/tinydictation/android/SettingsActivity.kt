@@ -56,6 +56,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.7:
+            • Reordered bubbles: Language → Clipboard → Mic (bottom)
+
             v1.5.6:
             • Fixed bubble toggle settings (was async race condition)
             • Debug logging for bubble visibility
