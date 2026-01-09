@@ -28,9 +28,13 @@ class SherpaOnnxEngine : TranscriptionEngine {
         private const val SAMPLE_RATE = 16000
         private const val MODELS_DIR = "sherpa_models"
 
-        // Buffer settings - process after ~2 seconds of audio for responsive feedback
-        private const val BUFFER_THRESHOLD_SAMPLES = SAMPLE_RATE * 2 // 2 seconds
+        // Buffer settings - Whisper needs more context for accuracy
+        // Process after ~5 seconds of audio for better quality
+        private const val BUFFER_THRESHOLD_SAMPLES = SAMPLE_RATE * 5 // 5 seconds minimum
         private const val MAX_BUFFER_SAMPLES = SAMPLE_RATE * 30 // 30 seconds max
+
+        // Silence detection threshold (RMS value)
+        private const val SILENCE_THRESHOLD = 0.01f
 
         fun getModelDir(context: Context, modelVariant: String): File {
             return File(context.filesDir, "$MODELS_DIR/$modelVariant")
@@ -217,8 +221,30 @@ class SherpaOnnxEngine : TranscriptionEngine {
         sessionText.clear()
     }
 
+    // Track silence for smarter processing
+    private var consecutiveSilentChunks = 0
+    private var hasDetectedSpeech = false
+    private val SILENT_CHUNKS_THRESHOLD = 10 // ~200ms of silence triggers processing
+
     override fun processAudio(samples: ShortArray) {
         if (!isSessionActive || recognizer == null) return
+
+        // Calculate RMS to detect speech vs silence
+        var sumSquares = 0.0
+        for (sample in samples) {
+            val normalized = sample / 32768.0f
+            sumSquares += normalized * normalized
+        }
+        val rms = kotlin.math.sqrt(sumSquares / samples.size).toFloat()
+
+        // Track speech/silence
+        val isSilent = rms < SILENCE_THRESHOLD
+        if (isSilent) {
+            consecutiveSilentChunks++
+        } else {
+            consecutiveSilentChunks = 0
+            hasDetectedSpeech = true
+        }
 
         // Convert 16-bit PCM to float [-1, 1]
         synchronized(audioBuffer) {
@@ -227,18 +253,25 @@ class SherpaOnnxEngine : TranscriptionEngine {
             }
         }
 
-        // Process when we have enough audio
-        if (audioBuffer.size >= BUFFER_THRESHOLD_SAMPLES && processingJob?.isActive != true) {
+        // Process when:
+        // 1. We have enough audio AND detected speech AND now have silence (end of utterance)
+        // 2. OR buffer is getting too large
+        val shouldProcess = (audioBuffer.size >= BUFFER_THRESHOLD_SAMPLES &&
+                hasDetectedSpeech &&
+                consecutiveSilentChunks >= SILENT_CHUNKS_THRESHOLD &&
+                processingJob?.isActive != true)
+
+        if (shouldProcess) {
             processBufferAsync()
+            hasDetectedSpeech = false
+            consecutiveSilentChunks = 0
         }
 
-        // Prevent buffer from growing too large
-        if (audioBuffer.size > MAX_BUFFER_SAMPLES) {
-            synchronized(audioBuffer) {
-                // Keep only the last portion
-                val excess = audioBuffer.size - MAX_BUFFER_SAMPLES
-                repeat(excess) { audioBuffer.removeAt(0) }
-            }
+        // Prevent buffer from growing too large - force process
+        if (audioBuffer.size > MAX_BUFFER_SAMPLES && processingJob?.isActive != true) {
+            processBufferAsync()
+            hasDetectedSpeech = false
+            consecutiveSilentChunks = 0
         }
     }
 
@@ -246,6 +279,31 @@ class SherpaOnnxEngine : TranscriptionEngine {
         processingJob = processingScope.launch {
             processBuffer()
         }
+    }
+
+    // Common Whisper hallucinations to filter out
+    private val HALLUCINATION_PATTERNS = listOf(
+        "\\[Music\\]", "\\[Bell\\]", "\\[Applause\\]", "\\[Laughter\\]",
+        "\\[MUSIC\\]", "\\[BELL\\]", "\\[APPLAUSE\\]", "\\[LAUGHTER\\]",
+        "\\[music\\]", "\\[bell\\]", "\\[applause\\]", "\\[laughter\\]",
+        "\\[Sound\\]", "\\[Noise\\]", "\\[Silence\\]", "\\[Background\\]",
+        "\\[SOUND\\]", "\\[NOISE\\]", "\\[SILENCE\\]", "\\[BACKGROUND\\]",
+        "♪.*?♪", "♫.*?♫",  // Music symbols
+        "\\(.*?music.*?\\)", "\\(.*?inaudible.*?\\)",
+        "<.*?>",  // XML-like tags
+        "Thank you for watching.*", "Thanks for watching.*",
+        "Subscribe.*", "Like and subscribe.*",
+        "\\.\\.\\.", // Ellipsis often indicates silence
+    ).map { it.toRegex(RegexOption.IGNORE_CASE) }
+
+    private fun filterHallucinations(text: String): String {
+        var filtered = text
+        for (pattern in HALLUCINATION_PATTERNS) {
+            filtered = filtered.replace(pattern, "")
+        }
+        // Clean up extra spaces
+        filtered = filtered.replace(Regex("\\s+"), " ").trim()
+        return filtered
     }
 
     private fun processBuffer() {
@@ -259,6 +317,17 @@ class SherpaOnnxEngine : TranscriptionEngine {
             audioBuffer.clear()
         }
 
+        // Check if audio has enough energy (skip silent chunks)
+        var sumSquares = 0.0
+        for (sample in samples) {
+            sumSquares += sample * sample
+        }
+        val rms = kotlin.math.sqrt(sumSquares / samples.size).toFloat()
+        if (rms < SILENCE_THRESHOLD) {
+            Log.d(TAG, "SherpaOnnxEngine: Skipping silent audio chunk (RMS=$rms)")
+            return
+        }
+
         try {
             // Create a stream and process
             val stream = rec.createStream()
@@ -268,7 +337,11 @@ class SherpaOnnxEngine : TranscriptionEngine {
             val result = rec.getResult(stream)
             stream.release()
 
-            val text = result.text.trim()
+            var text = result.text.trim()
+
+            // Filter out hallucinations
+            text = filterHallucinations(text)
+
             if (text.isNotEmpty()) {
                 Log.d(TAG, "SherpaOnnxEngine: Transcribed: $text")
                 DebugLog.d("SherpaOnnxEngine: Result: $text")

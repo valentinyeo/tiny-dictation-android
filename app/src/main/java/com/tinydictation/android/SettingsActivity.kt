@@ -88,6 +88,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.1:
+            • Fixed Whisper hallucinations (filters Music, Bell, etc.)
+            • Better silence detection - processes on speech pauses
+            • Increased buffer for more accurate transcription
+
             v1.9.0:
             • Whisper transcription now fully working with Sherpa-ONNX
             • High-quality offline speech recognition with Whisper models
