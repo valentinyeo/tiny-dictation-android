@@ -353,31 +353,26 @@ class BubbleService : LifecycleService() {
         bubbleView?.let { view ->
             val bubbleContainer = view.findViewById<FrameLayout>(R.id.bubbleContainer)
             val iconView = view.findViewById<ImageView>(R.id.ivMicrophone)
-            val statusText = view.findViewById<TextView>(R.id.tvStatus)
 
             when (currentState) {
                 BubbleState.IDLE -> {
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.clearColorFilter()
-                    statusText?.visibility = View.GONE
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.LISTENING -> {
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.clearColorFilter()
-                    statusText?.visibility = View.GONE
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.RECORDING -> {
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
-                    statusText?.visibility = View.GONE
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.PROCESSING -> {
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.setColorFilter(ContextCompat.getColor(this, R.color.bubble_processing))
-                    statusText?.visibility = View.GONE
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
             }
