@@ -56,6 +56,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.10:
+            • Fixed bubble toggle settings (now uses preference listener)
+            • Bubbles hide/show automatically when settings change
+
             v1.5.9:
             • Clear clipboard buffer when starting new dictation session
             • Each tap-to-start gives you a fresh buffer

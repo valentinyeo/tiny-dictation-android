@@ -73,12 +73,26 @@ class BubbleService : LifecycleService() {
     private val longPressThreshold = 500L // milliseconds
     private var isLongPressTriggered = false
 
+    // Preference listener for automatic visibility updates
+    private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
+
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "BubbleService onCreate")
         DebugLog.i("BubbleService: Service created")
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+
+        // Register preference listener for bubble visibility changes
+        val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
+        prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "show_language_bubble" || key == "show_paste_bubble") {
+                Log.i(TAG, "Preference changed: $key")
+                DebugLog.i("BubbleService: Preference changed: $key")
+                updateBubbleVisibility()
+            }
+        }
+        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -113,6 +127,12 @@ class BubbleService : LifecycleService() {
         super.onDestroy()
         Log.i(TAG, "BubbleService onDestroy")
         DebugLog.i("BubbleService: Service destroyed")
+        // Unregister preference listener
+        prefsListener?.let { listener ->
+            getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
+                .unregisterOnSharedPreferenceChangeListener(listener)
+        }
+        prefsListener = null
         removeBubble()
         instance = null
     }
