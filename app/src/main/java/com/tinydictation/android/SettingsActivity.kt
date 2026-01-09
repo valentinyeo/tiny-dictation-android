@@ -53,13 +53,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.10:
+            • Fixed CI build issue
+
             v1.9.9:
             • Fixed Share Debug Log - now uses dpaste.com with paste.rs fallback
             • More reliable log sharing across different networks
 
             v1.9.8:
             • Save button now closes settings and returns to previous app
-            • New "Type instead of paste" mode: inserts text at cursor position
+            • New Type-instead-of-paste mode: inserts text at cursor position
             • Useful for editing in the middle of existing text
 
             v1.9.7:
