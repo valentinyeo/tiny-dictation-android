@@ -62,6 +62,8 @@ class AudioRecorder {
      * Starts audio recording and delivers audio chunks via the callback.
      *
      * @param scope CoroutineScope to run the recording loop in
+     * @param useHeadphoneMic If true, uses DEFAULT audio source which prefers headphone mic.
+     *                        If false, uses VOICE_RECOGNITION which prefers phone's built-in mic.
      * @param onAudioChunk Callback invoked with each audio chunk (320 samples / 20ms)
      * @throws SecurityException if RECORD_AUDIO permission is not granted
      * @throws IllegalStateException if AudioRecord fails to initialize
@@ -69,6 +71,7 @@ class AudioRecorder {
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startRecording(
         scope: CoroutineScope,
+        useHeadphoneMic: Boolean = false,
         onAudioChunk: (ShortArray) -> Unit
     ) {
         if (isRecording) {
@@ -76,15 +79,22 @@ class AudioRecorder {
             return
         }
 
+        // Choose audio source based on setting
+        val audioSource = if (useHeadphoneMic) {
+            MediaRecorder.AudioSource.DEFAULT
+        } else {
+            MediaRecorder.AudioSource.VOICE_RECOGNITION
+        }
+        val sourceName = if (useHeadphoneMic) "DEFAULT (headphone mic)" else "VOICE_RECOGNITION (phone mic)"
+
         Log.i(TAG, "Starting audio recording at $SAMPLE_RATE Hz")
-        DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz with VOICE_RECOGNITION source (phone mic)")
+        DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz with $sourceName source")
         val bufferSize = getMinBufferSize()
         Log.d(TAG, "Audio buffer size: $bufferSize bytes")
 
         try {
-            // Use VOICE_RECOGNITION to prefer phone's built-in mic over headphones
             audioRecord = AudioRecord(
-                MediaRecorder.AudioSource.VOICE_RECOGNITION,
+                audioSource,
                 SAMPLE_RATE,
                 CHANNEL_CONFIG,
                 AUDIO_FORMAT,

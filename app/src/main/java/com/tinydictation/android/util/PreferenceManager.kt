@@ -28,6 +28,9 @@ class PreferenceManager(context: Context) {
         private const val KEY_TRANSCRIPTION_ENGINE = "transcription_engine"
         private const val KEY_AUTO_FALLBACK = "auto_fallback_offline"
         private const val KEY_WHISPER_MODEL = "whisper_model"
+        private const val KEY_USE_HEADPHONE_MIC = "use_headphone_mic"
+        private const val KEY_SHOW_NOTE_BUBBLE = "show_note_bubble"
+        private const val KEY_NOTE_APP_PACKAGE = "note_app_package"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -325,5 +328,63 @@ class PreferenceManager(context: Context) {
      */
     fun setWhisperModel(modelId: String) {
         prefs.edit().putString(KEY_WHISPER_MODEL, modelId).apply()
+    }
+
+    // ========== Headphone Microphone ==========
+
+    /**
+     * Gets whether to use headphone microphone instead of phone mic.
+     * When enabled, uses DEFAULT audio source which prefers headphone mic.
+     * When disabled, uses VOICE_RECOGNITION which prefers phone's built-in mic.
+     * @return true if headphone microphone should be used
+     */
+    fun getUseHeadphoneMic(): Boolean {
+        return prefs.getBoolean(KEY_USE_HEADPHONE_MIC, false)
+    }
+
+    /**
+     * Sets whether to use headphone microphone.
+     * @param enabled true to use headphone mic, false for phone mic
+     */
+    fun setUseHeadphoneMic(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_USE_HEADPHONE_MIC, enabled).apply()
+    }
+
+    // ========== Note Bubble ==========
+
+    /**
+     * Gets whether to show the note bubble.
+     * @return true if the note bubble should be shown
+     */
+    fun getShowNoteBubble(): Boolean {
+        return prefs.getBoolean(KEY_SHOW_NOTE_BUBBLE, false)
+    }
+
+    /**
+     * Sets whether to show the note bubble.
+     * @param enabled true to show note bubble
+     */
+    fun setShowNoteBubble(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_NOTE_BUBBLE, enabled).apply()
+    }
+
+    /**
+     * Gets the package name of the configured note-taking app.
+     * @return Package name, or null if not configured
+     */
+    fun getNoteAppPackage(): String? {
+        return prefs.getString(KEY_NOTE_APP_PACKAGE, null)
+    }
+
+    /**
+     * Sets the package name of the note-taking app to use.
+     * @param packageName Package name of the app
+     */
+    fun setNoteAppPackage(packageName: String?) {
+        if (packageName == null) {
+            prefs.edit().remove(KEY_NOTE_APP_PACKAGE).apply()
+        } else {
+            prefs.edit().putString(KEY_NOTE_APP_PACKAGE, packageName).apply()
+        }
     }
 }

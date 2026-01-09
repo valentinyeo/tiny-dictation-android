@@ -157,10 +157,12 @@ class TranscriptionManager(
             // Start audio recording
             currentScope.launch(Dispatchers.Main) {
                 try {
-                    audioRecorder.startRecording(currentScope) { samples ->
+                    // Get headphone mic preference
+                    val useHeadphoneMic = preferenceManager.getUseHeadphoneMic()
+                    audioRecorder.startRecording(currentScope, useHeadphoneMic) { samples ->
                         processAudioChunk(samples)
                     }
-                    DebugLog.i("TranscriptionManager: Audio recording started")
+                    DebugLog.i("TranscriptionManager: Audio recording started (headphoneMic=$useHeadphoneMic)")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start audio recording", e)
                     DebugLog.e("TranscriptionManager: Failed to start recording - ${e.message}")

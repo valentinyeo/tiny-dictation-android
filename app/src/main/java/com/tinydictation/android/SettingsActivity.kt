@@ -5,8 +5,10 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.content.pm.ResolveInfo
 import android.os.Build
 import android.os.Bundle
+import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ImageView
@@ -41,8 +43,13 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var toolbar: MaterialToolbar
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var autoPunctuationSwitch: MaterialSwitch
+    private lateinit var headphoneMicSwitch: MaterialSwitch
     private lateinit var languageBubbleSwitch: MaterialSwitch
     private lateinit var pasteBubbleSwitch: MaterialSwitch
+    private lateinit var noteBubbleSwitch: MaterialSwitch
+    private lateinit var noteAppContainer: LinearLayout
+    private lateinit var tvSelectedNoteApp: TextView
+    private lateinit var btnSelectNoteApp: MaterialButton
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var shareDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
@@ -250,8 +257,13 @@ class SettingsActivity : AppCompatActivity() {
         toolbar = findViewById(R.id.toolbar)
         apiKeyInput = findViewById(R.id.etApiKey)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
+        headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
         languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
         pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
+        noteBubbleSwitch = findViewById(R.id.switchNoteBubble)
+        noteAppContainer = findViewById(R.id.noteAppContainer)
+        tvSelectedNoteApp = findViewById(R.id.tvSelectedNoteApp)
+        btnSelectNoteApp = findViewById(R.id.btnSelectNoteApp)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         shareDebugLogButton = findViewById(R.id.btnShareDebugLog)
         saveButton = findViewById(R.id.btnSave)
@@ -403,10 +415,18 @@ class SettingsActivity : AppCompatActivity() {
         // Load auto-punctuation
         autoPunctuationSwitch.isChecked = preferenceManager.getAutoPunctuation()
 
+        // Load headphone mic setting
+        headphoneMicSwitch.isChecked = preferenceManager.getUseHeadphoneMic()
+
         // Load bubble settings
         val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
         languageBubbleSwitch.isChecked = prefs.getBoolean("show_language_bubble", true)
         pasteBubbleSwitch.isChecked = prefs.getBoolean("show_paste_bubble", true)
+
+        // Load note bubble settings
+        noteBubbleSwitch.isChecked = preferenceManager.getShowNoteBubble()
+        updateNoteAppContainerVisibility()
+        updateSelectedNoteAppDisplay()
 
         // Load auto-fallback setting
         autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
@@ -490,6 +510,28 @@ class SettingsActivity : AppCompatActivity() {
                 .edit()
                 .putBoolean("show_paste_bubble", isChecked)
                 .commit()
+        }
+
+        // Note bubble toggle - applies immediately
+        noteBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setShowNoteBubble(isChecked)
+            updateNoteAppContainerVisibility()
+            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+                .edit()
+                .putBoolean("show_note_bubble", isChecked)
+                .commit()
+            DebugLog.i("Note bubble setting changed to: $isChecked")
+        }
+
+        // Note app selection button
+        btnSelectNoteApp.setOnClickListener {
+            showNoteAppPicker()
+        }
+
+        // Headphone mic toggle applies immediately
+        headphoneMicSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setUseHeadphoneMic(isChecked)
+            DebugLog.i("Headphone mic setting changed to: $isChecked")
         }
 
         copyDebugLogButton.setOnClickListener {
@@ -691,5 +733,99 @@ class SettingsActivity : AppCompatActivity() {
     override fun onSupportNavigateUp(): Boolean {
         finish()
         return true
+    }
+
+    /**
+     * Updates the visibility of the note app selection container.
+     */
+    private fun updateNoteAppContainerVisibility() {
+        noteAppContainer.visibility = if (noteBubbleSwitch.isChecked) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Updates the displayed name of the selected note app.
+     */
+    private fun updateSelectedNoteAppDisplay() {
+        val packageName = preferenceManager.getNoteAppPackage()
+        if (packageName != null) {
+            try {
+                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
+                } else {
+                    @Suppress("DEPRECATION")
+                    packageManager.getApplicationInfo(packageName, 0)
+                }
+                val appName = packageManager.getApplicationLabel(appInfo).toString()
+                tvSelectedNoteApp.text = appName
+            } catch (e: PackageManager.NameNotFoundException) {
+                tvSelectedNoteApp.text = packageName
+            }
+        } else {
+            tvSelectedNoteApp.text = "Tap to select app"
+        }
+    }
+
+    /**
+     * Shows a dialog to pick a note-taking app from installed apps that can receive text.
+     */
+    private fun showNoteAppPicker() {
+        // Find apps that can handle ACTION_SEND with text
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+        }
+
+        val resolveInfoList: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            packageManager.queryIntentActivities(sendIntent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()))
+        } else {
+            @Suppress("DEPRECATION")
+            packageManager.queryIntentActivities(sendIntent, PackageManager.MATCH_DEFAULT_ONLY)
+        }
+
+        // Filter to common note apps and sort alphabetically
+        val noteAppPackages = listOf(
+            "com.google.android.keep",           // Google Keep
+            "com.samsung.android.app.notes",     // Samsung Notes
+            "com.microsoft.office.onenote",      // OneNote
+            "com.evernote",                      // Evernote
+            "md.obsidian",                       // Obsidian
+            "net.gsantner.markor",               // Markor
+            "com.simplemobiletools.notes.pro",   // Simple Notes Pro
+            "org.standardnotes",                 // Standard Notes
+            "com.automattic.simplenote",         // Simplenote
+            "com.orgzly",                        // Orgzly
+            "com.notion.id",                     // Notion
+            "it.feio.android.omninotes",         // Omni Notes
+            "com.workflowy.android"              // WorkFlowy
+        )
+
+        // Build list of available apps (note apps first, then others)
+        data class AppInfo(val name: String, val packageName: String, val isNoteApp: Boolean)
+
+        val apps = resolveInfoList.map { resolveInfo ->
+            val packageName = resolveInfo.activityInfo.packageName
+            val appName = resolveInfo.loadLabel(packageManager).toString()
+            val isNoteApp = noteAppPackages.contains(packageName)
+            AppInfo(appName, packageName, isNoteApp)
+        }
+            .distinctBy { it.packageName }
+            .sortedWith(compareByDescending<AppInfo> { it.isNoteApp }.thenBy { it.name })
+
+        if (apps.isEmpty()) {
+            Toast.makeText(this, "No compatible apps found", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val appNames = apps.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Select Note App")
+            .setItems(appNames) { _, which ->
+                val selected = apps[which]
+                preferenceManager.setNoteAppPackage(selected.packageName)
+                updateSelectedNoteAppDisplay()
+                DebugLog.i("Note app selected: ${selected.name} (${selected.packageName})")
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 }
