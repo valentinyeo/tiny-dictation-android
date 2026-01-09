@@ -50,6 +50,25 @@
     <string name="upload_failed">Failed to upload logs</string>
     <string name="log_url_copied">URL copied to clipboard</string>
 
+    <!-- History -->
+    <string name="history_title">Transcription History</string>
+    <string name="history_empty">No transcriptions yet</string>
+    <string name="history_empty_desc">Your transcribed texts will appear here</string>
+    <string name="history_clear_all">Clear All</string>
+    <string name="history_clear_all_title">Clear All History?</string>
+    <string name="history_clear_all_message">This will permanently delete all transcription history.</string>
+    <string name="history_cleared">History cleared</string>
+    <string name="history_already_empty">History is already empty</string>
+    <string name="history_copied">Copied to clipboard</string>
+    <string name="history_item_options_title">Options</string>
+    <string name="history_delete_title">Delete Entry?</string>
+    <string name="history_delete_message">This entry will be permanently deleted.</string>
+    <string name="history_deleted">Entry deleted</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="clear_all">Clear All</string>
+    <string name="view_history">History</string>
+
     <!-- Errors -->
     <string name="error_no_api_key">Please enter your Deepgram API key in Settings</string>
     <string name="error_no_permission">Required permissions not granted</string>

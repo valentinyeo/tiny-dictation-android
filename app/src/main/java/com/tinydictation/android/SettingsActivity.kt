@@ -61,6 +61,12 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.6.0:
+            • Transcription History! View all past transcriptions
+            • Long-press clipboard button to open history
+            • History button added to main screen
+            • Tap any history item to copy it
+
             v1.5.12:
             • Drag to close! Drag bubble to X target at bottom to close
             • Visual feedback when hovering over close target
@@ -259,6 +265,21 @@ class SettingsActivity : AppCompatActivity() {
             finish()
         }
 
+        // Bubble toggles apply immediately - no save needed
+        languageBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+                .edit()
+                .putBoolean("show_language_bubble", isChecked)
+                .commit()
+        }
+
+        pasteBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+                .edit()
+                .putBoolean("show_paste_bubble", isChecked)
+                .commit()
+        }
+
         copyDebugLogButton.setOnClickListener {
             copyDebugLogToClipboard()
         }
@@ -289,15 +310,7 @@ class SettingsActivity : AppCompatActivity() {
         // Save auto-punctuation
         preferenceManager.setAutoPunctuation(autoPunctuationSwitch.isChecked)
 
-        // Save bubble settings (use commit() to ensure sync before refresh)
-        getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-            .edit()
-            .putBoolean("show_language_bubble", languageBubbleSwitch.isChecked)
-            .putBoolean("show_paste_bubble", pasteBubbleSwitch.isChecked)
-            .commit()  // Synchronous - ensures prefs are saved before we read them
-
-        // Notify BubbleService to refresh visibility immediately
-        BubbleService.refreshVisibility()
+        // Note: Bubble settings are saved immediately via switch listeners
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()

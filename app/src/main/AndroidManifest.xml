@@ -38,6 +38,12 @@
             android:exported="false"
             android:parentActivityName=".MainActivity" />
 
+        <!-- History Activity -->
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity" />
+
         <!-- Floating Bubble Service -->
         <service
             android:name=".service.BubbleService"

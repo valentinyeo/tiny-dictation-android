@@ -49,6 +49,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var overlayButton: MaterialButton
     private lateinit var accessibilityButton: MaterialButton
     private lateinit var startButton: MaterialButton
+    private lateinit var historyButton: MaterialButton
     private lateinit var settingsButton: MaterialButton
     private lateinit var versionInfo: TextView
 
@@ -95,6 +96,7 @@ class MainActivity : AppCompatActivity() {
         accessibilityButton = findViewById(R.id.btnEnableAccessibility)
 
         startButton = findViewById(R.id.btnStartDictation)
+        historyButton = findViewById(R.id.btnHistory)
         settingsButton = findViewById(R.id.btnSettings)
         versionInfo = findViewById(R.id.tvVersionInfo)
 
@@ -164,6 +166,11 @@ class MainActivity : AppCompatActivity() {
                 Log.e(TAG, "Cannot start - missing permissions")
                 Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
             }
+        }
+
+        historyButton.setOnClickListener {
+            Log.d(TAG, "History button clicked")
+            startActivity(Intent(this, HistoryActivity::class.java))
         }
 
         settingsButton.setOnClickListener {

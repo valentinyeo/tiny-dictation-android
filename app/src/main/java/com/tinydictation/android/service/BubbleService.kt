@@ -24,9 +24,11 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
+import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.MainActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
+import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.launch
 
@@ -190,8 +192,14 @@ class BubbleService : LifecycleService() {
         }
 
         // Paste button click handler - toggles between copy and paste
-        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.setOnClickListener {
-            handlePasteButtonClick()
+        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.apply {
+            setOnClickListener {
+                handlePasteButtonClick()
+            }
+            setOnLongClickListener {
+                openHistoryActivity()
+                true
+            }
         }
 
         try {
@@ -244,6 +252,7 @@ class BubbleService : LifecycleService() {
 
     /**
      * Copies the text buffer to clipboard and switches to paste mode.
+     * Also saves the transcription to history.
      */
     private fun copyBufferToClipboard() {
         val text = textBuffer.toString().trim()
@@ -256,7 +265,10 @@ class BubbleService : LifecycleService() {
         val clip = ClipData.newPlainText("Dictation", text)
         clipboard.setPrimaryClip(clip)
 
-        Log.i(TAG, "Copied ${text.length} chars to clipboard")
+        // Save to history
+        TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
+
+        Log.i(TAG, "Copied ${text.length} chars to clipboard and saved to history")
         DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
         Toast.makeText(this, "Copied! Tap again to paste", Toast.LENGTH_SHORT).show()
 
@@ -461,6 +473,29 @@ class BubbleService : LifecycleService() {
         startActivity(intent)
 
         // Vibrate briefly for feedback
+        vibrateForFeedback()
+    }
+
+    /**
+     * Opens the history activity from the bubble service.
+     */
+    private fun openHistoryActivity() {
+        Log.i(TAG, "Long-press on clipboard - opening HistoryActivity")
+        DebugLog.i("BubbleService: Opening HistoryActivity")
+
+        val intent = Intent(this, HistoryActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        startActivity(intent)
+
+        // Vibrate briefly for feedback
+        vibrateForFeedback()
+    }
+
+    /**
+     * Provides haptic feedback for user interactions.
+     */
+    private fun vibrateForFeedback() {
         try {
             val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -521,17 +556,7 @@ class BubbleService : LifecycleService() {
         }
 
         // Vibrate briefly for feedback
-        try {
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                vibrator?.vibrate(android.os.VibrationEffect.createOneShot(50, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(50)
-            }
-        } catch (e: Exception) {
-            // Ignore vibration errors
-        }
+        vibrateForFeedback()
     }
 
     /**
