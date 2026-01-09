@@ -93,6 +93,23 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Get changelog for current version
+        id: changelog
+        run: |
+          # Extract changelog for current version from SettingsActivity.kt
+          # Get the first changelog entry (current version)
+          CHANGELOG=$(sed -n '/private val CHANGELOG/,/"""/p' app/src/main/java/com/tinydictation/android/SettingsActivity.kt | \
+            grep -A 10 "v${{ steps.version.outputs.version_name }}:" | \
+            head -6 | tail -5 | \
+            sed 's/^[[:space:]]*//' | \
+            grep "•" | \
+            sed 's/•/→/g' || echo "")
+
+          # Escape for URL encoding
+          CHANGELOG_ESCAPED=$(echo "$CHANGELOG" | tr '\n' '%' | sed 's/%/%0A/g' | sed 's/%0A$//')
+          echo "changelog=${CHANGELOG_ESCAPED}" >> $GITHUB_OUTPUT
+          echo "Changelog: $CHANGELOG"
+
       - name: Send Telegram notification
         if: success()
         env:
@@ -102,9 +119,18 @@ jobs:
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             APK_NAME="TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}/${APK_NAME}"
+
+            # Build message with changelog
+            CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+            if [ -n "$CHANGELOG" ]; then
+              MESSAGE="*Tiny Dictation v${{ steps.version.outputs.version_name }}*%0A%0A${CHANGELOG}%0A%0A[Download APK](${DOWNLOAD_URL})"
+            else
+              MESSAGE="*Tiny Dictation v${{ steps.version.outputs.version_name }}* (${{ steps.version.outputs.sha_short }})%0A%0A[Download APK](${DOWNLOAD_URL})"
+            fi
+
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="*Tiny Dictation v${{ steps.version.outputs.version_name }}* (${{ steps.version.outputs.sha_short }})%0A%0A[Download APK](${DOWNLOAD_URL})" \
+              -d text="${MESSAGE}" \
               -d parse_mode="Markdown"
           else
             echo "Telegram secrets not configured, skipping notification"
