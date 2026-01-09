@@ -88,18 +88,14 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
-            v1.7.9:
-            • Added warning: Whisper engine is not yet functional
+            v1.8.0:
+            • Reverted clipboard recording mode - back to simpler copy/paste
+            • Long-press clipboard opens history again
             • Whisper options now clearly labeled as "NOT WORKING"
 
             v1.7.8:
             • Fixed note app selection: Now shows all compatible apps
             • Added manual package name entry for note apps
-
-            v1.7.7:
-            • Clipboard recording mode: Tap clipboard to start recording, tap again to copy
-            • Long-press clipboard to paste directly
-            • Visual indicator: Red circle while recording, checkmark when ready to paste
 
             v1.7.6:
             • Improved drag-to-X close: larger target, vibration feedback, easier to hit
