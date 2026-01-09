@@ -88,6 +88,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.6:
+            • Improved drag-to-X close: larger target, vibration feedback, easier to hit
+            • Fixed fragmented history: now saves full dictation session on clipboard tap
+            • Auto-cleanup: history entries older than 2 days are removed
+
             v1.7.5:
             • Note Bubble: Send transcriptions directly to note apps (Keep, OneNote, etc.)
             • Multi-select in History: Long-press to select, copy multiple transcriptions
