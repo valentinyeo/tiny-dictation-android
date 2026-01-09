@@ -24,7 +24,7 @@ import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.PreferenceManager
-import com.tinydictation.android.util.TranscriptionHistoryManager
+import com.tinydictation.android.history.TranscriptionHistoryManager
 
 class MainActivity : AppCompatActivity() {
 
