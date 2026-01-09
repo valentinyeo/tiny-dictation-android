@@ -88,6 +88,13 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.5:
+            • Note Bubble: Send transcriptions directly to note apps (Keep, OneNote, etc.)
+            • Multi-select in History: Long-press to select, copy multiple transcriptions
+            • Headphone mic toggle: Use headphone mic instead of phone mic
+            • Lock screen fix: Dictation no longer stops after unlocking
+            • Long-press bubble now opens Settings
+
             v1.7.4:
             • Fixed drag-to-close functionality
             • Now uses actual close target position for hit detection
