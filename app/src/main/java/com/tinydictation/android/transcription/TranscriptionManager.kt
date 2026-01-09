@@ -50,6 +50,7 @@ class TranscriptionManager(
     }
 
     private val audioRecorder = AudioRecorder()
+    private val preferenceManager = context?.let { PreferenceManager(it) }
     private var currentEngine: TranscriptionEngine? = null
     private var scope: CoroutineScope? = null
     private var isListening = false
@@ -157,8 +158,8 @@ class TranscriptionManager(
             // Start audio recording
             currentScope.launch(Dispatchers.Main) {
                 try {
-                    // Get headphone mic preference
-                    val useHeadphoneMic = preferenceManager.getUseHeadphoneMic()
+                    // Get headphone mic preference (default to false if no context)
+                    val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
                     audioRecorder.startRecording(currentScope, useHeadphoneMic) { samples ->
                         processAudioChunk(samples)
                     }
