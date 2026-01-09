@@ -55,6 +55,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.3:
+            • Less intrusive bubbles - now 65% opacity by default
+            • Outline-style microphone icon (cleaner look)
+            • Compact mode now even more translucent (40%)
+
             v1.5.2:
             • Long-press for compact/translucent mode (less intrusive)
             • Double-tap to close bubble (reminder: already worked!)

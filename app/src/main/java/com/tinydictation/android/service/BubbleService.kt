@@ -167,6 +167,8 @@ class BubbleService : LifecycleService() {
 
         try {
             windowManager.addView(bubbleView, bubbleParams)
+            // Set default opacity to ~65% for less intrusive appearance
+            bubbleView?.alpha = DEFAULT_OPACITY
             updateBubbleUI()
             updateLanguageUI()
             updateBubbleVisibility()
@@ -350,8 +352,8 @@ class BubbleService : LifecycleService() {
             val pasteButton = view.findViewById<TextView>(R.id.tvPasteButton)
 
             if (isCompactMode) {
-                // Compact mode: smaller, translucent, hide extra buttons
-                view.alpha = 0.4f
+                // Compact mode: smaller, more translucent, hide extra buttons
+                view.alpha = COMPACT_OPACITY
                 bubbleContainer?.layoutParams?.let { params ->
                     params.width = (24 * resources.displayMetrics.density).toInt()
                     params.height = (24 * resources.displayMetrics.density).toInt()
@@ -365,8 +367,8 @@ class BubbleService : LifecycleService() {
                 languageToggle?.visibility = View.GONE
                 pasteButton?.visibility = View.GONE
             } else {
-                // Normal mode: restore size and opacity
-                view.alpha = 1.0f
+                // Normal mode: restore size and default opacity
+                view.alpha = DEFAULT_OPACITY
                 bubbleContainer?.layoutParams?.let { params ->
                     params.width = (40 * resources.displayMetrics.density).toInt()
                     params.height = (40 * resources.displayMetrics.density).toInt()
@@ -541,6 +543,8 @@ class BubbleService : LifecycleService() {
         private const val ACTION_UPDATE_STATE = "com.tinydictation.android.action.UPDATE_STATE"
         private const val EXTRA_STATE = "extra_state"
         private const val CLICK_DEBOUNCE_MS = 300L
+        private const val DEFAULT_OPACITY = 0.65f  // Less intrusive default
+        private const val COMPACT_OPACITY = 0.4f   // Even more translucent in compact mode
 
         @Volatile
         private var instance: BubbleService? = null
