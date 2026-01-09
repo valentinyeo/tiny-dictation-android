@@ -83,6 +83,12 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.4:
+            • Fixed drag-to-close functionality
+            • Now uses actual close target position for hit detection
+            • Increased hit radius for easier targeting
+            • Added debug logging for drag-to-close
+
             v1.7.3:
             • Multiple Whisper models: Tiny (fast), Base (balanced), Small (accurate)
             • Fixed Whisper model downloads (tar.bz2 support)

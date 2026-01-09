@@ -420,6 +420,10 @@ class BubbleService : LifecycleService() {
                             windowManager.updateViewLayout(bubbleView, params)
                             // Check if bubble is over close target
                             val isOverTarget = checkBubbleOverTarget(params.x, params.y)
+                            // Log position periodically during drag for debugging
+                            if (System.currentTimeMillis() % 500 < 50) {
+                                Log.d(TAG, "Dragging bubble at (${params.x}, ${params.y}), overTarget=$isOverTarget")
+                            }
                             updateCloseTargetState(isOverTarget)
                         } catch (e: Exception) {
                             e.printStackTrace()
@@ -432,6 +436,9 @@ class BubbleService : LifecycleService() {
             MotionEvent.ACTION_UP -> {
                 // Cancel any pending long-press
                 longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
+
+                Log.d(TAG, "ACTION_UP: isDragging=$isDragging, isBubbleOverTarget=$isBubbleOverTarget")
+                DebugLog.d("BubbleService: ACTION_UP - dragging=$isDragging, overTarget=$isBubbleOverTarget")
 
                 // Check if released over close target
                 if (isDragging && isBubbleOverTarget) {
@@ -698,14 +705,17 @@ class BubbleService : LifecycleService() {
             y = screenHeight - targetSize - bottomMargin - navBarHeight  // Bottom with safe margin
         }
 
-        Log.d(TAG, "Close target position: x=${closeTargetParams?.x}, y=${closeTargetParams?.y}, screenHeight=$screenHeight")
+        Log.d(TAG, "Close target position: x=${closeTargetParams?.x}, y=${closeTargetParams?.y}, screenHeight=$screenHeight, targetSize=$targetSize")
+        DebugLog.d("BubbleService: Close target at x=${closeTargetParams?.x}, y=${closeTargetParams?.y}")
 
         try {
             windowManager.addView(closeTargetView, closeTargetParams)
             closeTargetView?.alpha = 0.8f
             isCloseTargetVisible = true
+            Log.i(TAG, "Close target shown successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to show close target", e)
+            DebugLog.e("BubbleService: Failed to show close target: ${e.message}")
         }
     }
 
@@ -733,31 +743,32 @@ class BubbleService : LifecycleService() {
      * Returns true if the bubble center is within the target area.
      */
     private fun checkBubbleOverTarget(bubbleX: Int, bubbleY: Int): Boolean {
+        // Use actual close target position from its params (not recalculated)
+        val targetParams = closeTargetParams ?: return false
+
         val displayMetrics = resources.displayMetrics
-        val screenWidth = displayMetrics.widthPixels
-        val screenHeight = displayMetrics.heightPixels
         val targetSize = (64 * displayMetrics.density).toInt()
         val bubbleSize = (40 * displayMetrics.density).toInt()
-        val navBarHeight = (48 * displayMetrics.density).toInt()
-        val bottomMargin = (150 * displayMetrics.density).toInt()
 
-        // Calculate target center position (must match showCloseTarget positioning)
-        val targetY = screenHeight - targetSize - bottomMargin - navBarHeight
-        val targetCenterX = screenWidth / 2
-        val targetCenterY = targetY + targetSize / 2
+        // Get target center from actual params
+        val targetCenterX = targetParams.x + targetSize / 2
+        val targetCenterY = targetParams.y + targetSize / 2
 
         // Calculate bubble center position
         val bubbleCenterX = bubbleX + bubbleSize / 2
         val bubbleCenterY = bubbleY + bubbleSize / 2
 
         // Check if bubble center is within extended hit area (larger hit area for easier targeting)
-        val hitRadius = (targetSize / 2 + 40 * displayMetrics.density).toInt()
+        val hitRadius = (targetSize / 2 + 60 * displayMetrics.density).toInt()
         val distanceX = Math.abs(bubbleCenterX - targetCenterX)
         val distanceY = Math.abs(bubbleCenterY - targetCenterY)
 
         val isOver = distanceX < hitRadius && distanceY < hitRadius
+
+        // Log every check for debugging (throttled by caller)
         if (isOver) {
-            Log.d(TAG, "Bubble over target! bubble($bubbleCenterX,$bubbleCenterY) target($targetCenterX,$targetCenterY)")
+            Log.d(TAG, "Bubble OVER target! bubble($bubbleCenterX,$bubbleCenterY) target($targetCenterX,$targetCenterY) dist($distanceX,$distanceY) radius=$hitRadius")
+            DebugLog.d("BubbleService: Bubble over close target")
         }
 
         return isOver
