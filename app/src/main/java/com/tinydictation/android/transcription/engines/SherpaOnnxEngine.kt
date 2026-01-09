@@ -33,8 +33,9 @@ class SherpaOnnxEngine : TranscriptionEngine {
         private const val BUFFER_THRESHOLD_SAMPLES = SAMPLE_RATE * 5 // 5 seconds minimum
         private const val MAX_BUFFER_SAMPLES = SAMPLE_RATE * 30 // 30 seconds max
 
-        // Silence detection threshold (RMS value)
-        private const val SILENCE_THRESHOLD = 0.01f
+        // Silence detection threshold (RMS value) - lower = more sensitive
+        // 0.005 is about -46dB, good for detecting speech vs background noise
+        private const val SILENCE_THRESHOLD = 0.005f
 
         fun getModelDir(context: Context, modelVariant: String): File {
             return File(context.filesDir, "$MODELS_DIR/$modelVariant")
@@ -146,7 +147,13 @@ class SherpaOnnxEngine : TranscriptionEngine {
             ))
 
             if (encoderFile == null || decoderFile == null || tokensFile == null) {
-                return Result.failure(IllegalStateException("Missing model files in $modelDir"))
+                // Log available files for debugging
+                val files = modelDir.listFiles()?.map { it.name } ?: emptyList()
+                Log.e(TAG, "SherpaOnnxEngine: Missing model files in $modelDir")
+                Log.e(TAG, "SherpaOnnxEngine: Available files: $files")
+                Log.e(TAG, "SherpaOnnxEngine: encoder=$encoderFile, decoder=$decoderFile, tokens=$tokensFile")
+                DebugLog.e("SherpaOnnxEngine: Missing files. Available: $files")
+                return Result.failure(IllegalStateException("Missing model files. Found: $files"))
             }
 
             Log.i(TAG, "SherpaOnnxEngine: Found encoder=${encoderFile.name}, decoder=${decoderFile.name}, tokens=${tokensFile.name}")

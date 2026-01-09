@@ -88,6 +88,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.4:
+            • Improved silence detection sensitivity
+            • Better error logging for model issues
+
             v1.9.3:
             • Fixed duplicate text bug in Whisper transcription
 
