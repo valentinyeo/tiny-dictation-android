@@ -117,18 +117,16 @@ jobs:
         id: changelog
         run: |
           # Extract changelog for current version from SettingsActivity.kt
-          # Get the first changelog entry (current version)
           CHANGELOG=$(sed -n '/private val CHANGELOG/,/"""/p' app/src/main/java/com/tinydictation/android/SettingsActivity.kt | \
             grep -A 10 "v${{ steps.version.outputs.version_name }}:" | \
             head -6 | tail -5 | \
             sed 's/^[[:space:]]*//' | \
             grep "•" | \
             sed 's/•/→/g' || echo "")
-
-          # Escape for URL encoding
-          CHANGELOG_ESCAPED=$(echo "$CHANGELOG" | tr '\n' '%' | sed 's/%/%0A/g' | sed 's/%0A$//')
-          echo "changelog=${CHANGELOG_ESCAPED}" >> $GITHUB_OUTPUT
-          echo "Changelog: $CHANGELOG"
+          # Store changelog with actual newlines preserved
+          echo "changelog<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
 
       - name: Send Telegram notification
         if: success()
@@ -140,18 +138,18 @@ jobs:
             BASE_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}"
             ARM64_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-arm64-v8a-${{ steps.version.outputs.sha_short }}.apk"
             ARM32_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-armeabi-v7a-${{ steps.version.outputs.sha_short }}.apk"
-            CHANGELOG="${{ steps.changelog.outputs.changelog }}"
-            NL=$'\n'
-            if [ -n "$CHANGELOG" ]; then
-              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>${NL}${NL}${CHANGELOG}${NL}${NL}<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
-            else
-              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b> (${{ steps.version.outputs.sha_short }})${NL}${NL}<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
-            fi
+
+            # Build message with proper formatting
+            MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>
+
+${{ steps.changelog.outputs.changelog }}
+
+<a href=\"${BASE_URL}/${ARM64_APK}\">Download APK (ARM64)</a>
+<a href=\"${BASE_URL}/${ARM32_APK}\">Download APK (ARM32)</a>"
+
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-              --data-urlencode "text=${MESSAGE}" \
-              --data-urlencode "parse_mode=HTML" \
-              --data-urlencode "disable_web_page_preview=false"
+              -H "Content-Type: application/json" \
+              -d "{\"chat_id\": \"${TELEGRAM_CHAT_ID}\", \"text\": $(echo "$MESSAGE" | jq -Rs .), \"parse_mode\": \"HTML\", \"disable_web_page_preview\": false}"
           else
             echo "Telegram secrets not configured, skipping notification"
           fi
