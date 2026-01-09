@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.9:
+            • Wait for final transcript before closing connection
+            • Reduced log spam, increased log buffer to 500 entries
+
             v1.3.8:
             • Fixed Deepgram audio encoding params (critical fix for transcription)
 

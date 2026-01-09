@@ -188,8 +188,8 @@ class TranscriptionManager(
 
         val vadResult = voiceActivityDetector.processSamples(samples)
 
-        // Log VAD results (except NO_SPEECH to avoid spam)
-        if (vadResult != VADResult.NO_SPEECH) {
+        // Log VAD results (only SPEECH_START and SPEECH_END to avoid spam)
+        if (vadResult == VADResult.SPEECH_START || vadResult == VADResult.SPEECH_END) {
             Log.d(TAG, "TranscriptionManager: VAD result = $vadResult")
             DebugLog.d("TranscriptionManager: VAD result = $vadResult")
         }
@@ -321,15 +321,20 @@ class TranscriptionManager(
     }
 
     /**
-     * Handles end of speech - closes Deepgram connection.
+     * Handles end of speech - waits for final transcript then closes connection.
      */
     private fun handleSpeechEnd() {
-        Log.i(TAG, "Handling speech end - closing Deepgram connection")
-        DebugLog.i("TranscriptionManager: Closing Deepgram connection")
+        Log.i(TAG, "Speech end detected - waiting for final transcript")
+        DebugLog.i("TranscriptionManager: Speech end - waiting for final transcript")
         isConnecting = false
         pendingAudioBuffer.clear()
 
+        // Give Deepgram time to process and send the final transcript
+        // before closing the connection
         scope?.launch(Dispatchers.IO) {
+            kotlinx.coroutines.delay(1500) // Wait 1.5 seconds for final transcript
+            Log.i(TAG, "Closing Deepgram connection after delay")
+            DebugLog.i("TranscriptionManager: Closing Deepgram connection")
             deepgramClient.close()
         }
 

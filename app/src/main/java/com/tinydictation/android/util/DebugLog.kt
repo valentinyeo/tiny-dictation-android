@@ -11,7 +11,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  */
 object DebugLog {
 
-    private const val MAX_ENTRIES = 100
+    private const val MAX_ENTRIES = 500
     private val dateFormat = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US)
 
     // Thread-safe queue for log entries
