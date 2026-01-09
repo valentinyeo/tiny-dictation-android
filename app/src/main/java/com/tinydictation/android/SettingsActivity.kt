@@ -3,12 +3,15 @@ package com.tinydictation.android
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
@@ -16,6 +19,13 @@ import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.FormBody
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import java.util.concurrent.TimeUnit
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -26,13 +36,25 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var vadSensitivitySlider: Slider
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var copyDebugLogButton: MaterialButton
+    private lateinit var shareDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
     private lateinit var versionInfo: TextView
     private lateinit var changelog: TextView
 
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .build()
+    }
+
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.6:
+            • Added Share Logs button for easy log sharing via dpaste.org
+
             v1.3.5:
             • Cleaner bubble indicator - mic icon turns red when recording
             • Removed text label below bubble for minimal UI
@@ -74,6 +96,7 @@ class SettingsActivity : AppCompatActivity() {
         vadSensitivitySlider = findViewById(R.id.sliderVadSensitivity)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
+        shareDebugLogButton = findViewById(R.id.btnShareDebugLog)
         saveButton = findViewById(R.id.btnSave)
         versionInfo = findViewById(R.id.tvVersionInfo)
         changelog = findViewById(R.id.tvChangelog)
@@ -130,6 +153,10 @@ class SettingsActivity : AppCompatActivity() {
             copyDebugLogToClipboard()
         }
 
+        shareDebugLogButton.setOnClickListener {
+            shareDebugLog()
+        }
+
         saveButton.setOnClickListener {
             saveSettings()
         }
@@ -164,6 +191,94 @@ class SettingsActivity : AppCompatActivity() {
         clipboard.setPrimaryClip(clip)
 
         Toast.makeText(this, R.string.debug_log_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareDebugLog() {
+        val logText = DebugLog.exportLog()
+
+        if (logText.isBlank()) {
+            Toast.makeText(this, "No logs to share", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Disable button and show uploading state
+        shareDebugLogButton.isEnabled = false
+        shareDebugLogButton.text = getString(R.string.uploading_logs)
+
+        lifecycleScope.launch {
+            try {
+                val url = uploadToDpaste(logText)
+                if (url != null) {
+                    showShareDialog(url)
+                } else {
+                    Toast.makeText(this@SettingsActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                DebugLog.e("Failed to upload logs: ${e.message}")
+                Toast.makeText(this@SettingsActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
+            } finally {
+                // Restore button state
+                shareDebugLogButton.isEnabled = true
+                shareDebugLogButton.text = getString(R.string.share_debug_log)
+            }
+        }
+    }
+
+    private suspend fun uploadToDpaste(content: String): String? = withContext(Dispatchers.IO) {
+        try {
+            val formBody = FormBody.Builder()
+                .add("content", content)
+                .add("syntax", "text")
+                .add("expiry_days", "7")
+                .build()
+
+            val request = Request.Builder()
+                .url("https://dpaste.org/api/")
+                .post(formBody)
+                .build()
+
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                // dpaste.org returns the URL as plain text
+                response.body?.string()?.trim()
+            } else {
+                DebugLog.e("dpaste upload failed: ${response.code}")
+                null
+            }
+        } catch (e: Exception) {
+            DebugLog.e("dpaste upload exception: ${e.message}")
+            null
+        }
+    }
+
+    private fun showShareDialog(url: String) {
+        AlertDialog.Builder(this)
+            .setTitle("Logs Uploaded")
+            .setMessage("Your logs have been uploaded to:\n\n$url\n\nExpires in 7 days.")
+            .setPositiveButton("Share") { _, _ ->
+                shareUrl(url)
+            }
+            .setNeutralButton("Copy URL") { _, _ ->
+                copyUrlToClipboard(url)
+            }
+            .setNegativeButton("Close", null)
+            .show()
+    }
+
+    private fun copyUrlToClipboard(url: String) {
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Debug Log URL", url)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(this, R.string.log_url_copied, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun shareUrl(url: String) {
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Tiny Dictation Debug Logs")
+            putExtra(Intent.EXTRA_TEXT, "Debug logs: $url")
+        }
+        startActivity(Intent.createChooser(shareIntent, "Share log URL"))
     }
 
     override fun onSupportNavigateUp(): Boolean {

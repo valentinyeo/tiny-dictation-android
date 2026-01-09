@@ -45,6 +45,10 @@
     <string name="debug_title">Debug</string>
     <string name="copy_debug_log">Copy Debug Log</string>
     <string name="debug_log_copied">Debug log copied to clipboard</string>
+    <string name="share_debug_log">Share Debug Log</string>
+    <string name="uploading_logs">Uploading logs...</string>
+    <string name="upload_failed">Failed to upload logs</string>
+    <string name="log_url_copied">URL copied to clipboard</string>
 
     <!-- Errors -->
     <string name="error_no_api_key">Please enter your Deepgram API key in Settings</string>

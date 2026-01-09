@@ -240,6 +240,14 @@
                         android:text="@string/copy_debug_log"
                         style="@style/Widget.Material3.Button.OutlinedButton" />
 
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/btnShareDebugLog"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="8dp"
+                        android:text="@string/share_debug_log"
+                        style="@style/Widget.Material3.Button.OutlinedButton" />
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
