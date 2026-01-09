@@ -88,6 +88,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.9:
+            • Added warning: Whisper engine is not yet functional
+            • Whisper options now clearly labeled as "NOT WORKING"
+
             v1.7.8:
             • Fixed note app selection: Now shows all compatible apps
             • Added manual package name entry for note apps
@@ -355,15 +359,16 @@ class SettingsActivity : AppCompatActivity() {
             engines.add("Vosk (Fast Offline)" to PreferenceManager.ENGINE_VOSK)
         }
 
-        // Whisper models - only show downloaded ones with specific names
+        // Whisper models - NOT YET FUNCTIONAL (AAR not integrated)
+        // Show downloaded models but warn they don't work yet
         if (modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")) {
-            engines.add("Whisper Tiny (Fast)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_TINY}")
+            engines.add("Whisper Tiny - NOT WORKING" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_TINY}")
         }
         if (modelManager.isModelAvailable("sherpa-onnx", "whisper-base")) {
-            engines.add("Whisper Base (Balanced)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_BASE}")
+            engines.add("Whisper Base - NOT WORKING" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_BASE}")
         }
         if (modelManager.isModelAvailable("sherpa-onnx", "whisper-small")) {
-            engines.add("Whisper Small (Accurate)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_SMALL}")
+            engines.add("Whisper Small - NOT WORKING" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_SMALL}")
         }
 
         val displayNames = engines.map { it.first }
@@ -399,6 +404,13 @@ class SettingsActivity : AppCompatActivity() {
                 preferenceManager.setTranscriptionEngine(parts[0])
                 preferenceManager.setWhisperModel(parts[1])
                 DebugLog.i("Engine changed to: ${parts[0]} with model: ${parts[1]}")
+
+                // Warn user that Whisper is not functional yet
+                Toast.makeText(
+                    this,
+                    "Whisper is not yet functional. Please use Vosk or Deepgram.",
+                    Toast.LENGTH_LONG
+                ).show()
             } else {
                 preferenceManager.setTranscriptionEngine(selectedValue)
                 DebugLog.i("Engine changed to: $selectedValue")
