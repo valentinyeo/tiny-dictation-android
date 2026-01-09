@@ -74,6 +74,20 @@ class DictationAccessibilityService : AccessibilityService() {
                 false
             }
         }
+
+        /**
+         * Performs paste action on the currently focused field.
+         * Uses clipboard content that was previously set.
+         *
+         * @return true if paste was successful, false otherwise
+         */
+        fun paste(): Boolean {
+            Log.d(TAG, "Paste requested")
+            return instance?.performPasteAction() ?: run {
+                Log.e(TAG, "Cannot paste - accessibility service not running")
+                false
+            }
+        }
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -139,6 +153,29 @@ class DictationAccessibilityService : AccessibilityService() {
         serviceScope.launch {
             val result = injectText(text)
             onResult(result)
+        }
+    }
+
+    /**
+     * Performs a paste action on the currently focused editable field.
+     * Assumes clipboard already contains the desired content.
+     *
+     * @return true if paste was successful, false otherwise
+     */
+    fun performPasteAction(): Boolean {
+        Log.d(TAG, "Performing paste action")
+        val focusedNode = findFocusedEditableNode()
+        if (focusedNode == null) {
+            Log.e(TAG, "Cannot paste - no focused editable field found")
+            return false
+        }
+
+        return try {
+            val pasteSuccess = focusedNode.performAction(AccessibilityNodeInfo.ACTION_PASTE)
+            Log.i(TAG, "Paste action ${if (pasteSuccess) "succeeded" else "failed"}")
+            pasteSuccess
+        } finally {
+            focusedNode.recycle()
         }
     }
 

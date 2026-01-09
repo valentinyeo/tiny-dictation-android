@@ -55,6 +55,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.4:
+            • Smart clipboard button - tap to copy, tap again to paste
+            • Icon changes from clipboard to paste after copying
+            • Works seamlessly with accessibility service
+
             v1.5.3:
             • Less intrusive bubbles - now 65% opacity by default
             • Outline-style microphone icon (cleaner look)

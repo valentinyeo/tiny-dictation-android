@@ -46,6 +46,9 @@ class BubbleService : LifecycleService() {
     // Text buffer for paste functionality
     private val textBuffer = StringBuilder()
 
+    // Clipboard state: false = copy mode, true = paste mode (ready to paste)
+    private var isPasteMode = false
+
     // Compact/translucent mode
     private var isCompactMode = false
 
@@ -160,9 +163,9 @@ class BubbleService : LifecycleService() {
             toggleLanguage()
         }
 
-        // Paste button click handler
+        // Paste button click handler - toggles between copy and paste
         bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.setOnClickListener {
-            copyBufferToClipboard()
+            handlePasteButtonClick()
         }
 
         try {
@@ -199,12 +202,27 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Copies the text buffer to clipboard and clears it.
+     * Handles paste button click - toggles between copy and paste modes.
+     * First tap: copies buffer to clipboard, icon changes to paste mode
+     * Second tap: triggers paste via accessibility service
+     */
+    private fun handlePasteButtonClick() {
+        if (isPasteMode) {
+            // Second tap: perform paste action
+            performPaste()
+        } else {
+            // First tap: copy buffer to clipboard
+            copyBufferToClipboard()
+        }
+    }
+
+    /**
+     * Copies the text buffer to clipboard and switches to paste mode.
      */
     private fun copyBufferToClipboard() {
         val text = textBuffer.toString().trim()
         if (text.isEmpty()) {
-            Toast.makeText(this, "Nothing to paste", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, "Nothing to copy", Toast.LENGTH_SHORT).show()
             return
         }
 
@@ -214,14 +232,44 @@ class BubbleService : LifecycleService() {
 
         Log.i(TAG, "Copied ${text.length} chars to clipboard")
         DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
-        Toast.makeText(this, "Copied! Now paste where you need it", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "Copied! Tap again to paste", Toast.LENGTH_SHORT).show()
 
-        // Clear buffer after copying
-        textBuffer.clear()
+        // Switch to paste mode (don't clear buffer yet)
+        isPasteMode = true
+        updatePasteButtonIcon()
+    }
+
+    /**
+     * Performs paste action via accessibility service.
+     */
+    private fun performPaste() {
+        val success = DictationAccessibilityService.paste()
+        if (success) {
+            Log.i(TAG, "Paste action successful")
+            DebugLog.i("BubbleService: Paste successful")
+            Toast.makeText(this, "Pasted!", Toast.LENGTH_SHORT).show()
+            // Clear buffer and reset to copy mode after successful paste
+            textBuffer.clear()
+            isPasteMode = false
+            updatePasteButtonIcon()
+        } else {
+            Log.w(TAG, "Paste action failed")
+            DebugLog.w("BubbleService: Paste failed - accessibility service may not be running")
+            Toast.makeText(this, "Paste failed - focus a text field first", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Updates the paste button icon based on current mode.
+     */
+    private fun updatePasteButtonIcon() {
+        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.text =
+            if (isPasteMode) "📥" else "📋"  // 📥 = paste, 📋 = clipboard/copy
     }
 
     /**
      * Appends transcribed text to the buffer.
+     * Resets paste mode since we have new content.
      */
     fun appendToBuffer(text: String) {
         if (text.isNotBlank()) {
@@ -230,14 +278,21 @@ class BubbleService : LifecycleService() {
             }
             textBuffer.append(text)
             Log.d(TAG, "Buffer now: ${textBuffer.length} chars")
+            // Reset to copy mode when new text arrives
+            if (isPasteMode) {
+                isPasteMode = false
+                updatePasteButtonIcon()
+            }
         }
     }
 
     /**
-     * Clears the text buffer.
+     * Clears the text buffer and resets paste mode.
      */
     fun clearBuffer() {
         textBuffer.clear()
+        isPasteMode = false
+        updatePasteButtonIcon()
     }
 
     /**
