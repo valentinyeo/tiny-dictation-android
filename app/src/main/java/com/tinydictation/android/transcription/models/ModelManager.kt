@@ -22,6 +22,21 @@ class ModelManager(private val context: Context) {
 
     companion object {
         private const val TAG = "TinyDictation"
+
+        // Sherpa-ONNX model info
+        val SHERPA_MODEL_INFO = mapOf(
+            "multi" to ModelInfo(
+                name = "sherpa-onnx-whisper-tiny",
+                sizeMB = 75,
+                url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2"
+            )
+        )
+
+        data class ModelInfo(
+            val name: String,
+            val sizeMB: Int,
+            val url: String
+        )
     }
 
     private val httpClient = OkHttpClient.Builder()
@@ -234,21 +249,5 @@ class ModelManager(private val context: Context) {
 
     private fun getSherpaModelDir(language: String): File {
         return File(context.filesDir, "sherpa_models/$language")
-    }
-
-    data class ModelInfo(
-        val name: String,
-        val sizeMB: Int,
-        val url: String
-    )
-
-    companion object SHERPA_MODEL_INFO {
-        val SHERPA_MODEL_INFO = mapOf(
-            "multi" to ModelInfo(
-                name = "sherpa-onnx-whisper-tiny",
-                sizeMB = 75,
-                url = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/sherpa-onnx-whisper-tiny.tar.bz2"
-            )
-        )
     }
 }
