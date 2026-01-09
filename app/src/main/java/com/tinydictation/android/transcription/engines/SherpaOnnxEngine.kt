@@ -44,19 +44,28 @@ class SherpaOnnxEngine : TranscriptionEngine {
             val modelDir = getModelDir(context, modelVariant)
             if (!modelDir.exists() || !modelDir.isDirectory) return false
 
-            // Check for Whisper model files
-            val hasEncoder = File(modelDir, "encoder.onnx").exists() ||
-                    File(modelDir, "encoder.int8.onnx").exists() ||
-                    File(modelDir, "tiny-encoder.onnx").exists() ||
-                    File(modelDir, "tiny-encoder.int8.onnx").exists()
+            // Check for Whisper model files - various naming conventions
+            // Models can have prefixes: tiny-, base-, small-, or no prefix
+            val encoderNames = listOf(
+                "encoder.onnx", "encoder.int8.onnx",
+                "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
+                "base-encoder.onnx", "base-encoder.int8.onnx",
+                "small-encoder.onnx", "small-encoder.int8.onnx"
+            )
+            val decoderNames = listOf(
+                "decoder.onnx", "decoder.int8.onnx",
+                "tiny-decoder.onnx", "tiny-decoder.int8.onnx",
+                "base-decoder.onnx", "base-decoder.int8.onnx",
+                "small-decoder.onnx", "small-decoder.int8.onnx"
+            )
+            val tokenNames = listOf(
+                "tokens.txt",
+                "tiny-tokens.txt", "base-tokens.txt", "small-tokens.txt"
+            )
 
-            val hasDecoder = File(modelDir, "decoder.onnx").exists() ||
-                    File(modelDir, "decoder.int8.onnx").exists() ||
-                    File(modelDir, "tiny-decoder.onnx").exists() ||
-                    File(modelDir, "tiny-decoder.int8.onnx").exists()
-
-            val hasTokens = File(modelDir, "tokens.txt").exists() ||
-                    File(modelDir, "tiny-tokens.txt").exists()
+            val hasEncoder = encoderNames.any { File(modelDir, it).exists() }
+            val hasDecoder = decoderNames.any { File(modelDir, it).exists() }
+            val hasTokens = tokenNames.any { File(modelDir, it).exists() }
 
             return hasEncoder && hasDecoder && hasTokens
         }
@@ -121,10 +130,23 @@ class SherpaOnnxEngine : TranscriptionEngine {
             Log.i(TAG, "SherpaOnnxEngine: Initializing from ${modelDir.absolutePath}")
             DebugLog.i("SherpaOnnxEngine: Initializing $currentModelVariant for language $language")
 
-            // Find model files
-            val encoderFile = findFile(modelDir, listOf("encoder.onnx", "encoder.int8.onnx", "tiny-encoder.onnx", "tiny-encoder.int8.onnx"))
-            val decoderFile = findFile(modelDir, listOf("decoder.onnx", "decoder.int8.onnx", "tiny-decoder.onnx", "tiny-decoder.int8.onnx"))
-            val tokensFile = findFile(modelDir, listOf("tokens.txt", "tiny-tokens.txt"))
+            // Find model files - check all naming conventions
+            val encoderFile = findFile(modelDir, listOf(
+                "encoder.onnx", "encoder.int8.onnx",
+                "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
+                "base-encoder.onnx", "base-encoder.int8.onnx",
+                "small-encoder.onnx", "small-encoder.int8.onnx"
+            ))
+            val decoderFile = findFile(modelDir, listOf(
+                "decoder.onnx", "decoder.int8.onnx",
+                "tiny-decoder.onnx", "tiny-decoder.int8.onnx",
+                "base-decoder.onnx", "base-decoder.int8.onnx",
+                "small-decoder.onnx", "small-decoder.int8.onnx"
+            ))
+            val tokensFile = findFile(modelDir, listOf(
+                "tokens.txt",
+                "tiny-tokens.txt", "base-tokens.txt", "small-tokens.txt"
+            ))
 
             if (encoderFile == null || decoderFile == null || tokensFile == null) {
                 return Result.failure(IllegalStateException("Missing model files in $modelDir"))
