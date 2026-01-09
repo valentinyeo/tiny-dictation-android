@@ -26,6 +26,7 @@ import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.MainActivity
+import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
 import com.tinydictation.android.util.DebugLog
@@ -392,7 +393,7 @@ class BubbleService : LifecycleService() {
                 longPressRunnable = Runnable {
                     if (!isDragging) {
                         isLongPressTriggered = true
-                        openMainActivity()
+                        openSettingsActivity()
                     }
                 }
                 longPressHandler?.postDelayed(longPressRunnable!!, longPressThreshold)
@@ -483,13 +484,13 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Opens the main activity from the bubble service.
+     * Opens the settings activity from the bubble service.
      */
-    private fun openMainActivity() {
-        Log.i(TAG, "Long-press detected - opening MainActivity")
-        DebugLog.i("BubbleService: Long-press detected, opening MainActivity")
+    private fun openSettingsActivity() {
+        Log.i(TAG, "Long-press detected - opening SettingsActivity")
+        DebugLog.i("BubbleService: Long-press detected, opening SettingsActivity")
 
-        val intent = Intent(this, MainActivity::class.java).apply {
+        val intent = Intent(this, SettingsActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
         }
         startActivity(intent)
