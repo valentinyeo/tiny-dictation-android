@@ -88,6 +88,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.5:
+            • Fixed Start/Stop button showing inverted state
+
             v1.9.4:
             • Improved silence detection sensitivity
             • Better error logging for model issues

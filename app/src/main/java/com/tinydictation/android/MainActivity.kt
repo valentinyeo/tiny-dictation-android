@@ -177,14 +177,20 @@ class MainActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                if (BubbleService.isRunning()) {
+                val wasRunning = BubbleService.isRunning()
+                if (wasRunning) {
                     Log.i(TAG, "Stopping dictation")
                     stopDictation()
                 } else {
                     Log.i(TAG, "Starting dictation")
                     startDictation()
                 }
-                updateStartButton()
+                // Update button immediately with expected state (opposite of previous)
+                updateStartButtonState(!wasRunning)
+                // Also update after delay to sync with actual service state
+                android.os.Handler(mainLooper).postDelayed({
+                    updateStartButton()
+                }, 500)
             } else {
                 Log.e(TAG, "Cannot start - missing permissions")
                 Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
@@ -235,7 +241,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun updateStartButton() {
-        if (BubbleService.isRunning()) {
+        updateStartButtonState(BubbleService.isRunning())
+    }
+
+    private fun updateStartButtonState(isRunning: Boolean) {
+        if (isRunning) {
             startButton.text = getString(R.string.stop_dictation)
             startButton.setBackgroundColor(ContextCompat.getColor(this, R.color.bubble_recording))
         } else {
