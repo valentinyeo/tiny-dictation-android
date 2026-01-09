@@ -53,6 +53,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.8:
+            • Save button now closes settings and returns to previous app
+            • New "Type instead of paste" mode: inserts text at cursor position
+            • Useful for editing in the middle of existing text
+
             v1.9.7:
             • Consolidated app into single screen
             • Permissions, Start/Stop, and Settings all in one place
@@ -282,6 +287,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var headphoneMicSwitch: MaterialSwitch
+    private lateinit var simulateTypingSwitch: MaterialSwitch
     private lateinit var languageBubbleSwitch: MaterialSwitch
     private lateinit var pasteBubbleSwitch: MaterialSwitch
     private lateinit var noteBubbleSwitch: MaterialSwitch
@@ -512,6 +518,7 @@ class SettingsActivity : AppCompatActivity() {
         apiKeyInput = findViewById(R.id.etApiKey)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
+        simulateTypingSwitch = findViewById(R.id.switchSimulateTyping)
         languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
         pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
         noteBubbleSwitch = findViewById(R.id.switchNoteBubble)
@@ -671,6 +678,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load headphone mic setting
         headphoneMicSwitch.isChecked = preferenceManager.getUseHeadphoneMic()
+
+        // Load simulate typing setting
+        simulateTypingSwitch.isChecked = preferenceManager.getSimulateTyping()
 
         // Load bubble settings
         val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
@@ -844,6 +854,12 @@ class SettingsActivity : AppCompatActivity() {
         headphoneMicSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setUseHeadphoneMic(isChecked)
             DebugLog.i("Headphone mic setting changed to: $isChecked")
+        }
+
+        // Simulate typing toggle applies immediately
+        simulateTypingSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setSimulateTyping(isChecked)
+            DebugLog.i("Simulate typing setting changed to: $isChecked")
         }
 
         copyDebugLogButton.setOnClickListener {

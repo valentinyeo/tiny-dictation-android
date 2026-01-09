@@ -31,6 +31,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_USE_HEADPHONE_MIC = "use_headphone_mic"
         private const val KEY_SHOW_NOTE_BUBBLE = "show_note_bubble"
         private const val KEY_NOTE_APP_PACKAGE = "note_app_package"
+        private const val KEY_SIMULATE_TYPING = "simulate_typing"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -386,5 +387,25 @@ class PreferenceManager(context: Context) {
         } else {
             prefs.edit().putString(KEY_NOTE_APP_PACKAGE, packageName).apply()
         }
+    }
+
+    // ========== Simulate Typing ==========
+
+    /**
+     * Gets whether to simulate typing (character-by-character) instead of pasting.
+     * When enabled, text is typed character by character which inserts at cursor position.
+     * When disabled, uses ACTION_SET_TEXT which replaces entire field content.
+     * @return true if simulate typing is enabled
+     */
+    fun getSimulateTyping(): Boolean {
+        return prefs.getBoolean(KEY_SIMULATE_TYPING, false)
+    }
+
+    /**
+     * Sets whether to simulate typing.
+     * @param enabled true to type character-by-character, false to paste
+     */
+    fun setSimulateTyping(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SIMULATE_TYPING, enabled).apply()
     }
 }

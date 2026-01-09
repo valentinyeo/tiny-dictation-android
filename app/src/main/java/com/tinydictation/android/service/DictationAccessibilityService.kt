@@ -10,7 +10,9 @@ import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -91,8 +93,10 @@ class DictationAccessibilityService : AccessibilityService() {
     }
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
+    private lateinit var preferenceManager: PreferenceManager
 
     override fun onServiceConnected() {
+        preferenceManager = PreferenceManager(this)
         super.onServiceConnected()
         Log.i(TAG, "DictationAccessibilityService connected")
         instance = this
@@ -119,6 +123,7 @@ class DictationAccessibilityService : AccessibilityService() {
     /**
      * Injects text into the currently focused editable text field.
      * Uses ACTION_SET_TEXT if available, falls back to clipboard paste.
+     * If "simulate typing" is enabled, types character-by-character at cursor position.
      *
      * @param text The text to inject
      * @return true if text was successfully injected, false otherwise
@@ -132,13 +137,23 @@ class DictationAccessibilityService : AccessibilityService() {
         }
 
         return try {
-            val success = injectTextWithSetText(focusedNode, text)
-            if (!success) {
-                Log.d(TAG, "ACTION_SET_TEXT failed, trying clipboard method")
-                injectTextWithClipboard(focusedNode, text)
+            // Check if simulate typing is enabled
+            val simulateTyping = preferenceManager.getSimulateTyping()
+            Log.d(TAG, "Simulate typing mode: $simulateTyping")
+
+            if (simulateTyping) {
+                // Use character-by-character typing mode
+                injectTextCharByChar(focusedNode, text)
             } else {
-                Log.i(TAG, "Text injected successfully using ACTION_SET_TEXT")
-                true
+                // Use standard paste mode
+                val success = injectTextWithSetText(focusedNode, text)
+                if (!success) {
+                    Log.d(TAG, "ACTION_SET_TEXT failed, trying clipboard method")
+                    injectTextWithClipboard(focusedNode, text)
+                } else {
+                    Log.i(TAG, "Text injected successfully using ACTION_SET_TEXT")
+                    true
+                }
             }
         } finally {
             focusedNode.recycle()
@@ -291,6 +306,83 @@ class DictationAccessibilityService : AccessibilityService() {
             e.printStackTrace()
             false
         }
+    }
+
+    /**
+     * Injects text character-by-character at the current cursor position.
+     * This method appends each character to the existing text, preserving cursor position.
+     * Useful for apps where cursor position matters.
+     *
+     * @param node The focused editable node
+     * @param text The text to inject
+     * @return true if successful, false otherwise
+     */
+    private fun injectTextCharByChar(node: AccessibilityNodeInfo, text: String): Boolean {
+        Log.d(TAG, "Injecting text character-by-character: $text")
+
+        // Get the current text and cursor position
+        val existingText = node.text?.toString() ?: ""
+
+        // Try to get current selection/cursor position
+        val selectionStart = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            node.textSelectionStart.takeIf { it >= 0 } ?: existingText.length
+        } else {
+            existingText.length
+        }
+        val selectionEnd = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {
+            node.textSelectionEnd.takeIf { it >= 0 } ?: existingText.length
+        } else {
+            existingText.length
+        }
+
+        Log.d(TAG, "Current text length: ${existingText.length}, cursor: $selectionStart-$selectionEnd")
+
+        // Prepare the text to insert - add space if needed
+        val textToInsert = if (existingText.isNotEmpty() &&
+            selectionStart == existingText.length &&
+            !existingText.endsWith(" ") &&
+            !text.startsWith(" ")) {
+            " $text"
+        } else {
+            text
+        }
+
+        // Build the new text with insertion at cursor position
+        val newText = StringBuilder(existingText).apply {
+            // If there's a selection, delete it first
+            if (selectionStart != selectionEnd) {
+                delete(selectionStart, selectionEnd)
+            }
+            // Insert the new text at cursor position
+            insert(selectionStart, textToInsert)
+        }.toString()
+
+        Log.d(TAG, "Setting new text via character simulation: $newText")
+
+        // Use ACTION_SET_TEXT to set the complete new text
+        val arguments = Bundle().apply {
+            putCharSequence(
+                AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                newText
+            )
+        }
+
+        val success = node.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
+
+        if (success) {
+            // Move cursor to end of inserted text
+            val newCursorPos = selectionStart + textToInsert.length
+            val cursorArgs = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, newCursorPos)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, newCursorPos)
+            }
+            node.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, cursorArgs)
+            Log.i(TAG, "Text injected successfully using character-by-character mode, cursor at $newCursorPos")
+        } else {
+            Log.e(TAG, "Character-by-character injection failed")
+        }
+
+        return success
     }
 
 }
