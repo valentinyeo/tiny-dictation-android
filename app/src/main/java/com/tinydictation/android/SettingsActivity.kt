@@ -61,8 +61,12 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.6.3:
+            • Auto-start dictation when app launches
+            • All transcriptions saved to history (not just copied)
+
             v1.6.2:
-            • Green checkmark (✓) when clipboard is ready
+            • Green checkmark when clipboard is ready
             • Vibration feedback on copy
             • Clearer ready-to-paste indicator
 

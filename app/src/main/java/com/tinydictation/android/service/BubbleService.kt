@@ -28,7 +28,6 @@ import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.MainActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
-import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.launch
 
@@ -265,10 +264,7 @@ class BubbleService : LifecycleService() {
         val clip = ClipData.newPlainText("Dictation", text)
         clipboard.setPrimaryClip(clip)
 
-        // Save to history
-        TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
-
-        Log.i(TAG, "Copied ${text.length} chars to clipboard and saved to history")
+        Log.i(TAG, "Copied ${text.length} chars to clipboard")
         DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
         Toast.makeText(this, "✓ Copied! Ready to paste", Toast.LENGTH_SHORT).show()
 

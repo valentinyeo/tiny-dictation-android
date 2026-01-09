@@ -24,6 +24,7 @@ import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.PreferenceManager
+import com.tinydictation.android.util.TranscriptionHistoryManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -79,6 +80,31 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         Log.d(TAG, "MainActivity onResume")
         updatePermissionStatus()
+        updateStartButton()
+
+        // Auto-start dictation if all permissions granted and API key configured
+        autoStartDictationIfReady()
+    }
+
+    private fun autoStartDictationIfReady() {
+        // Only auto-start if not already running
+        if (BubbleService.isRunning()) {
+            return
+        }
+
+        // Check all conditions
+        if (!allPermissionsGranted()) {
+            Log.d(TAG, "Auto-start skipped: missing permissions")
+            return
+        }
+
+        if (!preferenceManager.hasApiKey()) {
+            Log.d(TAG, "Auto-start skipped: no API key")
+            return
+        }
+
+        Log.i(TAG, "Auto-starting dictation")
+        startDictation()
         updateStartButton()
     }
 
@@ -277,6 +303,8 @@ class MainActivity : AppCompatActivity() {
                         DictationAccessibilityService.inject(text + " ")
                         // Also add to paste buffer for manual paste option
                         BubbleService.addToBuffer(text)
+                        // Save ALL transcriptions to history (not just copied ones)
+                        TranscriptionHistoryManager.getInstance(this).save(text, BubbleService.getCurrentLanguage())
                     }
                 },
                 onError = { error ->
