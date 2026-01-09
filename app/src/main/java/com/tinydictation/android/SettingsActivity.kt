@@ -53,6 +53,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.4.1:
+            • Smaller bubble (40dp instead of 56dp)
+
             v1.4.0:
             • Continuous streaming mode - much lower latency!
             • Connects to Deepgram immediately, streams all audio

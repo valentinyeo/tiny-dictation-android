@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:padding="8dp">
+    android:padding="4dp">
 
     <LinearLayout
         android:layout_width="wrap_content"
@@ -12,18 +12,18 @@
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
-        <!-- Circular Bubble Container -->
+        <!-- Circular Bubble Container (compact size) -->
         <FrameLayout
             android:id="@+id/bubbleContainer"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:background="@drawable/bubble_background"
             android:elevation="6dp">
 
             <ImageView
                 android:id="@+id/ivMicrophone"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_mic"
                 app:tint="@color/bubble_text"
