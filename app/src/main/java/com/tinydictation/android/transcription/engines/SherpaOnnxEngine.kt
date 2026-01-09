@@ -404,10 +404,97 @@ class SherpaOnnxEngine : TranscriptionEngine {
         if (currentLanguage == language) return
 
         Log.i(TAG, "SherpaOnnxEngine changing language to $language")
+        DebugLog.i("SherpaOnnxEngine: Changing language from $currentLanguage to $language")
         currentLanguage = language
 
-        // Whisper is multilingual - we'd need to reinitialize to change language
-        // For now, just log it - the model handles multiple languages
+        // Reinitialize recognizer with new language setting
+        val context = contextRef ?: run {
+            Log.e(TAG, "SherpaOnnxEngine: Cannot reinitialize - no context")
+            DebugLog.e("SherpaOnnxEngine: Language change failed - no context")
+            return
+        }
+
+        // Cancel any ongoing processing
+        processingJob?.cancel()
+        processingJob = null
+
+        // Clear audio buffer
+        synchronized(audioBuffer) {
+            audioBuffer.clear()
+        }
+
+        // Reinitialize in background to avoid blocking UI
+        processingScope.launch {
+            try {
+                // Release old recognizer
+                recognizer?.release()
+                recognizer = null
+
+                // Reinitialize with new language
+                val result = reinitializeRecognizer(context, language)
+                if (result.isFailure) {
+                    Log.e(TAG, "SherpaOnnxEngine: Failed to reinitialize for $language")
+                    DebugLog.e("SherpaOnnxEngine: Reinit failed - ${result.exceptionOrNull()?.message}")
+                    onErrorCallback?.invoke("Failed to switch language: ${result.exceptionOrNull()?.message}")
+                } else {
+                    Log.i(TAG, "SherpaOnnxEngine: Reinitialized for $language")
+                    DebugLog.i("SherpaOnnxEngine: Language switched to $language")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "SherpaOnnxEngine: Error during language switch", e)
+                DebugLog.e("SherpaOnnxEngine: Language switch error - ${e.message}")
+            }
+        }
+    }
+
+    private fun reinitializeRecognizer(context: Context, language: String): Result<Unit> {
+        val modelDir = getModelDir(context, currentModelVariant)
+
+        // Find model files
+        val encoderFile = findFile(modelDir, listOf(
+            "encoder.onnx", "encoder.int8.onnx",
+            "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
+            "base-encoder.onnx", "base-encoder.int8.onnx",
+            "small-encoder.onnx", "small-encoder.int8.onnx"
+        ))
+        val decoderFile = findFile(modelDir, listOf(
+            "decoder.onnx", "decoder.int8.onnx",
+            "tiny-decoder.onnx", "tiny-decoder.int8.onnx",
+            "base-decoder.onnx", "base-decoder.int8.onnx",
+            "small-decoder.onnx", "small-decoder.int8.onnx"
+        ))
+        val tokensFile = findFile(modelDir, listOf(
+            "tokens.txt",
+            "tiny-tokens.txt", "base-tokens.txt", "small-tokens.txt"
+        ))
+
+        if (encoderFile == null || decoderFile == null || tokensFile == null) {
+            return Result.failure(IllegalStateException("Missing model files"))
+        }
+
+        // Create new recognizer with updated language
+        val whisperConfig = OfflineWhisperModelConfig(
+            encoder = encoderFile.absolutePath,
+            decoder = decoderFile.absolutePath,
+            language = mapLanguageCode(language),
+            task = "transcribe"
+        )
+
+        val modelConfig = OfflineModelConfig(
+            whisper = whisperConfig,
+            tokens = tokensFile.absolutePath,
+            numThreads = 2,
+            debug = false
+        )
+
+        val config = OfflineRecognizerConfig(
+            featConfig = getFeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
+            modelConfig = modelConfig,
+            decodingMethod = "greedy_search"
+        )
+
+        recognizer = OfflineRecognizer(config = config)
+        return Result.success(Unit)
     }
 
     override fun getSupportedLanguages(): List<String> {

@@ -88,6 +88,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.6:
+            • Fixed language switching crash with Whisper engines
+
             v1.9.5:
             • Fixed Start/Stop button showing inverted state
 
