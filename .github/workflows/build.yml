@@ -51,10 +51,11 @@ jobs:
 
       - name: Commit debug keystore if newly created
         if: env.KEYSTORE_CREATED == 'true'
+        continue-on-error: true
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add app/debug.keystore
+          git add -f app/debug.keystore
           git commit -m "Add debug keystore for consistent signing"
           git push
 
