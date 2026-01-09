@@ -88,6 +88,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.8:
+            • Fixed note app selection: Now shows all compatible apps
+            • Added manual package name entry for note apps
+
             v1.7.7:
             • Clipboard recording mode: Tap clipboard to start recording, tap again to copy
             • Long-press clipboard to paste directly
@@ -786,19 +790,19 @@ class SettingsActivity : AppCompatActivity() {
      * Shows a dialog to pick a note-taking app from installed apps that can receive text.
      */
     private fun showNoteAppPicker() {
-        // Find apps that can handle ACTION_SEND with text
+        // Find apps that can handle ACTION_SEND with text - use 0 flags to get ALL apps, not just default
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
         }
 
         val resolveInfoList: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.queryIntentActivities(sendIntent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY.toLong()))
+            packageManager.queryIntentActivities(sendIntent, PackageManager.ResolveInfoFlags.of(0))
         } else {
             @Suppress("DEPRECATION")
-            packageManager.queryIntentActivities(sendIntent, PackageManager.MATCH_DEFAULT_ONLY)
+            packageManager.queryIntentActivities(sendIntent, 0)
         }
 
-        // Filter to common note apps and sort alphabetically
+        // Known note app packages (prioritized in list)
         val noteAppPackages = listOf(
             "com.google.android.keep",           // Google Keep
             "com.samsung.android.app.notes",     // Samsung Notes
@@ -827,20 +831,56 @@ class SettingsActivity : AppCompatActivity() {
             .distinctBy { it.packageName }
             .sortedWith(compareByDescending<AppInfo> { it.isNoteApp }.thenBy { it.name })
 
-        if (apps.isEmpty()) {
-            Toast.makeText(this, "No compatible apps found", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val appNames = apps.map { it.name }.toTypedArray()
+        // Build dialog options: apps + "Enter package name manually"
+        val displayNames = apps.map { it.name }.toMutableList()
+        displayNames.add("📝 Enter package name manually...")
 
         AlertDialog.Builder(this)
             .setTitle("Select Note App")
-            .setItems(appNames) { _, which ->
-                val selected = apps[which]
-                preferenceManager.setNoteAppPackage(selected.packageName)
-                updateSelectedNoteAppDisplay()
-                DebugLog.i("Note app selected: ${selected.name} (${selected.packageName})")
+            .setItems(displayNames.toTypedArray()) { _, which ->
+                if (which == apps.size) {
+                    // "Enter package name manually" selected
+                    showPackageNameInputDialog()
+                } else {
+                    val selected = apps[which]
+                    preferenceManager.setNoteAppPackage(selected.packageName)
+                    updateSelectedNoteAppDisplay()
+                    DebugLog.i("Note app selected: ${selected.name} (${selected.packageName})")
+                }
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    /**
+     * Shows a dialog to manually enter a package name for the note app.
+     */
+    private fun showPackageNameInputDialog() {
+        val inputField = TextInputEditText(this).apply {
+            hint = "com.example.noteapp"
+            setSingleLine(true)
+            // Pre-fill with current value if set
+            preferenceManager.getNoteAppPackage()?.let { setText(it) }
+        }
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(48, 32, 48, 0)
+            addView(inputField)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Enter Package Name")
+            .setMessage("Enter the package name of your note app (e.g., com.google.android.keep)")
+            .setView(container)
+            .setPositiveButton("Save") { _, _ ->
+                val packageName = inputField.text?.toString()?.trim()
+                if (!packageName.isNullOrBlank()) {
+                    preferenceManager.setNoteAppPackage(packageName)
+                    updateSelectedNoteAppDisplay()
+                    DebugLog.i("Note app package manually set: $packageName")
+                    Toast.makeText(this, "Package saved: $packageName", Toast.LENGTH_SHORT).show()
+                }
             }
             .setNegativeButton("Cancel", null)
             .show()
