@@ -61,6 +61,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.6.1:
+            • Bubble toggles apply instantly (no Save needed)
+            • Cleaner settings flow
+
             v1.6.0:
             • Transcription History! View all past transcriptions
             • Long-press clipboard button to open history
