@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.ArrayAdapter
+import android.widget.AutoCompleteTextView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -19,7 +21,8 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
-import com.tinydictation.android.service.BubbleService
+import com.tinydictation.android.transcription.engines.VoskEngine
+import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.Dispatchers
@@ -34,6 +37,7 @@ import java.util.concurrent.TimeUnit
 class SettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
+    private lateinit var modelManager: ModelManager
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var apiKeyInput: TextInputEditText
@@ -50,6 +54,18 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var changelogExpandIcon: ImageView
     private var isChangelogExpanded = false
 
+    // Engine selection
+    private lateinit var engineDropdown: AutoCompleteTextView
+    private lateinit var autoFallbackSwitch: MaterialSwitch
+
+    // Model downloads
+    private lateinit var tvVoskEnStatus: TextView
+    private lateinit var tvVoskDeStatus: TextView
+    private lateinit var tvSherpaStatus: TextView
+    private lateinit var btnDownloadVoskEn: MaterialButton
+    private lateinit var btnDownloadVoskDe: MaterialButton
+    private lateinit var btnDownloadSherpa: MaterialButton
+
     private val httpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(30, TimeUnit.SECONDS)
@@ -61,6 +77,12 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.1:
+            • Engine selection in Settings! Choose Deepgram, Vosk, or Whisper
+            • Model download manager - download offline models directly
+            • Vosk English & German models available
+            • Auto-fallback toggle for seamless offline mode
+
             v1.7.0:
             • Offline mode foundation - Vosk integration
             • Multi-engine architecture (Deepgram, Vosk, Sherpa-ONNX)
@@ -197,6 +219,7 @@ class SettingsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_settings)
 
         preferenceManager = PreferenceManager(this)
+        modelManager = ModelManager(this)
 
         initViews()
         loadSettings()
@@ -230,6 +253,21 @@ class SettingsActivity : AppCompatActivity() {
         changelogHeader.setOnClickListener {
             toggleChangelog()
         }
+
+        // Engine selection views
+        engineDropdown = findViewById(R.id.actvEngine)
+        autoFallbackSwitch = findViewById(R.id.switchAutoFallback)
+
+        // Model download views
+        tvVoskEnStatus = findViewById(R.id.tvVoskEnStatus)
+        tvVoskDeStatus = findViewById(R.id.tvVoskDeStatus)
+        tvSherpaStatus = findViewById(R.id.tvSherpaStatus)
+        btnDownloadVoskEn = findViewById(R.id.btnDownloadVoskEn)
+        btnDownloadVoskDe = findViewById(R.id.btnDownloadVoskDe)
+        btnDownloadSherpa = findViewById(R.id.btnDownloadSherpa)
+
+        // Setup engine dropdown
+        setupEngineDropdown()
     }
 
     private fun toggleChangelog() {
@@ -240,6 +278,31 @@ class SettingsActivity : AppCompatActivity() {
         } else {
             changelog.maxLines = 4
             changelogExpandIcon.rotation = 0f
+        }
+    }
+
+    private fun setupEngineDropdown() {
+        val engines = listOf(
+            "Deepgram (Cloud)" to PreferenceManager.ENGINE_DEEPGRAM,
+            "Vosk (Fast Offline)" to PreferenceManager.ENGINE_VOSK,
+            "Whisper (High Quality)" to PreferenceManager.ENGINE_SHERPA_ONNX
+        )
+        val displayNames = engines.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        engineDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentEngine = preferenceManager.getTranscriptionEngine()
+        val currentIndex = engines.indexOfFirst { it.second == currentEngine }
+        if (currentIndex >= 0) {
+            engineDropdown.setText(displayNames[currentIndex], false)
+        }
+
+        // Handle selection changes
+        engineDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedEngine = engines[position].second
+            preferenceManager.setTranscriptionEngine(selectedEngine)
+            DebugLog.i("Engine changed to: $selectedEngine")
         }
     }
 
@@ -280,6 +343,47 @@ class SettingsActivity : AppCompatActivity() {
         val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
         languageBubbleSwitch.isChecked = prefs.getBoolean("show_language_bubble", true)
         pasteBubbleSwitch.isChecked = prefs.getBoolean("show_paste_bubble", true)
+
+        // Load auto-fallback setting
+        autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
+
+        // Update model status
+        updateModelStatus()
+    }
+
+    private fun updateModelStatus() {
+        // Vosk English
+        val voskEnAvailable = modelManager.isModelAvailable("vosk", "en")
+        if (voskEnAvailable) {
+            tvVoskEnStatus.text = "Downloaded"
+            btnDownloadVoskEn.text = "Delete"
+        } else {
+            val info = VoskEngine.MODEL_INFO["en"]
+            tvVoskEnStatus.text = "Not downloaded (${info?.sizeMB ?: 41} MB)"
+            btnDownloadVoskEn.text = "Download"
+        }
+
+        // Vosk German
+        val voskDeAvailable = modelManager.isModelAvailable("vosk", "de")
+        if (voskDeAvailable) {
+            tvVoskDeStatus.text = "Downloaded"
+            btnDownloadVoskDe.text = "Delete"
+        } else {
+            val info = VoskEngine.MODEL_INFO["de"]
+            tvVoskDeStatus.text = "Not downloaded (${info?.sizeMB ?: 45} MB)"
+            btnDownloadVoskDe.text = "Download"
+        }
+
+        // Sherpa-ONNX (Whisper)
+        val sherpaAvailable = modelManager.isModelAvailable("sherpa-onnx", "multi")
+        if (sherpaAvailable) {
+            tvSherpaStatus.text = "Downloaded"
+            btnDownloadSherpa.text = "Delete"
+        } else {
+            val info = ModelManager.SHERPA_MODEL_INFO["multi"]
+            tvSherpaStatus.text = "Not downloaded (${info?.sizeMB ?: 75} MB)"
+            btnDownloadSherpa.text = "Download"
+        }
     }
 
     private fun setupClickListeners() {
@@ -312,6 +416,63 @@ class SettingsActivity : AppCompatActivity() {
 
         saveButton.setOnClickListener {
             saveSettings()
+        }
+
+        // Auto-fallback toggle applies immediately
+        autoFallbackSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoFallback(isChecked)
+        }
+
+        // Model download/delete buttons
+        btnDownloadVoskEn.setOnClickListener {
+            handleModelButton("vosk", "en", btnDownloadVoskEn, tvVoskEnStatus)
+        }
+
+        btnDownloadVoskDe.setOnClickListener {
+            handleModelButton("vosk", "de", btnDownloadVoskDe, tvVoskDeStatus)
+        }
+
+        btnDownloadSherpa.setOnClickListener {
+            handleModelButton("sherpa-onnx", "multi", btnDownloadSherpa, tvSherpaStatus)
+        }
+    }
+
+    private fun handleModelButton(engineId: String, language: String, button: MaterialButton, statusView: TextView) {
+        val isAvailable = modelManager.isModelAvailable(engineId, language)
+
+        if (isAvailable) {
+            // Delete model
+            lifecycleScope.launch {
+                button.isEnabled = false
+                button.text = "Deleting..."
+
+                val result = modelManager.deleteModel(engineId, language)
+                if (result.isSuccess) {
+                    Toast.makeText(this@SettingsActivity, "Model deleted", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@SettingsActivity, "Failed to delete model", Toast.LENGTH_SHORT).show()
+                }
+
+                updateModelStatus()
+                button.isEnabled = true
+            }
+        } else {
+            // Download model
+            lifecycleScope.launch {
+                button.isEnabled = false
+                button.text = "Downloading..."
+                statusView.text = "Downloading..."
+
+                val result = modelManager.downloadModel(engineId, language)
+                if (result.isSuccess) {
+                    Toast.makeText(this@SettingsActivity, "Model downloaded!", Toast.LENGTH_SHORT).show()
+                } else {
+                    Toast.makeText(this@SettingsActivity, "Download failed: ${result.exceptionOrNull()?.message}", Toast.LENGTH_LONG).show()
+                }
+
+                updateModelStatus()
+                button.isEnabled = true
+            }
         }
     }
 
