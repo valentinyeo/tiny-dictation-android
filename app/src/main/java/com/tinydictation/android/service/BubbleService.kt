@@ -1,12 +1,15 @@
 package com.tinydictation.android.service
 
 import android.annotation.SuppressLint
+import android.app.KeyguardManager
 import android.app.Notification
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.os.Build
 import android.os.IBinder
@@ -29,7 +32,10 @@ import com.tinydictation.android.MainActivity
 import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
+import com.tinydictation.android.history.TranscriptionHistoryManager
+import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.launch
 
 /**
@@ -84,12 +90,21 @@ class BubbleService : LifecycleService() {
     // Preference listener for automatic visibility updates
     private var prefsListener: android.content.SharedPreferences.OnSharedPreferenceChangeListener? = null
 
+    // TranscriptionManager - owned by this service to survive activity lifecycle
+    private var transcriptionManager: TranscriptionManager? = null
+    private lateinit var preferenceManager: PreferenceManager
+
+    // Screen lock state tracking
+    private var wasListeningBeforeLock = false
+    private var screenLockReceiver: BroadcastReceiver? = null
+
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "BubbleService onCreate")
         DebugLog.i("BubbleService: Service created")
         instance = this
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
+        preferenceManager = PreferenceManager(this)
 
         // Register preference listener for bubble visibility changes
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
@@ -101,6 +116,208 @@ class BubbleService : LifecycleService() {
             }
         }
         prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+
+        // Initialize TranscriptionManager
+        initializeTranscriptionManager()
+
+        // Register screen lock broadcast receiver
+        registerScreenLockReceiver()
+    }
+
+    /**
+     * Initializes the TranscriptionManager with callbacks.
+     */
+    private fun initializeTranscriptionManager() {
+        val apiKey = preferenceManager.getApiKey()
+        if (apiKey.isNullOrBlank()) {
+            Log.w(TAG, "No API key configured, TranscriptionManager not initialized")
+            DebugLog.w("BubbleService: No API key, skipping TranscriptionManager init")
+            return
+        }
+
+        Log.i(TAG, "Initializing TranscriptionManager")
+        DebugLog.i("BubbleService: Initializing TranscriptionManager")
+
+        transcriptionManager = TranscriptionManager(
+            apiKey = apiKey,
+            onTranscript = { text, isFinal ->
+                Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
+                if (isFinal && text.isNotBlank()) {
+                    // Inject via accessibility service
+                    DictationAccessibilityService.inject(text + " ")
+                    // Also add to paste buffer for manual paste option
+                    appendToBuffer(text)
+                    // Save ALL transcriptions to history
+                    TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
+                }
+            },
+            onError = { error ->
+                Log.e(TAG, "Transcription error: $error")
+                DebugLog.e("BubbleService: Transcription error - $error")
+                android.os.Handler(mainLooper).post {
+                    Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                }
+            },
+            onStateChange = { state ->
+                Log.d(TAG, "Transcription state changed: $state")
+                val bubbleState = when (state) {
+                    TranscriptionManager.TranscriptionState.IDLE -> BubbleState.IDLE
+                    TranscriptionManager.TranscriptionState.LISTENING -> BubbleState.LISTENING
+                    TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleState.RECORDING
+                    TranscriptionManager.TranscriptionState.ERROR -> BubbleState.IDLE
+                }
+                updateState(bubbleState)
+            },
+            context = this
+        )
+
+        // Set up bubble tap callbacks
+        onListeningStarted = {
+            Log.d(TAG, "Bubble listening started callback")
+            DebugLog.d("BubbleService: Starting transcription from bubble tap")
+            try {
+                transcriptionManager?.startListening()
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Security exception starting listening", e)
+                DebugLog.e("BubbleService: Security exception - ${e.message}")
+                android.os.Handler(mainLooper).post {
+                    Toast.makeText(this, "Microphone permission denied", Toast.LENGTH_SHORT).show()
+                }
+                updateState(BubbleState.IDLE)
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting listening", e)
+                DebugLog.e("BubbleService: Error starting listening - ${e.message}")
+                android.os.Handler(mainLooper).post {
+                    Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+                updateState(BubbleState.IDLE)
+            }
+        }
+
+        onListeningStopped = {
+            Log.d(TAG, "Bubble listening stopped callback")
+            DebugLog.d("BubbleService: Stopping transcription from bubble tap")
+            try {
+                transcriptionManager?.stopListening()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping listening", e)
+                DebugLog.e("BubbleService: Error stopping listening - ${e.message}")
+            }
+        }
+
+        onLanguageChanged = { language ->
+            Log.d(TAG, "Language changed to: $language")
+            DebugLog.d("BubbleService: Language changed to $language")
+            transcriptionManager?.setLanguage(language)
+        }
+    }
+
+    /**
+     * Registers a broadcast receiver to handle screen lock/unlock events.
+     * This ensures dictation can resume after returning from lock screen.
+     */
+    @SuppressLint("UnspecifiedRegisterReceiverFlag")
+    private fun registerScreenLockReceiver() {
+        screenLockReceiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                when (intent?.action) {
+                    Intent.ACTION_SCREEN_OFF -> {
+                        Log.i(TAG, "Screen turned OFF")
+                        DebugLog.i("BubbleService: Screen OFF detected")
+                        handleScreenOff()
+                    }
+                    Intent.ACTION_USER_PRESENT -> {
+                        Log.i(TAG, "User returned from lock screen")
+                        DebugLog.i("BubbleService: User present (unlocked)")
+                        handleUserPresent()
+                    }
+                    Intent.ACTION_SCREEN_ON -> {
+                        Log.d(TAG, "Screen turned ON (may still be locked)")
+                        DebugLog.d("BubbleService: Screen ON detected")
+                        // Note: Screen on doesn't mean unlocked, wait for USER_PRESENT
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_SCREEN_OFF)
+            addAction(Intent.ACTION_SCREEN_ON)
+            addAction(Intent.ACTION_USER_PRESENT)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(screenLockReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            registerReceiver(screenLockReceiver, filter)
+        }
+        Log.i(TAG, "Screen lock receiver registered")
+        DebugLog.i("BubbleService: Screen lock receiver registered")
+    }
+
+    /**
+     * Handles screen off event - saves listening state and stops recording.
+     * Audio recording often fails when screen is locked due to system restrictions.
+     */
+    private fun handleScreenOff() {
+        wasListeningBeforeLock = (currentState == BubbleState.LISTENING || currentState == BubbleState.RECORDING)
+        Log.i(TAG, "Screen off - wasListeningBeforeLock: $wasListeningBeforeLock, currentState: $currentState")
+        DebugLog.i("BubbleService: Screen off, wasListening=$wasListeningBeforeLock")
+
+        if (wasListeningBeforeLock) {
+            // Stop listening gracefully - audio recording will likely fail anyway
+            Log.i(TAG, "Pausing dictation due to screen lock")
+            DebugLog.i("BubbleService: Pausing dictation for screen lock")
+            try {
+                transcriptionManager?.stopListening()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error stopping listening on screen off", e)
+                DebugLog.e("BubbleService: Error stopping on screen off - ${e.message}")
+            }
+            // Keep the UI in listening state so user knows it will resume
+            // Don't call updateState(BubbleState.IDLE) here
+        }
+    }
+
+    /**
+     * Handles user returning from lock screen - resumes dictation if it was active.
+     */
+    private fun handleUserPresent() {
+        Log.i(TAG, "User present - wasListeningBeforeLock: $wasListeningBeforeLock")
+        DebugLog.i("BubbleService: User present, wasListening=$wasListeningBeforeLock")
+
+        if (wasListeningBeforeLock) {
+            Log.i(TAG, "Resuming dictation after lock screen")
+            DebugLog.i("BubbleService: Resuming dictation after unlock")
+
+            // Small delay to ensure system is ready
+            android.os.Handler(mainLooper).postDelayed({
+                if (instance != null && wasListeningBeforeLock) {
+                    try {
+                        // Re-initialize TranscriptionManager if needed
+                        if (transcriptionManager == null) {
+                            Log.i(TAG, "Re-initializing TranscriptionManager after unlock")
+                            DebugLog.i("BubbleService: Re-initializing TranscriptionManager")
+                            initializeTranscriptionManager()
+                        }
+
+                        // Restart listening
+                        Log.i(TAG, "Restarting listening after unlock")
+                        DebugLog.i("BubbleService: Restarting listening")
+                        updateState(BubbleState.LISTENING)
+                        transcriptionManager?.startListening()
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Error resuming dictation after unlock", e)
+                        DebugLog.e("BubbleService: Error resuming after unlock - ${e.message}")
+                        updateState(BubbleState.IDLE)
+                        android.os.Handler(mainLooper).post {
+                            Toast.makeText(this, "Failed to resume dictation: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                    wasListeningBeforeLock = false
+                }
+            }, 500) // 500ms delay for system to stabilize
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -128,6 +345,19 @@ class BubbleService : LifecycleService() {
         startForeground(NOTIFICATION_ID, createNotification())
         createBubble()
 
+        // Auto-start listening if TranscriptionManager is initialized
+        if (transcriptionManager != null && currentState == BubbleState.IDLE) {
+            Log.i(TAG, "Auto-starting listening on service start")
+            DebugLog.i("BubbleService: Auto-starting listening")
+            android.os.Handler(mainLooper).postDelayed({
+                if (instance != null && currentState == BubbleState.IDLE) {
+                    clearBuffer()
+                    updateState(BubbleState.LISTENING)
+                    onListeningStarted?.invoke()
+                }
+            }, 300)
+        }
+
         return START_STICKY
     }
 
@@ -135,6 +365,32 @@ class BubbleService : LifecycleService() {
         super.onDestroy()
         Log.i(TAG, "BubbleService onDestroy")
         DebugLog.i("BubbleService: Service destroyed")
+
+        // Unregister screen lock receiver
+        screenLockReceiver?.let { receiver ->
+            try {
+                unregisterReceiver(receiver)
+                Log.i(TAG, "Screen lock receiver unregistered")
+            } catch (e: Exception) {
+                Log.e(TAG, "Error unregistering screen lock receiver", e)
+            }
+        }
+        screenLockReceiver = null
+
+        // Stop and release TranscriptionManager
+        try {
+            transcriptionManager?.release()
+            Log.i(TAG, "TranscriptionManager released")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error releasing TranscriptionManager", e)
+        }
+        transcriptionManager = null
+
+        // Clear callbacks
+        onListeningStarted = null
+        onListeningStopped = null
+        onLanguageChanged = null
+
         // Unregister preference listener
         prefsListener?.let { listener ->
             getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
@@ -200,6 +456,11 @@ class BubbleService : LifecycleService() {
                 openHistoryActivity()
                 true
             }
+        }
+
+        // Note button click handler - sends transcription to configured note app
+        bubbleView?.findViewById<FrameLayout>(R.id.noteButtonContainer)?.setOnClickListener {
+            handleNoteButtonClick()
         }
 
         try {
@@ -362,17 +623,20 @@ class BubbleService : LifecycleService() {
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
         val showPaste = prefs.getBoolean("show_paste_bubble", true)
+        val showNote = prefs.getBoolean("show_note_bubble", false)
 
-        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste")
-        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste")
+        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote")
+        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste, note=$showNote")
 
         val langView = bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)
         val pasteView = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
+        val noteView = bubbleView?.findViewById<FrameLayout>(R.id.noteButtonContainer)
 
         langView?.visibility = if (showLanguage) View.VISIBLE else View.GONE
         pasteView?.visibility = if (showPaste) View.VISIBLE else View.GONE
+        noteView?.visibility = if (showNote) View.VISIBLE else View.GONE
 
-        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}")
+        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}, noteView=${noteView != null}")
     }
 
     /**

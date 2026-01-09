@@ -22,9 +22,7 @@ import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
-import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.PreferenceManager
-import com.tinydictation.android.history.TranscriptionHistoryManager
 
 class MainActivity : AppCompatActivity() {
 
@@ -33,7 +31,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private lateinit var preferenceManager: PreferenceManager
-    private var transcriptionManager: TranscriptionManager? = null
 
     // Permission cards
     private lateinit var microphoneCard: MaterialCardView
@@ -270,6 +267,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Starts dictation by launching the BubbleService.
+     * TranscriptionManager is now owned by BubbleService to survive activity lifecycle
+     * and properly handle lock screen events.
+     */
     private fun startDictation() {
         Log.i(TAG, "Starting dictation service")
 
@@ -283,111 +285,23 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        BubbleService.start(this)
-
-        // Set up transcription manager with callbacks
-        val apiKey = preferenceManager.getApiKey()
-        if (apiKey == null) {
+        // Verify API key before starting
+        if (!preferenceManager.hasApiKey()) {
             Log.e(TAG, "API key is null")
             Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
             return
         }
 
-        try {
-            transcriptionManager = TranscriptionManager(
-                apiKey = apiKey,
-                onTranscript = { text, isFinal ->
-                    Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
-                    if (isFinal && text.isNotBlank()) {
-                        // Inject via accessibility service
-                        DictationAccessibilityService.inject(text + " ")
-                        // Also add to paste buffer for manual paste option
-                        BubbleService.addToBuffer(text)
-                        // Save ALL transcriptions to history (not just copied ones)
-                        TranscriptionHistoryManager.getInstance(this).save(text, BubbleService.getCurrentLanguage())
-                    }
-                },
-                onError = { error ->
-                    Log.e(TAG, "Transcription error: $error")
-                    runOnUiThread {
-                        Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
-                    }
-                },
-                onStateChange = { state ->
-                    Log.d(TAG, "Transcription state changed: $state")
-                    val bubbleState = when (state) {
-                        TranscriptionManager.TranscriptionState.IDLE -> BubbleService.BubbleState.IDLE
-                        TranscriptionManager.TranscriptionState.LISTENING -> BubbleService.BubbleState.LISTENING
-                        TranscriptionManager.TranscriptionState.TRANSCRIBING -> BubbleService.BubbleState.RECORDING
-                        TranscriptionManager.TranscriptionState.ERROR -> BubbleService.BubbleState.IDLE
-                    }
-                    BubbleService.updateBubbleState(this, bubbleState)
-                },
-                context = this
-            )
-
-            // Connect bubble callbacks to transcription manager
-            BubbleService.onListeningStarted = {
-                Log.d(TAG, "Bubble listening started callback")
-                try {
-                    transcriptionManager?.startListening()
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "Security exception starting listening", e)
-                    runOnUiThread {
-                        Toast.makeText(this, "Microphone permission denied", Toast.LENGTH_SHORT).show()
-                        stopDictation()
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting listening", e)
-                    runOnUiThread {
-                        Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
-                        stopDictation()
-                    }
-                }
-            }
-
-            BubbleService.onListeningStopped = {
-                Log.d(TAG, "Bubble listening stopped callback")
-                try {
-                    transcriptionManager?.stopListening()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error stopping listening", e)
-                }
-            }
-
-            BubbleService.onLanguageChanged = { language ->
-                Log.d(TAG, "Language changed to: $language")
-                transcriptionManager?.setLanguage(language)
-            }
-
-            // Auto-start listening immediately after starting the service
-            // This way user doesn't need to tap the bubble again
-            Log.i(TAG, "Auto-starting transcription after service start")
-            try {
-                // Small delay to ensure service is fully started
-                android.os.Handler(mainLooper).postDelayed({
-                    if (BubbleService.isRunning()) {
-                        BubbleService.updateBubbleState(this, BubbleService.BubbleState.LISTENING)
-                        transcriptionManager?.startListening()
-                    }
-                }, 300)
-            } catch (e: Exception) {
-                Log.e(TAG, "Error auto-starting transcription", e)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error initializing transcription manager", e)
-            Toast.makeText(this, "Failed to initialize: ${e.message}", Toast.LENGTH_SHORT).show()
-            stopDictation()
-        }
+        // Start the bubble service - it now owns the TranscriptionManager
+        BubbleService.start(this)
+        Log.i(TAG, "BubbleService started - TranscriptionManager is now managed by service")
     }
 
+    /**
+     * Stops dictation by stopping the BubbleService.
+     */
     private fun stopDictation() {
         Log.i(TAG, "Stopping dictation service")
-        transcriptionManager?.stopListening()
-        transcriptionManager = null
         BubbleService.stop(this)
-        BubbleService.onListeningStarted = null
-        BubbleService.onListeningStopped = null
-        BubbleService.onLanguageChanged = null
     }
 }
