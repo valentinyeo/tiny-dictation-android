@@ -26,10 +26,9 @@ class DeepgramClient {
         /** Base WebSocket URL for Deepgram's streaming API */
         private const val BASE_URL = "wss://api.deepgram.com/v1/listen"
 
-        /** Default query parameters for transcription - optimized for low latency */
-        private const val DEFAULT_PARAMS =
+        /** Base query parameters for transcription - optimized for low latency */
+        private const val BASE_PARAMS =
             "model=nova-2" +
-            "&language=en" +
             "&encoding=linear16" +
             "&sample_rate=16000" +
             "&channels=1" +
@@ -37,6 +36,10 @@ class DeepgramClient {
             "&punctuate=true" +
             "&interim_results=true" +
             "&endpointing=150"  // Reduced from 300ms for faster finals
+
+        /** Builds params with specified language */
+        fun buildParams(language: String = "en"): String =
+            "language=$language&$BASE_PARAMS"
 
         /** Connection timeout in seconds */
         private const val CONNECT_TIMEOUT_SECONDS = 10L
@@ -66,14 +69,14 @@ class DeepgramClient {
      * @param onInterim Callback for interim (partial) transcription results
      * @param onFinal Callback for final transcription results
      * @param onError Callback for error messages
-     * @param customParams Optional custom query parameters (overrides defaults)
+     * @param language Language code ("en" for English, "de" for German)
      */
     fun connect(
         apiKey: String,
         onInterim: (String) -> Unit,
         onFinal: (String) -> Unit,
         onError: (String) -> Unit,
-        customParams: String? = null
+        language: String = "en"
     ) {
         if (isConnected) {
             Log.d(TAG, "DeepgramClient already connected")
@@ -105,9 +108,9 @@ class DeepgramClient {
                 .build()
             okHttpClient = client
 
-            val params = customParams ?: DEFAULT_PARAMS
+            val params = buildParams(language)
             val url = "$BASE_URL?$params"
-            Log.d(TAG, "Deepgram URL: $url")
+            Log.d(TAG, "Deepgram URL: $url (language=$language)")
 
             val request = Request.Builder()
                 .url(url)

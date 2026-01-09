@@ -317,6 +317,11 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+            BubbleService.onLanguageChanged = { language ->
+                Log.d(TAG, "Language changed to: $language")
+                transcriptionManager?.setLanguage(language)
+            }
+
             // Auto-start listening immediately after starting the service
             // This way user doesn't need to tap the bubble again
             Log.i(TAG, "Auto-starting transcription after service start")
@@ -345,5 +350,6 @@ class MainActivity : AppCompatActivity() {
         BubbleService.stop(this)
         BubbleService.onListeningStarted = null
         BubbleService.onListeningStopped = null
+        BubbleService.onLanguageChanged = null
     }
 }

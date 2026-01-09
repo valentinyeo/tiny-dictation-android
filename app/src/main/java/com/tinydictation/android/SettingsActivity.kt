@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.0:
+            • Language toggle! Tap EN/DE button to switch languages
+            • Works mid-conversation - just tap to switch
+
             v1.4.2:
             • Ultra-low latency optimizations
             • Reduced endpointing from 300ms to 150ms

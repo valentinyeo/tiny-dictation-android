@@ -38,6 +38,7 @@ class BubbleService : LifecycleService() {
     private var bubbleParams: WindowManager.LayoutParams? = null
 
     private var currentState: BubbleState = BubbleState.IDLE
+    private var currentLanguage: String = "en"  // "en" or "de"
 
     // Touch handling variables
     private var initialX: Int = 0
@@ -134,18 +135,44 @@ class BubbleService : LifecycleService() {
             y = 300  // A bit below the status bar
         }
 
-        bubbleView?.setOnTouchListener { view, event ->
+        // Main bubble touch handler (for mic)
+        bubbleView?.findViewById<FrameLayout>(R.id.bubbleContainer)?.setOnTouchListener { view, event ->
             handleTouch(view, event)
+        }
+
+        // Language toggle click handler
+        bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.setOnClickListener {
+            toggleLanguage()
         }
 
         try {
             windowManager.addView(bubbleView, bubbleParams)
             updateBubbleUI()
+            updateLanguageUI()
             Log.i(TAG, "Bubble created successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create bubble", e)
             e.printStackTrace()
         }
+    }
+
+    /**
+     * Toggles the language between English and German.
+     */
+    private fun toggleLanguage() {
+        currentLanguage = if (currentLanguage == "en") "de" else "en"
+        Log.i(TAG, "Language toggled to: $currentLanguage")
+        DebugLog.i("BubbleService: Language changed to $currentLanguage")
+        updateLanguageUI()
+        onLanguageChanged?.invoke(currentLanguage)
+    }
+
+    /**
+     * Updates the language toggle UI.
+     */
+    private fun updateLanguageUI() {
+        bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.text =
+            currentLanguage.uppercase()
     }
 
     /**
@@ -367,11 +394,17 @@ class BubbleService : LifecycleService() {
         // Callbacks for listening state changes
         var onListeningStarted: (() -> Unit)? = null
         var onListeningStopped: (() -> Unit)? = null
+        var onLanguageChanged: ((String) -> Unit)? = null
 
         /**
          * Checks if the service is currently running.
          */
         fun isRunning(): Boolean = instance != null
+
+        /**
+         * Gets the current language setting.
+         */
+        fun getCurrentLanguage(): String = instance?.currentLanguage ?: "en"
 
         /**
          * Gets the current service instance, if running.

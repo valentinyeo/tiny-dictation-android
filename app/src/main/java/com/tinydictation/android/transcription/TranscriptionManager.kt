@@ -63,6 +63,7 @@ class TranscriptionManager(
     private var scope: CoroutineScope? = null
     private var isListening = false
     private var currentState = TranscriptionState.IDLE
+    private var currentLanguage = "en"
 
     /**
      * Starts listening for speech and transcribing.
@@ -119,7 +120,7 @@ class TranscriptionManager(
 
         // Connect to Deepgram immediately for low-latency streaming
         updateState(TranscriptionState.TRANSCRIBING)
-        DebugLog.i("TranscriptionManager: Connecting to Deepgram immediately")
+        DebugLog.i("TranscriptionManager: Connecting to Deepgram (language=$currentLanguage)")
 
         currentScope.launch(Dispatchers.IO) {
             deepgramClient.connect(
@@ -145,7 +146,8 @@ class TranscriptionManager(
                             onError?.invoke(error)
                         }
                     }
-                }
+                },
+                language = currentLanguage
             )
         }
 
@@ -260,4 +262,51 @@ class TranscriptionManager(
      * Returns whether speech is currently being transcribed.
      */
     fun isTranscribing(): Boolean = currentState == TranscriptionState.TRANSCRIBING
+
+    /**
+     * Changes the transcription language and reconnects if currently listening.
+     */
+    fun setLanguage(language: String) {
+        if (currentLanguage == language) return
+
+        Log.i(TAG, "Changing language from $currentLanguage to $language")
+        DebugLog.i("TranscriptionManager: Language changed to $language")
+        currentLanguage = language
+
+        // If currently listening, reconnect with new language
+        if (isListening) {
+            DebugLog.i("TranscriptionManager: Reconnecting with new language")
+            deepgramClient.close()
+
+            scope?.launch(Dispatchers.IO) {
+                kotlinx.coroutines.delay(100) // Brief delay for clean close
+                deepgramClient.connect(
+                    apiKey = apiKey,
+                    onInterim = { text ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                onTranscript(text, false)
+                            }
+                        }
+                    },
+                    onFinal = { text ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                onTranscript(text, true)
+                            }
+                        }
+                    },
+                    onError = { error ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                DebugLog.e("TranscriptionManager: Deepgram error - $error")
+                                onError?.invoke(error)
+                            }
+                        }
+                    },
+                    language = currentLanguage
+                )
+            }
+        }
+    }
 }
