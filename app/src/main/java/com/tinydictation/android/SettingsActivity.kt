@@ -53,6 +53,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.11:
+            • Redesigned app icons with modern Lucide-inspired stroke style
+            • New professional launcher icon with microphone and audio waves
+            • Unified in-app icons: mic, check, warning, close, delete, history, copy, note
+            • Added distinct icons for overlay and accessibility permissions
+
             v1.9.10:
             • Fixed CI build issue
 

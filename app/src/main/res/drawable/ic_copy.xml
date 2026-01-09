@@ -4,7 +4,21 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Lucide-style copy icon -->
+    <!-- Back rectangle -->
     <path
-        android:pathData="M16,1H4C2.9,1 2,1.9 2,3v14h2V3h12V1zM19,5H8C6.9,5 6,5.9 6,7v14c0,1.1 0.9,2 2,2h11c1.1,0 2,-0.9 2,-2V7c0,-1.1 -0.9,-2 -2,-2zM19,21H8V7h11V21z"
-        android:fillColor="#FFFFFF"/>
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M20,9 L20,20 C20,20.53 19.79,21.04 19.41,21.41 C19.04,21.79 18.53,22 18,22 L9,22 C8.47,22 7.96,21.79 7.59,21.41 C7.21,21.04 7,20.53 7,20 L7,9 C7,8.47 7.21,7.96 7.59,7.59 C7.96,7.21 8.47,7 9,7 L18,7 C18.53,7 19.04,7.21 19.41,7.59 C19.79,7.96 20,8.47 20,9 Z" />
+    <!-- Front rectangle -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M5,15 L4,15 C3.47,15 2.96,14.79 2.59,14.41 C2.21,14.04 2,13.53 2,13 L2,4 C2,3.47 2.21,2.96 2.59,2.59 C2.96,2.21 3.47,2 4,2 L13,2 C13.53,2 14.04,2.21 14.41,2.59 C14.79,2.96 15,3.47 15,4 L15,5" />
 </vector>

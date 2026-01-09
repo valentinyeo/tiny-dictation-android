@@ -125,7 +125,7 @@
                         android:id="@+id/iconOverlay"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_mic"
+                        android:src="@drawable/ic_overlay"
                         app:tint="@color/bubble_idle"
                         android:contentDescription="@string/permission_overlay_title" />
 
@@ -186,7 +186,7 @@
                         android:id="@+id/iconAccessibility"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
-                        android:src="@drawable/ic_mic"
+                        android:src="@drawable/ic_accessibility"
                         app:tint="@color/bubble_idle"
                         android:contentDescription="@string/permission_accessibility_title" />
 

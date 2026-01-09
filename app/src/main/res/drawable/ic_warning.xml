@@ -4,7 +4,25 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
+    <!-- Lucide-style triangle alert icon -->
+    <!-- Triangle outline -->
     <path
-        android:fillColor="@android:color/black"
-        android:pathData="M1,21h22L12,2 1,21zM13,18h-2v-2h2v2zM13,14h-2v-4h2v4z"/>
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#49454F"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M10.29,3.86 L1.82,18 C1.64,18.32 1.56,18.69 1.58,19.06 C1.6,19.43 1.72,19.79 1.93,20.09 C2.15,20.39 2.45,20.63 2.79,20.77 C3.14,20.92 3.52,20.97 3.89,20.91 L20.11,20.91 C20.48,20.97 20.86,20.92 21.21,20.77 C21.55,20.63 21.85,20.39 22.07,20.09 C22.28,19.79 22.4,19.43 22.42,19.06 C22.44,18.69 22.36,18.32 22.18,18 L13.71,3.86 C13.53,3.56 13.27,3.32 12.96,3.17 C12.65,3.01 12.31,2.95 11.97,2.98 C11.63,3.01 11.31,3.13 11.03,3.33 C10.76,3.53 10.54,3.8 10.4,4.12" />
+    <!-- Exclamation line -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#49454F"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,9 L12,13" />
+    <!-- Exclamation dot -->
+    <path
+        android:fillColor="#49454F"
+        android:pathData="M12,17 m-1,0 a1,1 0,1 1,2 0 a1,1 0,1 1,-2 0" />
 </vector>

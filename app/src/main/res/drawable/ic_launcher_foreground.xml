@@ -4,16 +4,61 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Background circle in safe zone (centered at 54,54 with radius ~36 for safe zone) -->
+    <!-- Modern microphone icon with audio waves - Lucide-inspired stroke design -->
+    <!-- Background circle -->
     <path
         android:fillColor="#6750A4"
         android:pathData="M54,54m-36,0a36,36 0,1 1,72 0a36,36 0,1 1,-72 0" />
-    <!-- Microphone icon scaled and centered -->
-    <group
-        android:translateX="42"
-        android:translateY="38">
-        <path
-            android:fillColor="#FFFFFF"
-            android:pathData="M12,14c1.66,0 2.99,-1.34 2.99,-3L15,5c0,-1.66 -1.34,-3 -3,-3S9,3.34 9,5v6c0,1.66 1.34,3 3,3zM17.3,11c0,3 -2.54,5.1 -5.3,5.1S6.7,14 6.7,11L5,11c0,3.41 2.72,6.23 6,6.72L11,21h2v-3.28c3.28,-0.48 6,-3.3 6,-6.72h-1.7z" />
-    </group>
+
+    <!-- Microphone body - rounded rectangle -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,36 L54,36 C51.24,36 49,38.24 49,41 L49,54 C49,56.76 51.24,59 54,59 C56.76,59 59,56.76 59,54 L59,41 C59,38.24 56.76,36 54,36 Z" />
+
+    <!-- Microphone pickup arc -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M44,52 C44,57.52 48.48,62 54,62 C59.52,62 64,57.52 64,52" />
+
+    <!-- Microphone stand -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M54,62 L54,70" />
+
+    <!-- Microphone base -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M48,70 L60,70" />
+
+    <!-- Audio wave - left -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M38,47.5 C36.5,50.5 36.5,54.5 38,57.5" />
+
+    <!-- Audio wave - right -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M70,47.5 C71.5,50.5 71.5,54.5 70,57.5" />
 </vector>
