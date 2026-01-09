@@ -63,6 +63,9 @@ class BubbleService : LifecycleService() {
     // Clipboard state: false = copy mode, true = paste mode (ready to paste)
     private var isPasteMode = false
 
+    // Clipboard recording mode: when true, tapping clipboard will stop and copy
+    private var isClipboardRecordingMode = false
+
     // Compact/translucent mode
     private var isCompactMode = false
 
@@ -447,13 +450,16 @@ class BubbleService : LifecycleService() {
             toggleLanguage()
         }
 
-        // Paste button click handler - toggles between copy and paste
+        // Paste button click handler - clipboard recording workflow
+        // Tap: toggle clipboard recording mode (start/stop)
+        // Long press: perform paste
         bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.apply {
             setOnClickListener {
                 handlePasteButtonClick()
             }
             setOnLongClickListener {
-                openHistoryActivity()
+                // Long press always performs paste
+                performPaste()
                 true
             }
         }
@@ -497,17 +503,53 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Handles paste button click - toggles between copy and paste modes.
-     * First tap: copies buffer to clipboard, icon changes to paste mode
-     * Second tap: triggers paste via accessibility service
+     * Handles paste button click - clipboard recording workflow.
+     *
+     * Flow:
+     * 1. First tap (not recording): Clear buffer, start dictation, enter clipboard recording mode
+     * 2. Second tap (recording): Stop dictation, copy buffer to clipboard, save to history
+     * 3. If in paste mode (after copy): Perform paste
+     *
+     * Long press: Perform paste (handled separately)
      */
     private fun handlePasteButtonClick() {
         if (isPasteMode) {
-            // Second tap: perform paste action
+            // Already copied - perform paste action
             performPaste()
-        } else {
-            // First tap: copy buffer to clipboard
+        } else if (isClipboardRecordingMode) {
+            // Currently recording - stop and copy to clipboard
+            Log.i(TAG, "Clipboard recording mode: stopping and copying")
+            DebugLog.i("BubbleService: Ending clipboard recording")
+
+            // Stop listening
+            transcriptionManager?.stopListening()
+            updateState(BubbleState.IDLE)
+            onListeningStopped?.invoke()
+
+            // Copy the accumulated buffer
             copyBufferToClipboard()
+
+            // Exit clipboard recording mode
+            isClipboardRecordingMode = false
+            updatePasteButtonIcon()
+        } else {
+            // Not recording - start clipboard recording mode
+            Log.i(TAG, "Clipboard recording mode: starting")
+            DebugLog.i("BubbleService: Starting clipboard recording")
+
+            // Clear the buffer for fresh recording
+            clearBuffer()
+
+            // Enter clipboard recording mode
+            isClipboardRecordingMode = true
+            updatePasteButtonIcon()
+
+            // Start listening
+            updateState(BubbleState.LISTENING)
+            onListeningStarted?.invoke()
+
+            Toast.makeText(this, "Recording to clipboard...", Toast.LENGTH_SHORT).show()
+            vibrateForFeedback()
         }
     }
 
@@ -631,15 +673,25 @@ class BubbleService : LifecycleService() {
 
     /**
      * Updates the paste button icon based on current mode.
+     * - Recording mode: red circle (recording to clipboard)
+     * - Paste mode: green checkmark (ready to paste)
+     * - Default: clipboard icon (tap to start recording)
      */
     private fun updatePasteButtonIcon() {
         val pasteButton = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
-        if (isPasteMode) {
-            pasteButton?.text = "✓"  // Checkmark = ready to paste
-            pasteButton?.setTextColor(android.graphics.Color.parseColor("#4CAF50"))  // Green
-        } else {
-            pasteButton?.text = "📋"  // Clipboard = tap to copy
-            pasteButton?.setTextColor(android.graphics.Color.WHITE)
+        when {
+            isClipboardRecordingMode -> {
+                pasteButton?.text = "⏺"  // Red circle = recording
+                pasteButton?.setTextColor(android.graphics.Color.parseColor("#F44336"))  // Red
+            }
+            isPasteMode -> {
+                pasteButton?.text = "✓"  // Checkmark = ready to paste
+                pasteButton?.setTextColor(android.graphics.Color.parseColor("#4CAF50"))  // Green
+            }
+            else -> {
+                pasteButton?.text = "📋"  // Clipboard = tap to start recording
+                pasteButton?.setTextColor(android.graphics.Color.WHITE)
+            }
         }
     }
 
@@ -663,11 +715,12 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Clears the text buffer and resets paste mode.
+     * Clears the text buffer and resets all clipboard modes.
      */
     fun clearBuffer() {
         textBuffer.clear()
         isPasteMode = false
+        isClipboardRecordingMode = false
         updatePasteButtonIcon()
     }
 
