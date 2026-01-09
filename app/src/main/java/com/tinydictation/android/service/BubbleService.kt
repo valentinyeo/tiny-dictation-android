@@ -682,18 +682,23 @@ class BubbleService : LifecycleService() {
         val screenHeight = displayMetrics.heightPixels
         val targetSize = (64 * displayMetrics.density).toInt()
 
+        // Position close target in center-bottom area, accounting for navigation bar
+        val navBarHeight = (48 * displayMetrics.density).toInt()
+        val bottomMargin = (150 * displayMetrics.density).toInt()
+
         closeTargetParams = WindowManager.LayoutParams(
             targetSize,
             targetSize,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
             x = (screenWidth - targetSize) / 2  // Center horizontally
-            y = screenHeight - targetSize - (100 * displayMetrics.density).toInt()  // Bottom with margin
+            y = screenHeight - targetSize - bottomMargin - navBarHeight  // Bottom with safe margin
         }
+
+        Log.d(TAG, "Close target position: x=${closeTargetParams?.x}, y=${closeTargetParams?.y}, screenHeight=$screenHeight")
 
         try {
             windowManager.addView(closeTargetView, closeTargetParams)
@@ -733,21 +738,29 @@ class BubbleService : LifecycleService() {
         val screenHeight = displayMetrics.heightPixels
         val targetSize = (64 * displayMetrics.density).toInt()
         val bubbleSize = (40 * displayMetrics.density).toInt()
+        val navBarHeight = (48 * displayMetrics.density).toInt()
+        val bottomMargin = (150 * displayMetrics.density).toInt()
 
-        // Calculate target center position
+        // Calculate target center position (must match showCloseTarget positioning)
+        val targetY = screenHeight - targetSize - bottomMargin - navBarHeight
         val targetCenterX = screenWidth / 2
-        val targetCenterY = screenHeight - targetSize / 2 - (100 * displayMetrics.density).toInt()
+        val targetCenterY = targetY + targetSize / 2
 
         // Calculate bubble center position
         val bubbleCenterX = bubbleX + bubbleSize / 2
         val bubbleCenterY = bubbleY + bubbleSize / 2
 
-        // Check if bubble center is within extended hit area (target size + margin)
-        val hitRadius = (targetSize / 2 + 20 * displayMetrics.density).toInt()
+        // Check if bubble center is within extended hit area (larger hit area for easier targeting)
+        val hitRadius = (targetSize / 2 + 40 * displayMetrics.density).toInt()
         val distanceX = Math.abs(bubbleCenterX - targetCenterX)
         val distanceY = Math.abs(bubbleCenterY - targetCenterY)
 
-        return distanceX < hitRadius && distanceY < hitRadius
+        val isOver = distanceX < hitRadius && distanceY < hitRadius
+        if (isOver) {
+            Log.d(TAG, "Bubble over target! bubble($bubbleCenterX,$bubbleCenterY) target($targetCenterX,$targetCenterY)")
+        }
+
+        return isOver
     }
 
     /**

@@ -61,6 +61,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.6.4:
+            • Fixed drag-to-close - larger hit area, better positioning
+
             v1.6.3:
             • Auto-start dictation when app launches
             • All transcriptions saved to history (not just copied)
