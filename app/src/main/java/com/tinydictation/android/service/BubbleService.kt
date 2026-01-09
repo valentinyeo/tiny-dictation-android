@@ -503,6 +503,8 @@ class BubbleService : LifecycleService() {
                 BubbleState.IDLE -> {
                     Log.i(TAG, "Starting listening from bubble tap")
                     DebugLog.i("BubbleService: Starting listening")
+                    // Clear buffer for fresh dictation session
+                    clearBuffer()
                     // Start listening - communicate with TranscriptionManager
                     updateState(BubbleState.LISTENING)
                     onListeningStarted?.invoke()

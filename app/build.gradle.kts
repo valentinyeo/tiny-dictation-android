@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "1.5.8"
+        versionCode = 28
+        versionName = "1.5.9"
     }
 
     signingConfigs {

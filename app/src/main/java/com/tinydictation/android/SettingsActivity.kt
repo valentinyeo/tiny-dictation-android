@@ -56,6 +56,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.9:
+            • Clear clipboard buffer when starting new dictation session
+            • Each tap-to-start gives you a fresh buffer
+
             v1.5.8:
             • Long-press bubble now opens main app (was compact mode)
 
