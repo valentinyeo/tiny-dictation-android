@@ -109,7 +109,7 @@ class BubbleService : LifecycleService() {
         // Register preference listener for bubble visibility changes
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "show_language_bubble" || key == "show_paste_bubble") {
+            if (key == "show_language_bubble" || key == "show_paste_bubble" || key == "show_note_bubble") {
                 Log.i(TAG, "Preference changed: $key")
                 DebugLog.i("BubbleService: Preference changed: $key")
                 updateBubbleVisibility()
@@ -512,6 +512,64 @@ class BubbleService : LifecycleService() {
     }
 
     /**
+     * Handles note button click - sends transcription to configured note app.
+     */
+    private fun handleNoteButtonClick() {
+        val text = textBuffer.toString().trim()
+        if (text.isEmpty()) {
+            Toast.makeText(this, "Nothing to send", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val noteAppPackage = preferenceManager.getNoteAppPackage()
+        if (noteAppPackage == null) {
+            Toast.makeText(this, "Please configure a note app in Settings", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Log.i(TAG, "Sending ${text.length} chars to note app: $noteAppPackage")
+        DebugLog.i("BubbleService: Sending to note app: $noteAppPackage")
+
+        try {
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_TEXT, text)
+                setPackage(noteAppPackage)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            // Check if the configured app can handle this intent
+            val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.resolveActivity(sendIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.resolveActivity(sendIntent, 0)
+            }
+
+            if (resolveInfo != null) {
+                startActivity(sendIntent)
+                Toast.makeText(this, "Sent to note app!", Toast.LENGTH_SHORT).show()
+                vibrateForFeedback()
+            } else {
+                // App might be uninstalled, try showing a chooser instead
+                Log.w(TAG, "Configured note app not found, showing chooser")
+                DebugLog.w("BubbleService: Note app $noteAppPackage not found")
+                val chooserIntent = Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+                    type = "text/plain"
+                    putExtra(Intent.EXTRA_TEXT, text)
+                }, "Send transcription to...").apply {
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                startActivity(chooserIntent)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error sending to note app", e)
+            DebugLog.e("BubbleService: Error sending to note app - ${e.message}")
+            Toast.makeText(this, "Failed to open note app", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
      * Copies the text buffer to clipboard and switches to paste mode.
      * Also saves the transcription to history.
      */
@@ -808,6 +866,7 @@ class BubbleService : LifecycleService() {
             val bubbleContainer = view.findViewById<FrameLayout>(R.id.bubbleContainer)
             val languageToggle = view.findViewById<TextView>(R.id.tvLanguageToggle)
             val pasteButton = view.findViewById<TextView>(R.id.tvPasteButton)
+            val noteButton = view.findViewById<FrameLayout>(R.id.noteButtonContainer)
 
             if (isCompactMode) {
                 // Compact mode: smaller, more translucent, hide extra buttons
@@ -824,6 +883,7 @@ class BubbleService : LifecycleService() {
                 }
                 languageToggle?.visibility = View.GONE
                 pasteButton?.visibility = View.GONE
+                noteButton?.visibility = View.GONE
             } else {
                 // Normal mode: restore size and default opacity
                 view.alpha = DEFAULT_OPACITY
