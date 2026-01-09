@@ -33,6 +33,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.5:
+            • Cleaner bubble indicator - mic icon turns red when recording
+            • Removed text label below bubble for minimal UI
+
             v1.3.4:
             • Fixed button contrast in dark mode
             • Improved readability for primary buttons
