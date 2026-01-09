@@ -147,8 +147,8 @@ class BubbleService : LifecycleService() {
                     DictationAccessibilityService.inject(text + " ")
                     // Also add to paste buffer for manual paste option
                     appendToBuffer(text)
-                    // Save ALL transcriptions to history
-                    TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
+                    // Note: History is saved when user taps clipboard, not on every transcript
+                    // This prevents fragmented history entries
                 }
             },
             onError = { error ->
@@ -586,6 +586,9 @@ class BubbleService : LifecycleService() {
 
         Log.i(TAG, "Copied ${text.length} chars to clipboard")
         DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
+
+        // Save full buffer to history as ONE entry (not fragmented by speech pauses)
+        TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
         Toast.makeText(this, "✓ Copied! Ready to paste", Toast.LENGTH_SHORT).show()
 
         // Vibrate to confirm copy
