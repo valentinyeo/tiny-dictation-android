@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 48
-        versionName = "1.8.1"
+        versionCode = 49
+        versionName = "1.9.0"
     }
 
     // Generate separate APKs per ABI to reduce size
@@ -76,6 +76,9 @@ dependencies {
 
     // Vosk - Offline speech recognition
     implementation("com.alphacephei:vosk-android:0.3.47")
+
+    // Sherpa-ONNX - Whisper offline speech recognition
+    implementation(files("libs/sherpa-onnx-1.12.20.aar"))
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")

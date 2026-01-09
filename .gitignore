@@ -3,6 +3,8 @@
 *.aar
 *.ap_
 *.aab
+# Exception: allow sherpa-onnx AAR for Whisper offline transcription
+!app/libs/*.aar
 
 # Files for the ART/Dalvik VM
 *.dex
