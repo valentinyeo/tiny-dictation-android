@@ -339,7 +339,7 @@ class BubbleService : LifecycleService() {
                 longPressRunnable = Runnable {
                     if (!isDragging) {
                         isLongPressTriggered = true
-                        toggleCompactMode()
+                        openMainActivity()
                     }
                 }
                 longPressHandler?.postDelayed(longPressRunnable!!, longPressThreshold)
@@ -403,6 +403,32 @@ class BubbleService : LifecycleService() {
             }
         }
         return false
+    }
+
+    /**
+     * Opens the main activity from the bubble service.
+     */
+    private fun openMainActivity() {
+        Log.i(TAG, "Long-press detected - opening MainActivity")
+        DebugLog.i("BubbleService: Long-press detected, opening MainActivity")
+
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        startActivity(intent)
+
+        // Vibrate briefly for feedback
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator?.vibrate(android.os.VibrationEffect.createOneShot(50, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(50)
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors
+        }
     }
 
     /**

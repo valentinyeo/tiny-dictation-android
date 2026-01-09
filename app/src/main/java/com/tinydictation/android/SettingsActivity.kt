@@ -56,6 +56,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.8:
+            • Long-press bubble now opens main app (was compact mode)
+
             v1.5.7:
             • Reordered bubbles: Language → Clipboard → Mic (bottom)
 
