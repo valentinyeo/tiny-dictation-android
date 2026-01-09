@@ -53,6 +53,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.4.0:
+            • Continuous streaming mode - much lower latency!
+            • Connects to Deepgram immediately, streams all audio
+            • No more waiting for speech detection before transcribing
+
             v1.3.9:
             • Wait for final transcript before closing connection
             • Reduced log spam, increased log buffer to 500 entries

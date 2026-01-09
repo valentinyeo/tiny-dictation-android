@@ -8,8 +8,6 @@ import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.util.DebugLog
-import com.tinydictation.android.vad.VADResult
-import com.tinydictation.android.vad.VoiceActivityDetector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,18 +16,17 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 /**
- * Orchestrates audio recording, voice activity detection, and transcription.
+ * Orchestrates audio recording and transcription with continuous streaming.
  *
- * This manager coordinates the AudioRecorder, VoiceActivityDetector, and DeepgramClient
- * to provide a seamless speech-to-text experience. It only connects to Deepgram
- * when speech is detected, saving API costs and bandwidth.
+ * This manager coordinates the AudioRecorder and DeepgramClient to provide
+ * low-latency speech-to-text. It connects to Deepgram immediately and streams
+ * all audio continuously - Deepgram handles speech detection internally.
  *
  * Flow:
- * 1. Audio recording starts immediately when startListening() is called
- * 2. VAD monitors audio for speech
- * 3. When speech starts, connect to Deepgram and start streaming
- * 4. When speech ends, close Deepgram connection
- * 5. Repeat until stopListening() is called
+ * 1. Connect to Deepgram immediately when startListening() is called
+ * 2. Stream all audio continuously to Deepgram
+ * 3. Deepgram returns transcriptions as it detects speech
+ * 4. Connection stays open until stopListening() is called
  */
 class TranscriptionManager(
     private val apiKey: String,
@@ -61,16 +58,11 @@ class TranscriptionManager(
     }
 
     private val audioRecorder = AudioRecorder()
-    private val voiceActivityDetector = VoiceActivityDetector()
     private val deepgramClient = DeepgramClient()
 
     private var scope: CoroutineScope? = null
     private var isListening = false
     private var currentState = TranscriptionState.IDLE
-
-    // Buffer for audio during connection
-    private val pendingAudioBuffer = mutableListOf<ShortArray>()
-    private var isConnecting = false
 
     /**
      * Starts listening for speech and transcribing.
@@ -109,18 +101,13 @@ class TranscriptionManager(
             return
         }
 
-        Log.i(TAG, "TranscriptionManager starting listening")
-        DebugLog.i("TranscriptionManager: Starting listening")
+        Log.i(TAG, "TranscriptionManager starting listening (continuous mode)")
+        DebugLog.i("TranscriptionManager: Starting continuous listening")
         isListening = true
-        voiceActivityDetector.reset()
-        pendingAudioBuffer.clear()
         audioChunkCount = 0
-        speechContinueCount = 0
         audioSentCount = 0
 
         scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
-
-        updateState(TranscriptionState.LISTENING)
 
         val currentScope = scope
         if (currentScope == null) {
@@ -130,17 +117,54 @@ class TranscriptionManager(
             return
         }
 
-        try {
-            audioRecorder.startRecording(currentScope) { samples ->
-                processAudioChunk(samples)
+        // Connect to Deepgram immediately for low-latency streaming
+        updateState(TranscriptionState.TRANSCRIBING)
+        DebugLog.i("TranscriptionManager: Connecting to Deepgram immediately")
+
+        currentScope.launch(Dispatchers.IO) {
+            deepgramClient.connect(
+                apiKey = apiKey,
+                onInterim = { text ->
+                    currentScope.launch(Dispatchers.Main) {
+                        if (isListening) {
+                            onTranscript(text, false)
+                        }
+                    }
+                },
+                onFinal = { text ->
+                    currentScope.launch(Dispatchers.Main) {
+                        if (isListening) {
+                            onTranscript(text, true)
+                        }
+                    }
+                },
+                onError = { error ->
+                    currentScope.launch(Dispatchers.Main) {
+                        if (isListening) {
+                            DebugLog.e("TranscriptionManager: Deepgram error - $error")
+                            onError?.invoke(error)
+                        }
+                    }
+                }
+            )
+        }
+
+        // Small delay to let connection establish, then start recording
+        currentScope.launch {
+            kotlinx.coroutines.delay(200)
+            try {
+                audioRecorder.startRecording(currentScope) { samples ->
+                    processAudioChunk(samples)
+                }
+                DebugLog.i("TranscriptionManager: Audio recording started")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to start audio recording", e)
+                DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
+                updateState(TranscriptionState.ERROR)
+                onError?.invoke("Failed to start audio recording: ${e.message}")
+                scope?.cancel()
+                scope = null
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start audio recording", e)
-            DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
-            updateState(TranscriptionState.ERROR)
-            onError?.invoke("Failed to start audio recording: ${e.message}")
-            scope?.cancel()
-            scope = null
         }
     }
 
@@ -154,14 +178,11 @@ class TranscriptionManager(
         }
 
         Log.i(TAG, "TranscriptionManager stopping listening")
-        DebugLog.i("TranscriptionManager: Stopping listening")
+        DebugLog.i("TranscriptionManager: Stopping continuous listening")
         isListening = false
 
         audioRecorder.stopRecording()
         deepgramClient.close()
-        voiceActivityDetector.reset()
-        pendingAudioBuffer.clear()
-        isConnecting = false
 
         scope?.cancel()
         scope = null
@@ -172,177 +193,27 @@ class TranscriptionManager(
     /** Counter for tracking audio chunks */
     private var audioChunkCount = 0
 
+    /** Counter for audio chunks sent to Deepgram */
+    private var audioSentCount = 0
+
     /**
-     * Processes an audio chunk through VAD and handles state transitions.
+     * Processes an audio chunk - sends directly to Deepgram for continuous streaming.
      */
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
 
         audioChunkCount++
 
-        // Log audio chunk reception periodically (every 50 chunks = ~1 second)
-        if (audioChunkCount % 50 == 0) {
-            Log.d(TAG, "TranscriptionManager: Processed $audioChunkCount audio chunks (${samples.size} samples)")
-            DebugLog.d("TranscriptionManager: Processed $audioChunkCount chunks")
+        // Log periodically (every 100 chunks = ~2 seconds)
+        if (audioChunkCount % 100 == 0) {
+            DebugLog.d("TranscriptionManager: Streamed $audioChunkCount chunks, sent $audioSentCount to Deepgram")
         }
 
-        val vadResult = voiceActivityDetector.processSamples(samples)
-
-        // Log VAD results (only SPEECH_START and SPEECH_END to avoid spam)
-        if (vadResult == VADResult.SPEECH_START || vadResult == VADResult.SPEECH_END) {
-            Log.d(TAG, "TranscriptionManager: VAD result = $vadResult")
-            DebugLog.d("TranscriptionManager: VAD result = $vadResult")
-        }
-
-        when (vadResult) {
-            VADResult.NO_SPEECH -> {
-                // Nothing to do - waiting for speech
-            }
-
-            VADResult.SPEECH_START -> {
-                Log.i(TAG, "Speech start detected")
-                DebugLog.i("TranscriptionManager: Speech start detected")
-                handleSpeechStart(samples)
-            }
-
-            VADResult.SPEECH_CONTINUE -> {
-                handleSpeechContinue(samples)
-            }
-
-            VADResult.SPEECH_END -> {
-                Log.i(TAG, "Speech end detected")
-                DebugLog.i("TranscriptionManager: Speech end detected")
-                handleSpeechEnd()
-            }
-        }
-    }
-
-    /**
-     * Handles the start of speech - connects to Deepgram.
-     */
-    private fun handleSpeechStart(samples: ShortArray) {
-        Log.i(TAG, "Handling speech start - connecting to Deepgram")
-        DebugLog.i("TranscriptionManager: Connecting to Deepgram")
-        updateState(TranscriptionState.TRANSCRIBING)
-
-        // Buffer this chunk while we connect
-        pendingAudioBuffer.add(samples.copyOf())
-        isConnecting = true
-
-        scope?.launch(Dispatchers.IO) {
-            try {
-                DebugLog.d("TranscriptionManager: Coroutine started, calling DeepgramClient.connect()")
-                deepgramClient.connect(
-                    apiKey = apiKey,
-                    onInterim = { text ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                onTranscript(text, false)
-                            }
-                        }
-                    },
-                    onFinal = { text ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                onTranscript(text, true)
-                            }
-                        }
-                    },
-                    onError = { error ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                DebugLog.e("TranscriptionManager: Deepgram error - $error")
-                                onError?.invoke(error)
-                                // Don't stop listening on error - just go back to listening state
-                                updateState(TranscriptionState.LISTENING)
-                            }
-                        }
-                    }
-                )
-                DebugLog.d("TranscriptionManager: DeepgramClient.connect() returned")
-            } catch (e: Exception) {
-                DebugLog.e("TranscriptionManager: Exception in connect coroutine - ${e.message}")
-                Log.e(TAG, "Exception connecting to Deepgram", e)
-            }
-
-            // Small delay to ensure connection is established
-            kotlinx.coroutines.delay(100)
-
-            // Send buffered audio
-            scope?.launch(Dispatchers.Main) {
-                isConnecting = false
-
-                if (deepgramClient.isConnected()) {
-                    Log.d(TAG, "Deepgram connected, sending ${pendingAudioBuffer.size} buffered chunks")
-                    // Send all buffered audio
-                    for (bufferedSamples in pendingAudioBuffer) {
-                        sendAudioToDeepgram(bufferedSamples)
-                    }
-                    pendingAudioBuffer.clear()
-                } else {
-                    Log.e(TAG, "Deepgram connection failed, discarding buffered audio")
-                    pendingAudioBuffer.clear()
-                }
-            }
-        }
-    }
-
-    /** Counter for speech continue events */
-    private var speechContinueCount = 0
-
-    /**
-     * Handles continuing speech - streams audio to Deepgram.
-     */
-    private fun handleSpeechContinue(samples: ShortArray) {
-        speechContinueCount++
-
-        if (isConnecting) {
-            // Still connecting - buffer the audio
-            pendingAudioBuffer.add(samples.copyOf())
-
-            // Log buffering periodically
-            if (pendingAudioBuffer.size % 10 == 0) {
-                Log.d(TAG, "Buffering audio while connecting - ${pendingAudioBuffer.size} chunks buffered")
-                DebugLog.d("TranscriptionManager: Buffering ${pendingAudioBuffer.size} chunks")
-            }
-
-            // Limit buffer size to prevent memory issues
-            if (pendingAudioBuffer.size > 100) { // ~2 seconds of audio
-                pendingAudioBuffer.removeAt(0)
-            }
-        } else if (deepgramClient.isConnected()) {
-            // Send audio to Deepgram
+        // Send directly to Deepgram - continuous streaming mode
+        if (deepgramClient.isConnected()) {
             sendAudioToDeepgram(samples)
-        } else {
-            // Not connected and not connecting - this shouldn't happen
-            Log.w(TAG, "Speech continuing but Deepgram not connected (isConnecting=$isConnecting)")
-            DebugLog.w("TranscriptionManager: Speech continuing but not connected")
         }
     }
-
-    /**
-     * Handles end of speech - waits for final transcript then closes connection.
-     */
-    private fun handleSpeechEnd() {
-        Log.i(TAG, "Speech end detected - waiting for final transcript")
-        DebugLog.i("TranscriptionManager: Speech end - waiting for final transcript")
-        isConnecting = false
-        pendingAudioBuffer.clear()
-
-        // Give Deepgram time to process and send the final transcript
-        // before closing the connection
-        scope?.launch(Dispatchers.IO) {
-            kotlinx.coroutines.delay(1500) // Wait 1.5 seconds for final transcript
-            Log.i(TAG, "Closing Deepgram connection after delay")
-            DebugLog.i("TranscriptionManager: Closing Deepgram connection")
-            deepgramClient.close()
-        }
-
-        updateState(TranscriptionState.LISTENING)
-    }
-
-    /** Counter for audio chunks sent to Deepgram */
-    private var audioSentCount = 0
 
     /**
      * Sends audio samples to Deepgram.
@@ -391,16 +262,4 @@ class TranscriptionManager(
      * Returns whether speech is currently being transcribed.
      */
     fun isTranscribing(): Boolean = currentState == TranscriptionState.TRANSCRIBING
-
-    /**
-     * Updates the VAD sensitivity settings.
-     *
-     * @param speechThreshold RMS threshold for speech detection
-     * @param silenceThreshold RMS threshold for silence detection
-     */
-    fun updateVadSettings(speechThreshold: Int, silenceThreshold: Int) {
-        // Note: In a future update, we could make VoiceActivityDetector
-        // configurable at runtime. For now, you'd need to create a new
-        // TranscriptionManager with a custom VAD.
-    }
 }
