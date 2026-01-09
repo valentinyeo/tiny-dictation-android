@@ -7,6 +7,8 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -44,6 +46,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var saveButton: MaterialButton
     private lateinit var versionInfo: TextView
     private lateinit var changelog: TextView
+    private lateinit var changelogHeader: LinearLayout
+    private lateinit var changelogExpandIcon: ImageView
+    private var isChangelogExpanded = false
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
@@ -56,6 +61,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.11:
+            • Sticky Save button (always visible at bottom)
+            • Collapsible changelog (tap to expand)
+
             v1.5.10:
             • Fixed bubble toggle settings (now uses preference listener)
             • Bubbles hide/show automatically when settings change
@@ -174,6 +183,8 @@ class SettingsActivity : AppCompatActivity() {
         saveButton = findViewById(R.id.btnSave)
         versionInfo = findViewById(R.id.tvVersionInfo)
         changelog = findViewById(R.id.tvChangelog)
+        changelogHeader = findViewById(R.id.changelogHeader)
+        changelogExpandIcon = findViewById(R.id.ivChangelogExpand)
 
         setSupportActionBar(toolbar)
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
@@ -182,6 +193,22 @@ class SettingsActivity : AppCompatActivity() {
         // Display version info and changelog
         displayVersionInfo()
         changelog.text = CHANGELOG
+
+        // Setup expandable changelog
+        changelogHeader.setOnClickListener {
+            toggleChangelog()
+        }
+    }
+
+    private fun toggleChangelog() {
+        isChangelogExpanded = !isChangelogExpanded
+        if (isChangelogExpanded) {
+            changelog.maxLines = Int.MAX_VALUE
+            changelogExpandIcon.rotation = 180f
+        } else {
+            changelog.maxLines = 4
+            changelogExpandIcon.rotation = 0f
+        }
     }
 
     private fun displayVersionInfo() {
