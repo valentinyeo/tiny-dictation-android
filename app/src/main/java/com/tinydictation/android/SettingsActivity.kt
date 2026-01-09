@@ -88,6 +88,9 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.3:
+            • Fixed duplicate text bug in Whisper transcription
+
             v1.9.2:
             • Fixed Whisper Base and Small models not working
             • All Whisper model sizes now supported

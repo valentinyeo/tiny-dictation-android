@@ -91,9 +91,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
     private var processingJob: Job? = null
     private val processingScope = CoroutineScope(Dispatchers.Default)
 
-    // Track accumulated text for the session
-    private val sessionText = StringBuilder()
-
     /**
      * Sets the Whisper model variant to use (whisper-tiny, whisper-base, whisper-small).
      */
@@ -240,7 +237,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         onErrorCallback = onError
         isSessionActive = true
         audioBuffer.clear()
-        sessionText.clear()
     }
 
     // Track silence for smarter processing
@@ -368,14 +364,8 @@ class SherpaOnnxEngine : TranscriptionEngine {
                 Log.d(TAG, "SherpaOnnxEngine: Transcribed: $text")
                 DebugLog.d("SherpaOnnxEngine: Result: $text")
 
-                // Append to session text
-                if (sessionText.isNotEmpty()) {
-                    sessionText.append(" ")
-                }
-                sessionText.append(text)
-
-                // Send the full accumulated text as a final result
-                onTranscriptCallback?.invoke(sessionText.toString(), true)
+                // Send just the new text - BubbleService handles accumulation
+                onTranscriptCallback?.invoke(text, true)
             }
         } catch (e: Exception) {
             Log.e(TAG, "SherpaOnnxEngine: Error processing audio", e)
