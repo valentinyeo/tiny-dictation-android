@@ -22,9 +22,10 @@ import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.FormBody
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
 class SettingsActivity : AppCompatActivity() {
@@ -52,8 +53,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.7:
+            • Fixed Share Logs - now uses paste.rs for reliable uploads
+
             v1.3.6:
-            • Added Share Logs button for easy log sharing via dpaste.org
+            • Added Share Logs button for easy log sharing
 
             v1.3.5:
             • Cleaner bubble indicator - mic icon turns red when recording
@@ -207,7 +211,7 @@ class SettingsActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val url = uploadToDpaste(logText)
+                val url = uploadToPaste(logText)
                 if (url != null) {
                     showShareDialog(url)
                 } else {
@@ -224,29 +228,26 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun uploadToDpaste(content: String): String? = withContext(Dispatchers.IO) {
+    private suspend fun uploadToPaste(content: String): String? = withContext(Dispatchers.IO) {
         try {
-            val formBody = FormBody.Builder()
-                .add("content", content)
-                .add("syntax", "text")
-                .add("expiry_days", "7")
-                .build()
+            // Use paste.rs - simple API, just POST raw content
+            val requestBody = content.toRequestBody("text/plain".toMediaType())
 
             val request = Request.Builder()
-                .url("https://dpaste.org/api/")
-                .post(formBody)
+                .url("https://paste.rs/")
+                .post(requestBody)
                 .build()
 
             val response = httpClient.newCall(request).execute()
             if (response.isSuccessful) {
-                // dpaste.org returns the URL as plain text
+                // paste.rs returns the URL as plain text
                 response.body?.string()?.trim()
             } else {
-                DebugLog.e("dpaste upload failed: ${response.code}")
+                DebugLog.e("paste.rs upload failed: ${response.code}")
                 null
             }
         } catch (e: Exception) {
-            DebugLog.e("dpaste upload exception: ${e.message}")
+            DebugLog.e("paste.rs upload exception: ${e.message}")
             null
         }
     }
@@ -254,7 +255,7 @@ class SettingsActivity : AppCompatActivity() {
     private fun showShareDialog(url: String) {
         AlertDialog.Builder(this)
             .setTitle("Logs Uploaded")
-            .setMessage("Your logs have been uploaded to:\n\n$url\n\nExpires in 7 days.")
+            .setMessage("Your logs have been uploaded to:\n\n$url")
             .setPositiveButton("Share") { _, _ ->
                 shareUrl(url)
             }
