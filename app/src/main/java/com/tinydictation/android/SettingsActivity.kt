@@ -88,10 +88,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
-            v1.8.0:
+            v1.8.1:
             • Reverted clipboard recording mode - back to simpler copy/paste
             • Long-press clipboard opens history again
-            • Whisper options now clearly labeled as "NOT WORKING"
+            • Whisper options now labeled as not working
 
             v1.7.8:
             • Fixed note app selection: Now shows all compatible apps
