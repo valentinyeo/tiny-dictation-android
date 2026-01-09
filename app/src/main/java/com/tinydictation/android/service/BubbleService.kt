@@ -1012,11 +1012,11 @@ class BubbleService : LifecycleService() {
         val displayMetrics = resources.displayMetrics
         val screenWidth = displayMetrics.widthPixels
         val screenHeight = displayMetrics.heightPixels
-        val targetSize = (64 * displayMetrics.density).toInt()
+        val targetSize = (80 * displayMetrics.density).toInt()  // Larger target (80dp instead of 64dp)
 
         // Position close target in center-bottom area, accounting for navigation bar
         val navBarHeight = (48 * displayMetrics.density).toInt()
-        val bottomMargin = (150 * displayMetrics.density).toInt()
+        val bottomMargin = (120 * displayMetrics.density).toInt()  // Closer to bottom for easier reach
 
         closeTargetParams = WindowManager.LayoutParams(
             targetSize,
@@ -1066,13 +1066,14 @@ class BubbleService : LifecycleService() {
     /**
      * Checks if the bubble is currently over the close target.
      * Returns true if the bubble center is within the target area.
+     * Uses circular hit detection with a generous radius for easy targeting.
      */
     private fun checkBubbleOverTarget(bubbleX: Int, bubbleY: Int): Boolean {
         // Use actual close target position from its params (not recalculated)
         val targetParams = closeTargetParams ?: return false
 
         val displayMetrics = resources.displayMetrics
-        val targetSize = (64 * displayMetrics.density).toInt()
+        val targetSize = (80 * displayMetrics.density).toInt()  // Must match showCloseTarget
         val bubbleSize = (40 * displayMetrics.density).toInt()
 
         // Get target center from actual params
@@ -1083,17 +1084,21 @@ class BubbleService : LifecycleService() {
         val bubbleCenterX = bubbleX + bubbleSize / 2
         val bubbleCenterY = bubbleY + bubbleSize / 2
 
-        // Check if bubble center is within extended hit area (larger hit area for easier targeting)
-        val hitRadius = (targetSize / 2 + 60 * displayMetrics.density).toInt()
-        val distanceX = Math.abs(bubbleCenterX - targetCenterX)
-        val distanceY = Math.abs(bubbleCenterY - targetCenterY)
+        // Use generous circular hit area (100dp radius for easy targeting)
+        val hitRadius = (100 * displayMetrics.density).toInt()
+        val distanceX = bubbleCenterX - targetCenterX
+        val distanceY = bubbleCenterY - targetCenterY
+        val distanceSquared = distanceX * distanceX + distanceY * distanceY
+        val hitRadiusSquared = hitRadius * hitRadius
 
-        val isOver = distanceX < hitRadius && distanceY < hitRadius
+        val isOver = distanceSquared < hitRadiusSquared
 
-        // Log every check for debugging (throttled by caller)
+        // Log for debugging
+        val distance = Math.sqrt(distanceSquared.toDouble()).toInt()
+        Log.d(TAG, "checkBubbleOverTarget: bubble($bubbleCenterX,$bubbleCenterY) target($targetCenterX,$targetCenterY) distance=$distance hitRadius=$hitRadius isOver=$isOver")
+
         if (isOver) {
-            Log.d(TAG, "Bubble OVER target! bubble($bubbleCenterX,$bubbleCenterY) target($targetCenterX,$targetCenterY) dist($distanceX,$distanceY) radius=$hitRadius")
-            DebugLog.d("BubbleService: Bubble over close target")
+            DebugLog.d("BubbleService: Bubble over close target (distance=$distance)")
         }
 
         return isOver
@@ -1106,14 +1111,19 @@ class BubbleService : LifecycleService() {
         if (isBubbleOverTarget == isOver) return
 
         isBubbleOverTarget = isOver
+        Log.d(TAG, "updateCloseTargetState: isOver=$isOver")
+
         closeTargetView?.let { view ->
             val container = view.findViewById<FrameLayout>(R.id.closeTargetContainer)
             if (isOver) {
                 // Highlight: scale up and change background
                 container?.setBackgroundResource(R.drawable.close_target_background_active)
-                view.scaleX = 1.2f
-                view.scaleY = 1.2f
+                view.scaleX = 1.3f
+                view.scaleY = 1.3f
                 view.alpha = 1.0f
+                // Vibrate to indicate hover over close target
+                vibrateForFeedback()
+                Log.i(TAG, "Bubble entered close target area - vibrating")
             } else {
                 // Normal state
                 container?.setBackgroundResource(R.drawable.close_target_background)
