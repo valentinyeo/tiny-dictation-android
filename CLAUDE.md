@@ -2,10 +2,12 @@
 
 ## Versioning Requirements
 
-**CRITICAL**: Before ANY code change that will be pushed, you MUST update the version:
-- Increment `versionCode` by 1
-- Update `versionName` appropriately (patch/minor/major)
-- This ensures every APK has a unique version for easy identification
+**CRITICAL**: Before ANY code change that will be pushed, you MUST:
+1. Increment `versionCode` by 1
+2. Update `versionName` appropriately (patch/minor/major)
+3. **Update the "What's New" changelog** in `SettingsActivity.kt` companion object
+
+This ensures every APK has a unique version and users can see what changed.
 
 1. **Version location**: `app/build.gradle.kts`
    - `versionCode` - Integer, increment by 1 for each build
