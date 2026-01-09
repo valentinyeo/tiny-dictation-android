@@ -16,6 +16,7 @@ class TranscriptionHistoryManager(context: Context) {
         private const val PREFS_NAME = "transcription_history"
         private const val KEY_HISTORY = "history_entries"
         private const val MAX_ENTRIES = 100 // Keep last 100 entries
+        private const val MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000L // 2 days in milliseconds
 
         @Volatile
         private var instance: TranscriptionHistoryManager? = null
@@ -45,6 +46,16 @@ class TranscriptionHistoryManager(context: Context) {
         }
 
         val entries = getAllMutable()
+
+        // Clean up old entries first (older than 2 days)
+        val cutoffTime = System.currentTimeMillis() - MAX_AGE_MS
+        val sizeBefore = entries.size
+        entries.removeAll { it.timestamp < cutoffTime }
+        val removed = sizeBefore - entries.size
+        if (removed > 0) {
+            DebugLog.i("TranscriptionHistoryManager: Cleaned up $removed old entries (>2 days)")
+        }
+
         val newEntry = TranscriptionEntry(
             id = System.currentTimeMillis(),
             text = text.trim(),
