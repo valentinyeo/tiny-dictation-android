@@ -19,7 +19,6 @@ import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
@@ -41,7 +40,6 @@ class SettingsActivity : AppCompatActivity() {
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var apiKeyInput: TextInputEditText
-    private lateinit var vadSensitivitySlider: Slider
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var languageBubbleSwitch: MaterialSwitch
     private lateinit var pasteBubbleSwitch: MaterialSwitch
@@ -251,7 +249,6 @@ class SettingsActivity : AppCompatActivity() {
     private fun initViews() {
         toolbar = findViewById(R.id.toolbar)
         apiKeyInput = findViewById(R.id.etApiKey)
-        vadSensitivitySlider = findViewById(R.id.sliderVadSensitivity)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
         pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
@@ -310,27 +307,69 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun setupEngineDropdown() {
-        val engines = listOf(
-            "Deepgram (Cloud)" to PreferenceManager.ENGINE_DEEPGRAM,
-            "Vosk (Fast Offline)" to PreferenceManager.ENGINE_VOSK,
-            "Whisper (High Quality)" to PreferenceManager.ENGINE_SHERPA_ONNX
-        )
+        refreshEngineDropdown()
+    }
+
+    private fun refreshEngineDropdown() {
+        // Build dynamic engine list based on downloaded models
+        val engines = mutableListOf<Pair<String, String>>()
+
+        // Always available: Deepgram (Cloud)
+        engines.add("Deepgram (Cloud)" to PreferenceManager.ENGINE_DEEPGRAM)
+
+        // Vosk (if any model downloaded - check both en and de)
+        if (modelManager.isModelAvailable("vosk", "en") || modelManager.isModelAvailable("vosk", "de")) {
+            engines.add("Vosk (Fast Offline)" to PreferenceManager.ENGINE_VOSK)
+        }
+
+        // Whisper models - only show downloaded ones with specific names
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")) {
+            engines.add("Whisper Tiny (Fast)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_TINY}")
+        }
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-base")) {
+            engines.add("Whisper Base (Balanced)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_BASE}")
+        }
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-small")) {
+            engines.add("Whisper Small (Accurate)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_SMALL}")
+        }
+
         val displayNames = engines.map { it.first }
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
         engineDropdown.setAdapter(adapter)
 
         // Set current selection
         val currentEngine = preferenceManager.getTranscriptionEngine()
-        val currentIndex = engines.indexOfFirst { it.second == currentEngine }
+        val currentWhisperModel = preferenceManager.getWhisperModel()
+
+        // Build the key to match against
+        val currentKey = if (currentEngine == PreferenceManager.ENGINE_SHERPA_ONNX) {
+            "${PreferenceManager.ENGINE_SHERPA_ONNX}:$currentWhisperModel"
+        } else {
+            currentEngine
+        }
+
+        val currentIndex = engines.indexOfFirst { it.second == currentKey }
         if (currentIndex >= 0) {
             engineDropdown.setText(displayNames[currentIndex], false)
+        } else if (engines.isNotEmpty()) {
+            // Default to first available engine if current selection is invalid
+            engineDropdown.setText(displayNames[0], false)
         }
 
         // Handle selection changes
         engineDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedEngine = engines[position].second
-            preferenceManager.setTranscriptionEngine(selectedEngine)
-            DebugLog.i("Engine changed to: $selectedEngine")
+            val selectedValue = engines[position].second
+
+            // Check if it's a Whisper model selection (contains ":")
+            if (selectedValue.contains(":")) {
+                val parts = selectedValue.split(":")
+                preferenceManager.setTranscriptionEngine(parts[0])
+                preferenceManager.setWhisperModel(parts[1])
+                DebugLog.i("Engine changed to: ${parts[0]} with model: ${parts[1]}")
+            } else {
+                preferenceManager.setTranscriptionEngine(selectedValue)
+                DebugLog.i("Engine changed to: $selectedValue")
+            }
         }
     }
 
@@ -513,6 +552,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
 
                 updateModelStatus()
+                refreshEngineDropdown()
                 button.isEnabled = true
             }
         } else {
@@ -530,6 +570,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
 
                 updateModelStatus()
+                refreshEngineDropdown()
                 button.isEnabled = true
             }
         }

@@ -27,6 +27,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_TRANSCRIPTION_ENGINE = "transcription_engine"
         private const val KEY_AUTO_FALLBACK = "auto_fallback_offline"
+        private const val KEY_WHISPER_MODEL = "whisper_model"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -40,6 +41,12 @@ class PreferenceManager(context: Context) {
         const val ENGINE_DEEPGRAM = "deepgram"
         const val ENGINE_VOSK = "vosk"
         const val ENGINE_SHERPA_ONNX = "sherpa-onnx"
+
+        // Whisper model IDs
+        const val WHISPER_TINY = "whisper-tiny"
+        const val WHISPER_BASE = "whisper-base"
+        const val WHISPER_SMALL = "whisper-small"
+        const val DEFAULT_WHISPER_MODEL = WHISPER_TINY
     }
 
     private val prefs: SharedPreferences
@@ -300,5 +307,23 @@ class PreferenceManager(context: Context) {
      */
     fun setAutoFallback(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_FALLBACK, enabled).apply()
+    }
+
+    // ========== Whisper Model ==========
+
+    /**
+     * Gets the selected Whisper model variant.
+     * @return Model ID ("whisper-tiny", "whisper-base", or "whisper-small")
+     */
+    fun getWhisperModel(): String {
+        return prefs.getString(KEY_WHISPER_MODEL, DEFAULT_WHISPER_MODEL) ?: DEFAULT_WHISPER_MODEL
+    }
+
+    /**
+     * Sets the Whisper model variant.
+     * @param modelId Model ID (whisper-tiny, whisper-base, whisper-small)
+     */
+    fun setWhisperModel(modelId: String) {
+        prefs.edit().putString(KEY_WHISPER_MODEL, modelId).apply()
     }
 }

@@ -10,6 +10,7 @@ import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.transcription.engines.DeepgramEngine
+import com.tinydictation.android.transcription.engines.SherpaOnnxEngine
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
@@ -63,7 +64,7 @@ class TranscriptionManager(
         // Initialize available engines
         engines[PreferenceManager.ENGINE_DEEPGRAM] = DeepgramEngine(apiKey)
         engines[PreferenceManager.ENGINE_VOSK] = VoskEngine()
-        // Sherpa-ONNX will be added when implemented
+        engines[PreferenceManager.ENGINE_SHERPA_ONNX] = SherpaOnnxEngine()
     }
 
     /**
@@ -217,8 +218,9 @@ class TranscriptionManager(
         val preferenceManager = PreferenceManager(ctx)
         val preferredEngineId = preferenceManager.getTranscriptionEngine()
         val autoFallback = preferenceManager.getAutoFallback()
+        val whisperModel = preferenceManager.getWhisperModel()
 
-        Log.d(TAG, "Preferred engine: $preferredEngineId, autoFallback: $autoFallback")
+        Log.d(TAG, "Preferred engine: $preferredEngineId, autoFallback: $autoFallback, whisperModel: $whisperModel")
 
         // If preferred is Deepgram and auto-fallback is enabled, check connectivity
         if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM && autoFallback) {
@@ -232,9 +234,11 @@ class TranscriptionManager(
                     return voskEngine
                 }
 
-                // Try Sherpa-ONNX
+                // Try Sherpa-ONNX with selected Whisper model
                 val sherpaEngine = engines[PreferenceManager.ENGINE_SHERPA_ONNX]
-                if (sherpaEngine != null && sherpaEngine.isReady(ctx, currentLanguage)) {
+                if (sherpaEngine != null && sherpaEngine.isReady(ctx, whisperModel)) {
+                    // Set the model for Sherpa-ONNX
+                    (sherpaEngine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
                     return sherpaEngine
                 }
 
@@ -247,8 +251,16 @@ class TranscriptionManager(
         // Use preferred engine
         val engine = engines[preferredEngineId]
 
-        // For offline engines, check if model is ready
-        if (engine != null && !engine.requiresInternet) {
+        // For Sherpa-ONNX (Whisper), set the selected model variant
+        if (preferredEngineId == PreferenceManager.ENGINE_SHERPA_ONNX) {
+            (engine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
+            // Check if the selected Whisper model is ready
+            if (engine != null && !engine.isReady(ctx, whisperModel)) {
+                Log.e(TAG, "Whisper model $whisperModel not downloaded")
+                return null
+            }
+        } else if (engine != null && !engine.requiresInternet) {
+            // For other offline engines (Vosk), check if model is ready
             if (!engine.isReady(ctx, currentLanguage)) {
                 Log.e(TAG, "Offline engine not ready (model not downloaded)")
                 return null

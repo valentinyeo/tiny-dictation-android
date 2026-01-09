@@ -40,10 +40,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
     }
 
     override val engineId = "sherpa-onnx"
-    override val displayName = "Whisper (High Quality)"
+    override var displayName = "Whisper (High Quality)"
+        private set
     override val requiresInternet = false
 
     private var currentLanguage = "multi"
+    private var currentModelVariant = "whisper-tiny"
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
     private var onErrorCallback: ((String) -> Unit)? = null
     private var isSessionActive = false
@@ -51,6 +53,25 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
     // Audio buffer for batch processing
     private val audioBuffer = mutableListOf<Short>()
+
+    /**
+     * Sets the Whisper model variant to use (whisper-tiny, whisper-base, whisper-small).
+     */
+    fun setModelVariant(modelVariant: String) {
+        currentModelVariant = modelVariant
+        displayName = when (modelVariant) {
+            "whisper-tiny" -> "Whisper Tiny (Fast)"
+            "whisper-base" -> "Whisper Base (Balanced)"
+            "whisper-small" -> "Whisper Small (Accurate)"
+            else -> "Whisper (High Quality)"
+        }
+        Log.i(TAG, "SherpaOnnxEngine: Model variant set to $modelVariant")
+    }
+
+    /**
+     * Gets the current model variant.
+     */
+    fun getModelVariant(): String = currentModelVariant
 
     override suspend fun isReady(context: Context, language: String): Boolean {
         // Check if model is downloaded
@@ -62,14 +83,15 @@ class SherpaOnnxEngine : TranscriptionEngine {
         contextRef = context
         currentLanguage = language
 
-        if (!isModelDownloaded(context, language)) {
-            return Result.failure(IllegalStateException("Model not downloaded for language: $language"))
+        // For Whisper, we use currentModelVariant for the model directory
+        if (!isModelDownloaded(context, currentModelVariant)) {
+            return Result.failure(IllegalStateException("Model not downloaded: $currentModelVariant"))
         }
 
         return try {
-            val modelDir = getModelDir(context, language)
+            val modelDir = getModelDir(context, currentModelVariant)
             Log.i(TAG, "SherpaOnnxEngine: Model directory at ${modelDir.absolutePath}")
-            DebugLog.i("SherpaOnnxEngine: Initializing for $language")
+            DebugLog.i("SherpaOnnxEngine: Initializing $currentModelVariant for language $language")
 
             // TODO: Initialize Sherpa-ONNX recognizer when AAR is integrated
             // For now, we verify the model exists but can't actually use it
