@@ -266,7 +266,10 @@ class MainActivity : AppCompatActivity() {
                 onTranscript = { text, isFinal ->
                     Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                     if (isFinal && text.isNotBlank()) {
+                        // Inject via accessibility service
                         DictationAccessibilityService.inject(text + " ")
+                        // Also add to paste buffer for manual paste option
+                        BubbleService.addToBuffer(text)
                     }
                 },
                 onError = { error ->

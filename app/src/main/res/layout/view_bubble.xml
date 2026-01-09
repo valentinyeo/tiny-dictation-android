@@ -6,71 +6,60 @@
     android:layout_height="wrap_content"
     android:padding="4dp">
 
+    <!-- Vertical stack of bubbles -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:gravity="center_horizontal">
 
-        <!-- Horizontal container for mic bubble + language toggle -->
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+        <!-- Main Mic Bubble -->
+        <FrameLayout
+            android:id="@+id/bubbleContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp">
 
-            <!-- Circular Bubble Container (compact size) -->
-            <FrameLayout
-                android:id="@+id/bubbleContainer"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/bubble_background"
-                android:elevation="6dp">
+            <ImageView
+                android:id="@+id/ivMicrophone"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_mic"
+                app:tint="@color/bubble_text"
+                android:contentDescription="@string/app_name" />
 
-                <ImageView
-                    android:id="@+id/ivMicrophone"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
-                    android:layout_gravity="center"
-                    android:src="@drawable/ic_mic"
-                    app:tint="@color/bubble_text"
-                    android:contentDescription="@string/app_name" />
+        </FrameLayout>
 
-            </FrameLayout>
-
-            <!-- Language Toggle Button -->
-            <TextView
-                android:id="@+id/tvLanguageToggle"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:layout_marginStart="4dp"
-                android:background="@drawable/bubble_background"
-                android:elevation="6dp"
-                android:gravity="center"
-                android:text="EN"
-                android:textColor="@color/bubble_text"
-                android:textSize="10sp"
-                android:textStyle="bold" />
-
-        </LinearLayout>
-
-        <!-- Status Text -->
+        <!-- Language Toggle Button (same size as mic) -->
         <TextView
-            android:id="@+id/tvStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:id="@+id/tvLanguageToggle"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:layout_marginTop="4dp"
-            android:text="@string/bubble_idle"
-            android:textAppearance="?attr/textAppearanceLabelSmall"
-            android:textColor="@android:color/white"
-            android:background="@android:color/transparent"
-            android:paddingHorizontal="8dp"
-            android:paddingVertical="2dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:text="EN"
+            android:textColor="@color/bubble_text"
+            android:textSize="14sp"
+            android:textStyle="bold"
             android:visibility="gone"
-            android:shadowColor="@android:color/black"
-            android:shadowDx="1"
-            android:shadowDy="1"
-            android:shadowRadius="2"
+            tools:visibility="visible" />
+
+        <!-- Paste/Clipboard Button (same size as mic) -->
+        <TextView
+            android:id="@+id/tvPasteButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp"
+            android:gravity="center"
+            android:text="📋"
+            android:textSize="18sp"
+            android:visibility="gone"
             tools:visibility="visible" />
 
     </LinearLayout>

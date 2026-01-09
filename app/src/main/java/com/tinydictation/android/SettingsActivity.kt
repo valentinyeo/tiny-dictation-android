@@ -36,6 +36,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var vadSensitivitySlider: Slider
     private lateinit var autoPunctuationSwitch: MaterialSwitch
+    private lateinit var languageBubbleSwitch: MaterialSwitch
+    private lateinit var pasteBubbleSwitch: MaterialSwitch
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var shareDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
@@ -53,6 +55,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.1:
+            • Paste button for clipboard mode (works with Termux!)
+            • Vertical bubble layout, all same size
+            • Toggle bubbles on/off in Settings
+
             v1.5.0:
             • Language toggle! Tap EN/DE button to switch languages
             • Works mid-conversation - just tap to switch
@@ -123,6 +130,8 @@ class SettingsActivity : AppCompatActivity() {
         apiKeyInput = findViewById(R.id.etApiKey)
         vadSensitivitySlider = findViewById(R.id.sliderVadSensitivity)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
+        languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
+        pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         shareDebugLogButton = findViewById(R.id.btnShareDebugLog)
         saveButton = findViewById(R.id.btnSave)
@@ -170,6 +179,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load auto-punctuation
         autoPunctuationSwitch.isChecked = preferenceManager.getAutoPunctuation()
+
+        // Load bubble settings
+        val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+        languageBubbleSwitch.isChecked = prefs.getBoolean("show_language_bubble", true)
+        pasteBubbleSwitch.isChecked = prefs.getBoolean("show_paste_bubble", true)
     }
 
     private fun setupClickListeners() {
@@ -206,6 +220,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // Save auto-punctuation
         preferenceManager.setAutoPunctuation(autoPunctuationSwitch.isChecked)
+
+        // Save bubble settings
+        getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+            .edit()
+            .putBoolean("show_language_bubble", languageBubbleSwitch.isChecked)
+            .putBoolean("show_paste_bubble", pasteBubbleSwitch.isChecked)
+            .apply()
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()

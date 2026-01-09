@@ -3,6 +3,8 @@ package com.tinydictation.android.service
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.graphics.PixelFormat
@@ -17,6 +19,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
@@ -39,6 +42,9 @@ class BubbleService : LifecycleService() {
 
     private var currentState: BubbleState = BubbleState.IDLE
     private var currentLanguage: String = "en"  // "en" or "de"
+
+    // Text buffer for paste functionality
+    private val textBuffer = StringBuilder()
 
     // Touch handling variables
     private var initialX: Int = 0
@@ -145,10 +151,16 @@ class BubbleService : LifecycleService() {
             toggleLanguage()
         }
 
+        // Paste button click handler
+        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.setOnClickListener {
+            copyBufferToClipboard()
+        }
+
         try {
             windowManager.addView(bubbleView, bubbleParams)
             updateBubbleUI()
             updateLanguageUI()
+            updateBubbleVisibility()
             Log.i(TAG, "Bubble created successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create bubble", e)
@@ -173,6 +185,62 @@ class BubbleService : LifecycleService() {
     private fun updateLanguageUI() {
         bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.text =
             currentLanguage.uppercase()
+    }
+
+    /**
+     * Copies the text buffer to clipboard and clears it.
+     */
+    private fun copyBufferToClipboard() {
+        val text = textBuffer.toString().trim()
+        if (text.isEmpty()) {
+            Toast.makeText(this, "Nothing to paste", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Dictation", text)
+        clipboard.setPrimaryClip(clip)
+
+        Log.i(TAG, "Copied ${text.length} chars to clipboard")
+        DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
+        Toast.makeText(this, "Copied! Now paste where you need it", Toast.LENGTH_SHORT).show()
+
+        // Clear buffer after copying
+        textBuffer.clear()
+    }
+
+    /**
+     * Appends transcribed text to the buffer.
+     */
+    fun appendToBuffer(text: String) {
+        if (text.isNotBlank()) {
+            if (textBuffer.isNotEmpty()) {
+                textBuffer.append(" ")
+            }
+            textBuffer.append(text)
+            Log.d(TAG, "Buffer now: ${textBuffer.length} chars")
+        }
+    }
+
+    /**
+     * Clears the text buffer.
+     */
+    fun clearBuffer() {
+        textBuffer.clear()
+    }
+
+    /**
+     * Updates visibility of optional bubbles based on settings.
+     */
+    private fun updateBubbleVisibility() {
+        val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
+        val showLanguage = prefs.getBoolean("show_language_bubble", true)
+        val showPaste = prefs.getBoolean("show_paste_bubble", true)
+
+        bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.visibility =
+            if (showLanguage) View.VISIBLE else View.GONE
+        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.visibility =
+            if (showPaste) View.VISIBLE else View.GONE
     }
 
     /**
@@ -405,6 +473,20 @@ class BubbleService : LifecycleService() {
          * Gets the current language setting.
          */
         fun getCurrentLanguage(): String = instance?.currentLanguage ?: "en"
+
+        /**
+         * Appends text to the paste buffer.
+         */
+        fun addToBuffer(text: String) {
+            instance?.appendToBuffer(text)
+        }
+
+        /**
+         * Clears the paste buffer.
+         */
+        fun clearBuffer() {
+            instance?.clearBuffer()
+        }
 
         /**
          * Gets the current service instance, if running.
