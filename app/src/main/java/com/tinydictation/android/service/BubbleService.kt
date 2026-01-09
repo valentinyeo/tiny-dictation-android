@@ -46,6 +46,9 @@ class BubbleService : LifecycleService() {
     // Text buffer for paste functionality
     private val textBuffer = StringBuilder()
 
+    // Compact/translucent mode
+    private var isCompactMode = false
+
     // Touch handling variables
     private var initialX: Int = 0
     private var initialY: Int = 0
@@ -60,6 +63,12 @@ class BubbleService : LifecycleService() {
     // Double-tap detection
     private var lastTapTime: Long = 0
     private val doubleTapThreshold = 300L // milliseconds
+
+    // Long-press detection
+    private var longPressHandler: android.os.Handler? = null
+    private var longPressRunnable: Runnable? = null
+    private val longPressThreshold = 500L // milliseconds
+    private var isLongPressTriggered = false
 
     override fun onCreate() {
         super.onCreate()
@@ -244,7 +253,7 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Handles touch events for dragging and tapping the bubble.
+     * Handles touch events for dragging, tapping, and long-pressing the bubble.
      */
     private fun handleTouch(view: View, event: MotionEvent): Boolean {
         when (event.action) {
@@ -254,6 +263,18 @@ class BubbleService : LifecycleService() {
                 initialTouchX = event.rawX
                 initialTouchY = event.rawY
                 isDragging = false
+                isLongPressTriggered = false
+
+                // Start long-press detection
+                longPressHandler = android.os.Handler(mainLooper)
+                longPressRunnable = Runnable {
+                    if (!isDragging) {
+                        isLongPressTriggered = true
+                        toggleCompactMode()
+                    }
+                }
+                longPressHandler?.postDelayed(longPressRunnable!!, longPressThreshold)
+
                 return true
             }
 
@@ -263,6 +284,8 @@ class BubbleService : LifecycleService() {
 
                 if (!isDragging && (Math.abs(deltaX) > dragThreshold || Math.abs(deltaY) > dragThreshold)) {
                     isDragging = true
+                    // Cancel long-press if dragging
+                    longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
                 }
 
                 if (isDragging) {
@@ -280,6 +303,14 @@ class BubbleService : LifecycleService() {
             }
 
             MotionEvent.ACTION_UP -> {
+                // Cancel any pending long-press
+                longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
+
+                // Don't process tap if long-press was triggered
+                if (isLongPressTriggered) {
+                    return true
+                }
+
                 if (!isDragging) {
                     // This was a tap, not a drag
                     val currentTime = System.currentTimeMillis()
@@ -303,6 +334,66 @@ class BubbleService : LifecycleService() {
             }
         }
         return false
+    }
+
+    /**
+     * Toggles between normal and compact/translucent mode.
+     */
+    private fun toggleCompactMode() {
+        isCompactMode = !isCompactMode
+        Log.i(TAG, "Compact mode: $isCompactMode")
+        DebugLog.i("BubbleService: Compact mode = $isCompactMode")
+
+        bubbleView?.let { view ->
+            val bubbleContainer = view.findViewById<FrameLayout>(R.id.bubbleContainer)
+            val languageToggle = view.findViewById<TextView>(R.id.tvLanguageToggle)
+            val pasteButton = view.findViewById<TextView>(R.id.tvPasteButton)
+
+            if (isCompactMode) {
+                // Compact mode: smaller, translucent, hide extra buttons
+                view.alpha = 0.4f
+                bubbleContainer?.layoutParams?.let { params ->
+                    params.width = (24 * resources.displayMetrics.density).toInt()
+                    params.height = (24 * resources.displayMetrics.density).toInt()
+                    bubbleContainer.layoutParams = params
+                }
+                bubbleContainer?.findViewById<ImageView>(R.id.ivMicrophone)?.let { icon ->
+                    icon.layoutParams.width = (12 * resources.displayMetrics.density).toInt()
+                    icon.layoutParams.height = (12 * resources.displayMetrics.density).toInt()
+                    icon.requestLayout()
+                }
+                languageToggle?.visibility = View.GONE
+                pasteButton?.visibility = View.GONE
+            } else {
+                // Normal mode: restore size and opacity
+                view.alpha = 1.0f
+                bubbleContainer?.layoutParams?.let { params ->
+                    params.width = (40 * resources.displayMetrics.density).toInt()
+                    params.height = (40 * resources.displayMetrics.density).toInt()
+                    bubbleContainer.layoutParams = params
+                }
+                bubbleContainer?.findViewById<ImageView>(R.id.ivMicrophone)?.let { icon ->
+                    icon.layoutParams.width = (20 * resources.displayMetrics.density).toInt()
+                    icon.layoutParams.height = (20 * resources.displayMetrics.density).toInt()
+                    icon.requestLayout()
+                }
+                // Restore bubble visibility based on settings
+                updateBubbleVisibility()
+            }
+        }
+
+        // Vibrate briefly for feedback
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator?.vibrate(android.os.VibrationEffect.createOneShot(50, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(50)
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors
+        }
     }
 
     /**

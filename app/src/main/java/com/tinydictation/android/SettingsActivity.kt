@@ -55,6 +55,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.2:
+            • Long-press for compact/translucent mode (less intrusive)
+            • Double-tap to close bubble (reminder: already worked!)
+
             v1.5.1:
             • Paste button for clipboard mode (works with Termux!)
             • Vertical bubble layout, all same size
