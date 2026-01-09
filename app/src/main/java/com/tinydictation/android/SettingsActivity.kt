@@ -61,6 +61,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.12:
+            • Drag to close! Drag bubble to X target at bottom to close
+            • Visual feedback when hovering over close target
+
             v1.5.11:
             • Sticky Save button (always visible at bottom)
             • Collapsible changelog (tap to expand)

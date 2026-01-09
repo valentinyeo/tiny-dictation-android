@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/closeTargetContainer"
+    android:layout_width="64dp"
+    android:layout_height="64dp"
+    android:background="@drawable/close_target_background">
+
+    <ImageView
+        android:id="@+id/ivCloseIcon"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_gravity="center"
+        android:src="@drawable/ic_close"
+        app:tint="@android:color/white"
+        android:contentDescription="@string/app_name" />
+
+</FrameLayout>

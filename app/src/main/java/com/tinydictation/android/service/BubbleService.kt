@@ -40,6 +40,12 @@ class BubbleService : LifecycleService() {
     private var bubbleView: View? = null
     private var bubbleParams: WindowManager.LayoutParams? = null
 
+    // Close target overlay
+    private var closeTargetView: View? = null
+    private var closeTargetParams: WindowManager.LayoutParams? = null
+    private var isCloseTargetVisible = false
+    private var isBubbleOverTarget = false
+
     private var currentState: BubbleState = BubbleState.IDLE
     private var currentLanguage: String = "en"  // "en" or "de"
 
@@ -375,6 +381,8 @@ class BubbleService : LifecycleService() {
                     isDragging = true
                     // Cancel long-press if dragging
                     longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
+                    // Show close target when dragging starts
+                    showCloseTarget()
                 }
 
                 if (isDragging) {
@@ -383,6 +391,9 @@ class BubbleService : LifecycleService() {
                         params.y = initialY + deltaY
                         try {
                             windowManager.updateViewLayout(bubbleView, params)
+                            // Check if bubble is over close target
+                            val isOverTarget = checkBubbleOverTarget(params.x, params.y)
+                            updateCloseTargetState(isOverTarget)
                         } catch (e: Exception) {
                             e.printStackTrace()
                         }
@@ -394,6 +405,18 @@ class BubbleService : LifecycleService() {
             MotionEvent.ACTION_UP -> {
                 // Cancel any pending long-press
                 longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
+
+                // Check if released over close target
+                if (isDragging && isBubbleOverTarget) {
+                    Log.i(TAG, "Bubble released on close target - closing service")
+                    DebugLog.i("BubbleService: Drag-to-close triggered")
+                    hideCloseTarget()
+                    stopSelf()
+                    return true
+                }
+
+                // Hide close target after drag ends
+                hideCloseTarget()
 
                 // Don't process tap if long-press was triggered
                 if (isLongPressTriggered) {
@@ -591,6 +614,7 @@ class BubbleService : LifecycleService() {
      * Removes the bubble from the window.
      */
     private fun removeBubble() {
+        hideCloseTarget()
         bubbleView?.let { view ->
             try {
                 Log.i(TAG, "Removing bubble overlay")
@@ -601,6 +625,114 @@ class BubbleService : LifecycleService() {
             }
         }
         bubbleView = null
+    }
+
+    /**
+     * Shows the close target overlay at the bottom center of the screen.
+     */
+    private fun showCloseTarget() {
+        if (isCloseTargetVisible) return
+
+        Log.d(TAG, "Showing close target")
+        val inflater = LayoutInflater.from(this)
+        closeTargetView = inflater.inflate(R.layout.view_close_target, null)
+
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+        val targetSize = (64 * displayMetrics.density).toInt()
+
+        closeTargetParams = WindowManager.LayoutParams(
+            targetSize,
+            targetSize,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                    WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.START
+            x = (screenWidth - targetSize) / 2  // Center horizontally
+            y = screenHeight - targetSize - (100 * displayMetrics.density).toInt()  // Bottom with margin
+        }
+
+        try {
+            windowManager.addView(closeTargetView, closeTargetParams)
+            closeTargetView?.alpha = 0.8f
+            isCloseTargetVisible = true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to show close target", e)
+        }
+    }
+
+    /**
+     * Hides the close target overlay.
+     */
+    private fun hideCloseTarget() {
+        if (!isCloseTargetVisible) return
+
+        Log.d(TAG, "Hiding close target")
+        closeTargetView?.let { view ->
+            try {
+                windowManager.removeView(view)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to hide close target", e)
+            }
+        }
+        closeTargetView = null
+        isCloseTargetVisible = false
+        isBubbleOverTarget = false
+    }
+
+    /**
+     * Checks if the bubble is currently over the close target.
+     * Returns true if the bubble center is within the target area.
+     */
+    private fun checkBubbleOverTarget(bubbleX: Int, bubbleY: Int): Boolean {
+        val displayMetrics = resources.displayMetrics
+        val screenWidth = displayMetrics.widthPixels
+        val screenHeight = displayMetrics.heightPixels
+        val targetSize = (64 * displayMetrics.density).toInt()
+        val bubbleSize = (40 * displayMetrics.density).toInt()
+
+        // Calculate target center position
+        val targetCenterX = screenWidth / 2
+        val targetCenterY = screenHeight - targetSize / 2 - (100 * displayMetrics.density).toInt()
+
+        // Calculate bubble center position
+        val bubbleCenterX = bubbleX + bubbleSize / 2
+        val bubbleCenterY = bubbleY + bubbleSize / 2
+
+        // Check if bubble center is within extended hit area (target size + margin)
+        val hitRadius = (targetSize / 2 + 20 * displayMetrics.density).toInt()
+        val distanceX = Math.abs(bubbleCenterX - targetCenterX)
+        val distanceY = Math.abs(bubbleCenterY - targetCenterY)
+
+        return distanceX < hitRadius && distanceY < hitRadius
+    }
+
+    /**
+     * Updates the close target visual state based on whether the bubble is over it.
+     */
+    private fun updateCloseTargetState(isOver: Boolean) {
+        if (isBubbleOverTarget == isOver) return
+
+        isBubbleOverTarget = isOver
+        closeTargetView?.let { view ->
+            val container = view.findViewById<FrameLayout>(R.id.closeTargetContainer)
+            if (isOver) {
+                // Highlight: scale up and change background
+                container?.setBackgroundResource(R.drawable.close_target_background_active)
+                view.scaleX = 1.2f
+                view.scaleY = 1.2f
+                view.alpha = 1.0f
+            } else {
+                // Normal state
+                container?.setBackgroundResource(R.drawable.close_target_background)
+                view.scaleX = 1.0f
+                view.scaleY = 1.0f
+                view.alpha = 0.8f
+            }
+        }
     }
 
     /**
