@@ -61,6 +61,12 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.0:
+            • Offline mode foundation - Vosk integration
+            • Multi-engine architecture (Deepgram, Vosk, Sherpa-ONNX)
+            • Auto-fallback to offline when no internet
+            • Settings UI for engine selection coming soon
+
             v1.6.4:
             • Fixed drag-to-close - larger hit area, better positioning
 

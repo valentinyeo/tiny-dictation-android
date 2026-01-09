@@ -3,30 +3,28 @@ package com.tinydictation.android.transcription
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
+import com.tinydictation.android.transcription.engines.DeepgramEngine
+import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 
 /**
- * Orchestrates audio recording and transcription with continuous streaming.
+ * Orchestrates audio recording and transcription with multiple engine support.
  *
- * This manager coordinates the AudioRecorder and DeepgramClient to provide
- * low-latency speech-to-text. It connects to Deepgram immediately and streams
- * all audio continuously - Deepgram handles speech detection internally.
- *
- * Flow:
- * 1. Connect to Deepgram immediately when startListening() is called
- * 2. Stream all audio continuously to Deepgram
- * 3. Deepgram returns transcriptions as it detects speech
- * 4. Connection stays open until stopListening() is called
+ * Supports cloud-based (Deepgram) and offline (Vosk, Sherpa-ONNX) transcription.
+ * Can auto-fallback to offline when no internet is available.
  */
 class TranscriptionManager(
     private val apiKey: String,
@@ -44,34 +42,32 @@ class TranscriptionManager(
      * Current state of the transcription manager.
      */
     enum class TranscriptionState {
-        /** Not listening, idle state */
         IDLE,
-
-        /** Listening for speech but not currently detecting any */
         LISTENING,
-
-        /** Speech detected, streaming to Deepgram */
         TRANSCRIBING,
-
-        /** Error occurred */
         ERROR
     }
 
     private val audioRecorder = AudioRecorder()
-    private val deepgramClient = DeepgramClient()
-
+    private var currentEngine: TranscriptionEngine? = null
     private var scope: CoroutineScope? = null
     private var isListening = false
     private var currentState = TranscriptionState.IDLE
     private var currentLanguage = "en"
+    private var audioChunkCount = 0
+
+    // Available engines
+    private val engines = mutableMapOf<String, TranscriptionEngine>()
+
+    init {
+        // Initialize available engines
+        engines[PreferenceManager.ENGINE_DEEPGRAM] = DeepgramEngine(apiKey)
+        engines[PreferenceManager.ENGINE_VOSK] = VoskEngine()
+        // Sherpa-ONNX will be added when implemented
+    }
 
     /**
      * Starts listening for speech and transcribing.
-     *
-     * Audio recording begins immediately. When speech is detected,
-     * a connection to Deepgram is established and audio is streamed.
-     *
-     * @throws SecurityException if RECORD_AUDIO permission is not granted
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startListening() {
@@ -94,19 +90,10 @@ class TranscriptionManager(
             }
         }
 
-        if (apiKey.isBlank()) {
-            Log.e(TAG, "Cannot start listening - API key is blank")
-            DebugLog.e("TranscriptionManager: Cannot start - API key is blank")
-            updateState(TranscriptionState.ERROR)
-            onError?.invoke("API key is not set")
-            return
-        }
-
-        Log.i(TAG, "TranscriptionManager starting listening (continuous mode)")
-        DebugLog.i("TranscriptionManager: Starting continuous listening")
+        Log.i(TAG, "TranscriptionManager starting listening")
+        DebugLog.i("TranscriptionManager: Starting listening")
         isListening = true
         audioChunkCount = 0
-        audioSentCount = 0
 
         scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -118,53 +105,68 @@ class TranscriptionManager(
             return
         }
 
-        // Connect to Deepgram immediately for low-latency streaming
-        updateState(TranscriptionState.TRANSCRIBING)
-        DebugLog.i("TranscriptionManager: Connecting to Deepgram (language=$currentLanguage)")
-
+        // Select and initialize the appropriate engine
         currentScope.launch(Dispatchers.IO) {
-            deepgramClient.connect(
-                apiKey = apiKey,
-                onInterim = { text ->
+            val engine = selectEngine()
+            if (engine == null) {
+                currentScope.launch(Dispatchers.Main) {
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("No transcription engine available")
+                }
+                return@launch
+            }
+
+            currentEngine = engine
+            Log.i(TAG, "Selected engine: ${engine.displayName}")
+            DebugLog.i("TranscriptionManager: Using ${engine.displayName}")
+
+            // Initialize engine
+            val initResult = engine.initialize(context!!, currentLanguage)
+            if (initResult.isFailure) {
+                currentScope.launch(Dispatchers.Main) {
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("Failed to initialize engine: ${initResult.exceptionOrNull()?.message}")
+                }
+                return@launch
+            }
+
+            // Start engine session
+            currentScope.launch(Dispatchers.Main) {
+                updateState(TranscriptionState.TRANSCRIBING)
+            }
+
+            engine.startSession(
+                onTranscript = { text, isFinal ->
                     currentScope.launch(Dispatchers.Main) {
                         if (isListening) {
-                            onTranscript(text, false)
-                        }
-                    }
-                },
-                onFinal = { text ->
-                    currentScope.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            onTranscript(text, true)
+                            onTranscript(text, isFinal)
                         }
                     }
                 },
                 onError = { error ->
                     currentScope.launch(Dispatchers.Main) {
                         if (isListening) {
-                            DebugLog.e("TranscriptionManager: Deepgram error - $error")
+                            DebugLog.e("TranscriptionManager: Engine error - $error")
                             onError?.invoke(error)
                         }
                     }
-                },
-                language = currentLanguage
+                }
             )
-        }
 
-        // Start recording immediately - no delay for lowest latency
-        // Audio will be buffered briefly until connection establishes
-        try {
-            audioRecorder.startRecording(currentScope) { samples ->
-                processAudioChunk(samples)
+            // Start audio recording
+            currentScope.launch(Dispatchers.Main) {
+                try {
+                    audioRecorder.startRecording(currentScope) { samples ->
+                        processAudioChunk(samples)
+                    }
+                    DebugLog.i("TranscriptionManager: Audio recording started")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to start audio recording", e)
+                    DebugLog.e("TranscriptionManager: Failed to start recording - ${e.message}")
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("Failed to start audio recording: ${e.message}")
+                }
             }
-            DebugLog.i("TranscriptionManager: Audio recording started immediately")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to start audio recording", e)
-            DebugLog.e("TranscriptionManager: Failed to start audio recording - ${e.message}")
-            updateState(TranscriptionState.ERROR)
-            onError?.invoke("Failed to start audio recording: ${e.message}")
-            scope?.cancel()
-            scope = null
         }
     }
 
@@ -178,11 +180,11 @@ class TranscriptionManager(
         }
 
         Log.i(TAG, "TranscriptionManager stopping listening")
-        DebugLog.i("TranscriptionManager: Stopping continuous listening")
+        DebugLog.i("TranscriptionManager: Stopping listening")
         isListening = false
 
         audioRecorder.stopRecording()
-        deepgramClient.close()
+        currentEngine?.endSession()
 
         scope?.cancel()
         scope = null
@@ -190,51 +192,87 @@ class TranscriptionManager(
         updateState(TranscriptionState.IDLE)
     }
 
-    /** Counter for tracking audio chunks */
-    private var audioChunkCount = 0
-
-    /** Counter for audio chunks sent to Deepgram */
-    private var audioSentCount = 0
-
     /**
-     * Processes an audio chunk - sends directly to Deepgram for continuous streaming.
+     * Processes an audio chunk - sends to the active engine.
      */
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
 
         audioChunkCount++
 
-        // Log periodically (every 100 chunks = ~2 seconds)
+        // Log periodically
         if (audioChunkCount % 100 == 0) {
-            DebugLog.d("TranscriptionManager: Streamed $audioChunkCount chunks, sent $audioSentCount to Deepgram")
+            DebugLog.d("TranscriptionManager: Processed $audioChunkCount chunks")
         }
 
-        // Send directly to Deepgram - continuous streaming mode
-        if (deepgramClient.isConnected()) {
-            sendAudioToDeepgram(samples)
-        }
+        currentEngine?.processAudio(samples)
     }
 
     /**
-     * Sends audio samples to Deepgram.
+     * Selects the appropriate transcription engine based on preferences and availability.
      */
-    private fun sendAudioToDeepgram(samples: ShortArray) {
-        val audioBytes = audioRecorder.shortArrayToByteArray(samples)
-        audioSentCount++
+    private suspend fun selectEngine(): TranscriptionEngine? {
+        val ctx = context ?: return engines[PreferenceManager.ENGINE_DEEPGRAM]
 
-        // Log first few sends to confirm it's working
-        if (audioSentCount <= 3) {
-            Log.d(TAG, "Sending audio chunk #$audioSentCount to Deepgram (${audioBytes.size} bytes)")
-            DebugLog.d("TranscriptionManager: Sending chunk #$audioSentCount to Deepgram")
-        }
+        val preferenceManager = PreferenceManager(ctx)
+        val preferredEngineId = preferenceManager.getTranscriptionEngine()
+        val autoFallback = preferenceManager.getAutoFallback()
 
-        scope?.launch(Dispatchers.IO) {
-            val sent = deepgramClient.sendAudio(audioBytes)
-            if (!sent && audioSentCount <= 5) {
-                Log.w(TAG, "Failed to send audio chunk #$audioSentCount")
-                DebugLog.w("TranscriptionManager: Failed to send chunk #$audioSentCount")
+        Log.d(TAG, "Preferred engine: $preferredEngineId, autoFallback: $autoFallback")
+
+        // If preferred is Deepgram and auto-fallback is enabled, check connectivity
+        if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM && autoFallback) {
+            if (!isNetworkAvailable(ctx)) {
+                Log.i(TAG, "No network, attempting fallback to offline engine")
+                DebugLog.i("TranscriptionManager: No network, falling back to offline")
+
+                // Try Vosk first
+                val voskEngine = engines[PreferenceManager.ENGINE_VOSK]
+                if (voskEngine != null && voskEngine.isReady(ctx, currentLanguage)) {
+                    return voskEngine
+                }
+
+                // Try Sherpa-ONNX
+                val sherpaEngine = engines[PreferenceManager.ENGINE_SHERPA_ONNX]
+                if (sherpaEngine != null && sherpaEngine.isReady(ctx, currentLanguage)) {
+                    return sherpaEngine
+                }
+
+                // No offline engine available
+                Log.w(TAG, "No offline models available for fallback")
+                DebugLog.w("TranscriptionManager: No offline models available")
             }
         }
+
+        // Use preferred engine
+        val engine = engines[preferredEngineId]
+
+        // For offline engines, check if model is ready
+        if (engine != null && !engine.requiresInternet) {
+            if (!engine.isReady(ctx, currentLanguage)) {
+                Log.e(TAG, "Offline engine not ready (model not downloaded)")
+                return null
+            }
+        }
+
+        // For Deepgram, check API key
+        if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM && apiKey.isBlank()) {
+            Log.e(TAG, "Deepgram selected but no API key")
+            return null
+        }
+
+        return engine
+    }
+
+    /**
+     * Checks if network is available.
+     */
+    private fun isNetworkAvailable(context: Context): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
     /**
@@ -248,23 +286,12 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Returns the current state of the transcription manager.
-     */
     fun getState(): TranscriptionState = currentState
-
-    /**
-     * Returns whether the manager is currently listening.
-     */
     fun isListening(): Boolean = isListening
-
-    /**
-     * Returns whether speech is currently being transcribed.
-     */
     fun isTranscribing(): Boolean = currentState == TranscriptionState.TRANSCRIBING
 
     /**
-     * Changes the transcription language and reconnects if currently listening.
+     * Changes the transcription language.
      */
     fun setLanguage(language: String) {
         if (currentLanguage == language) return
@@ -273,40 +300,20 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Language changed to $language")
         currentLanguage = language
 
-        // If currently listening, reconnect with new language
-        if (isListening) {
-            DebugLog.i("TranscriptionManager: Reconnecting with new language")
-            deepgramClient.close()
+        currentEngine?.setLanguage(language)
+    }
 
-            scope?.launch(Dispatchers.IO) {
-                kotlinx.coroutines.delay(100) // Brief delay for clean close
-                deepgramClient.connect(
-                    apiKey = apiKey,
-                    onInterim = { text ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                onTranscript(text, false)
-                            }
-                        }
-                    },
-                    onFinal = { text ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                onTranscript(text, true)
-                            }
-                        }
-                    },
-                    onError = { error ->
-                        scope?.launch(Dispatchers.Main) {
-                            if (isListening) {
-                                DebugLog.e("TranscriptionManager: Deepgram error - $error")
-                                onError?.invoke(error)
-                            }
-                        }
-                    },
-                    language = currentLanguage
-                )
-            }
-        }
+    /**
+     * Gets the currently active engine ID.
+     */
+    fun getActiveEngineId(): String? = currentEngine?.engineId
+
+    /**
+     * Releases all resources.
+     */
+    fun release() {
+        stopListening()
+        engines.values.forEach { it.release() }
+        engines.clear()
     }
 }

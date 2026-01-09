@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 36
-        versionName = "1.6.4"
+        versionCode = 37
+        versionName = "1.7.0"
     }
 
     signingConfigs {
@@ -60,6 +60,9 @@ android {
 dependencies {
     // Core Android
     implementation("androidx.core:core-ktx:1.12.0")
+
+    // Vosk - Offline speech recognition
+    implementation("com.alphacephei:vosk-android:0.3.47")
     implementation("androidx.appcompat:appcompat:1.6.1")
     implementation("com.google.android.material:material:1.11.0")
     implementation("androidx.constraintlayout:constraintlayout:2.1.4")

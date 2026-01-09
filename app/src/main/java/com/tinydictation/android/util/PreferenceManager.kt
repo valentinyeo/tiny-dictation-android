@@ -25,6 +25,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_MODEL = "model"
         private const val KEY_ENDPOINTING_MS = "endpointing_ms"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
+        private const val KEY_TRANSCRIPTION_ENGINE = "transcription_engine"
+        private const val KEY_AUTO_FALLBACK = "auto_fallback_offline"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -33,6 +35,11 @@ class PreferenceManager(context: Context) {
         const val DEFAULT_LANGUAGE = "en"
         const val DEFAULT_MODEL = "nova-2"
         const val DEFAULT_ENDPOINTING_MS = 300
+
+        // Engine IDs
+        const val ENGINE_DEEPGRAM = "deepgram"
+        const val ENGINE_VOSK = "vosk"
+        const val ENGINE_SHERPA_ONNX = "sherpa-onnx"
     }
 
     private val prefs: SharedPreferences
@@ -259,5 +266,39 @@ class PreferenceManager(context: Context) {
      */
     fun clearAll() {
         prefs.edit().clear().apply()
+    }
+
+    // ========== Transcription Engine ==========
+
+    /**
+     * Gets the preferred transcription engine.
+     * @return Engine ID ("deepgram", "vosk", or "sherpa-onnx")
+     */
+    fun getTranscriptionEngine(): String {
+        return prefs.getString(KEY_TRANSCRIPTION_ENGINE, ENGINE_DEEPGRAM) ?: ENGINE_DEEPGRAM
+    }
+
+    /**
+     * Sets the preferred transcription engine.
+     * @param engineId Engine ID
+     */
+    fun setTranscriptionEngine(engineId: String) {
+        prefs.edit().putString(KEY_TRANSCRIPTION_ENGINE, engineId).apply()
+    }
+
+    /**
+     * Gets whether auto-fallback to offline is enabled.
+     * @return true if should fallback to offline when no internet
+     */
+    fun getAutoFallback(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_FALLBACK, true)
+    }
+
+    /**
+     * Sets whether to auto-fallback to offline mode.
+     * @param enabled true to enable auto-fallback
+     */
+    fun setAutoFallback(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_FALLBACK, enabled).apply()
     }
 }
