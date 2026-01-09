@@ -270,7 +270,20 @@ class BubbleService : LifecycleService() {
 
         Log.i(TAG, "Copied ${text.length} chars to clipboard and saved to history")
         DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
-        Toast.makeText(this, "Copied! Tap again to paste", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, "✓ Copied! Ready to paste", Toast.LENGTH_SHORT).show()
+
+        // Vibrate to confirm copy
+        try {
+            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                vibrator?.vibrate(android.os.VibrationEffect.createOneShot(100, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
+            } else {
+                @Suppress("DEPRECATION")
+                vibrator?.vibrate(100)
+            }
+        } catch (e: Exception) {
+            // Ignore vibration errors
+        }
 
         // Switch to paste mode (don't clear buffer yet)
         isPasteMode = true
@@ -301,8 +314,14 @@ class BubbleService : LifecycleService() {
      * Updates the paste button icon based on current mode.
      */
     private fun updatePasteButtonIcon() {
-        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.text =
-            if (isPasteMode) "📥" else "📋"  // 📥 = paste, 📋 = clipboard/copy
+        val pasteButton = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
+        if (isPasteMode) {
+            pasteButton?.text = "✓"  // Checkmark = ready to paste
+            pasteButton?.setTextColor(android.graphics.Color.parseColor("#4CAF50"))  // Green
+        } else {
+            pasteButton?.text = "📋"  // Clipboard = tap to copy
+            pasteButton?.setTextColor(android.graphics.Color.WHITE)
+        }
     }
 
     /**

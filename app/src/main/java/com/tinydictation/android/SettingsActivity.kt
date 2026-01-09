@@ -61,6 +61,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.6.2:
+            • Green checkmark (✓) shows when clipboard is ready
+            • Vibration feedback on copy
+            • Clearer "Ready to paste" indicator
+
             v1.6.1:
             • Bubble toggles apply instantly (no Save needed)
             • Cleaner settings flow
