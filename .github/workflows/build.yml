@@ -140,23 +140,13 @@ jobs:
             BASE_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}"
             ARM64_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-arm64-v8a-${{ steps.version.outputs.sha_short }}.apk"
             ARM32_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-armeabi-v7a-${{ steps.version.outputs.sha_short }}.apk"
-
-            # Build message - put download link first to ensure it's always visible
             CHANGELOG="${{ steps.changelog.outputs.changelog }}"
+            NL=$'\n'
             if [ -n "$CHANGELOG" ]; then
-              # Use HTML mode for more reliable formatting
-              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>
-
-${CHANGELOG}
-
-<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
+              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>${NL}${NL}${CHANGELOG}${NL}${NL}<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
             else
-              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b> (${{ steps.version.outputs.sha_short }})
-
-<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
+              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b> (${{ steps.version.outputs.sha_short }})${NL}${NL}<a href=\"${BASE_URL}/${ARM64_APK}\">Download (ARM64)</a> | <a href=\"${BASE_URL}/${ARM32_APK}\">ARM32</a>"
             fi
-
-            # Use --data-urlencode to properly encode the message
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
               --data-urlencode "text=${MESSAGE}" \
