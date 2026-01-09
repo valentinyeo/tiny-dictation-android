@@ -30,6 +30,9 @@ class DeepgramClient {
         private const val DEFAULT_PARAMS =
             "model=nova-2" +
             "&language=en" +
+            "&encoding=linear16" +
+            "&sample_rate=16000" +
+            "&channels=1" +
             "&smart_format=true" +
             "&punctuate=true" +
             "&interim_results=true" +
