@@ -56,6 +56,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.5.6:
+            • Fixed bubble toggle settings (was async race condition)
+            • Debug logging for bubble visibility
+
             v1.5.5:
             • Fixed bubble toggle settings not taking effect immediately
             • Language and paste buttons now hide/show when settings change
@@ -240,12 +244,12 @@ class SettingsActivity : AppCompatActivity() {
         // Save auto-punctuation
         preferenceManager.setAutoPunctuation(autoPunctuationSwitch.isChecked)
 
-        // Save bubble settings
+        // Save bubble settings (use commit() to ensure sync before refresh)
         getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
             .edit()
             .putBoolean("show_language_bubble", languageBubbleSwitch.isChecked)
             .putBoolean("show_paste_bubble", pasteBubbleSwitch.isChecked)
-            .apply()
+            .commit()  // Synchronous - ensures prefs are saved before we read them
 
         // Notify BubbleService to refresh visibility immediately
         BubbleService.refreshVisibility()

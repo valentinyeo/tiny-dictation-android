@@ -301,15 +301,24 @@ class BubbleService : LifecycleService() {
      */
     fun updateBubbleVisibility() {
         // Don't update visibility if in compact mode (buttons are intentionally hidden)
-        if (isCompactMode) return
+        if (isCompactMode) {
+            Log.d(TAG, "updateBubbleVisibility: skipping - compact mode")
+            return
+        }
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
         val showPaste = prefs.getBoolean("show_paste_bubble", true)
 
-        bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.visibility =
-            if (showLanguage) View.VISIBLE else View.GONE
-        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.visibility =
-            if (showPaste) View.VISIBLE else View.GONE
+        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste")
+        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste")
+
+        val langView = bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)
+        val pasteView = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
+
+        langView?.visibility = if (showLanguage) View.VISIBLE else View.GONE
+        pasteView?.visibility = if (showPaste) View.VISIBLE else View.GONE
+
+        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}")
     }
 
     /**
