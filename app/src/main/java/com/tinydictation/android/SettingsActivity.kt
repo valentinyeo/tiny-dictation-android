@@ -400,9 +400,6 @@ class SettingsActivity : AppCompatActivity() {
             apiKeyInput.setText(apiKey)
         }
 
-        // Load VAD sensitivity (0.3 - 0.8 range)
-        vadSensitivitySlider.value = preferenceManager.getVadSensitivity()
-
         // Load auto-punctuation
         autoPunctuationSwitch.isChecked = preferenceManager.getAutoPunctuation()
 
@@ -586,9 +583,6 @@ class SettingsActivity : AppCompatActivity() {
 
         // Save API key
         preferenceManager.setApiKey(apiKey)
-
-        // Save VAD sensitivity
-        preferenceManager.setVadSensitivity(vadSensitivitySlider.value)
 
         // Save auto-punctuation
         preferenceManager.setAutoPunctuation(autoPunctuationSwitch.isChecked)
