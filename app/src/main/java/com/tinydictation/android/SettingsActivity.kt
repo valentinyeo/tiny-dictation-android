@@ -88,6 +88,11 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.7.7:
+            • Clipboard recording mode: Tap clipboard to start recording, tap again to copy
+            • Long-press clipboard to paste directly
+            • Visual indicator: Red circle while recording, checkmark when ready to paste
+
             v1.7.6:
             • Improved drag-to-X close: larger target, vibration feedback, easier to hit
             • Fixed fragmented history: now saves full dictation session on clipboard tap
