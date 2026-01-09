@@ -120,18 +120,27 @@ jobs:
             APK_NAME="TinyDictation-v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}.apk"
             DOWNLOAD_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}/${APK_NAME}"
 
-            # Build message with changelog
+            # Build message - put download link first to ensure it's always visible
             CHANGELOG="${{ steps.changelog.outputs.changelog }}"
             if [ -n "$CHANGELOG" ]; then
-              MESSAGE="*Tiny Dictation v${{ steps.version.outputs.version_name }}*%0A%0A${CHANGELOG}%0A%0A[Download APK](${DOWNLOAD_URL})"
+              # Use HTML mode for more reliable formatting
+              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>
+
+${CHANGELOG}
+
+<a href=\"${DOWNLOAD_URL}\">Download APK</a>"
             else
-              MESSAGE="*Tiny Dictation v${{ steps.version.outputs.version_name }}* (${{ steps.version.outputs.sha_short }})%0A%0A[Download APK](${DOWNLOAD_URL})"
+              MESSAGE="<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b> (${{ steps.version.outputs.sha_short }})
+
+<a href=\"${DOWNLOAD_URL}\">Download APK</a>"
             fi
 
+            # Use --data-urlencode to properly encode the message
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-              -d chat_id="${TELEGRAM_CHAT_ID}" \
-              -d text="${MESSAGE}" \
-              -d parse_mode="Markdown"
+              --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+              --data-urlencode "text=${MESSAGE}" \
+              --data-urlencode "parse_mode=HTML" \
+              --data-urlencode "disable_web_page_preview=false"
           else
             echo "Telegram secrets not configured, skipping notification"
           fi
