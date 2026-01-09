@@ -112,6 +112,7 @@ class DeepgramClient {
                 .build()
 
             webSocket = client.newWebSocket(request, createWebSocketListener())
+            DebugLog.d("DeepgramClient: WebSocket request initiated, waiting for connection...")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create WebSocket connection", e)
             DebugLog.e("DeepgramClient: Failed to create WebSocket - ${e.message}")

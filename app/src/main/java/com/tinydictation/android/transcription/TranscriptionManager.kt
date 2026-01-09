@@ -230,33 +230,40 @@ class TranscriptionManager(
         isConnecting = true
 
         scope?.launch(Dispatchers.IO) {
-            deepgramClient.connect(
-                apiKey = apiKey,
-                onInterim = { text ->
-                    scope?.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            onTranscript(text, false)
+            try {
+                DebugLog.d("TranscriptionManager: Coroutine started, calling DeepgramClient.connect()")
+                deepgramClient.connect(
+                    apiKey = apiKey,
+                    onInterim = { text ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                onTranscript(text, false)
+                            }
+                        }
+                    },
+                    onFinal = { text ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                onTranscript(text, true)
+                            }
+                        }
+                    },
+                    onError = { error ->
+                        scope?.launch(Dispatchers.Main) {
+                            if (isListening) {
+                                DebugLog.e("TranscriptionManager: Deepgram error - $error")
+                                onError?.invoke(error)
+                                // Don't stop listening on error - just go back to listening state
+                                updateState(TranscriptionState.LISTENING)
+                            }
                         }
                     }
-                },
-                onFinal = { text ->
-                    scope?.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            onTranscript(text, true)
-                        }
-                    }
-                },
-                onError = { error ->
-                    scope?.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            DebugLog.e("TranscriptionManager: Deepgram error - $error")
-                            onError?.invoke(error)
-                            // Don't stop listening on error - just go back to listening state
-                            updateState(TranscriptionState.LISTENING)
-                        }
-                    }
-                }
-            )
+                )
+                DebugLog.d("TranscriptionManager: DeepgramClient.connect() returned")
+            } catch (e: Exception) {
+                DebugLog.e("TranscriptionManager: Exception in connect coroutine - ${e.message}")
+                Log.e(TAG, "Exception connecting to Deepgram", e)
+            }
 
             // Small delay to ensure connection is established
             kotlinx.coroutines.delay(100)

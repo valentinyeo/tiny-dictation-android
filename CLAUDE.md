@@ -59,3 +59,10 @@
 - Format: PCM 16-bit mono
 - Chunk size: 320 samples (20ms)
 - Audio source: VOICE_RECOGNITION (prefers phone mic over headphones)
+
+## User Setup Notes
+
+On Android 13+, after installing the APK, users need to:
+1. Go to Settings > Apps > Tiny Dictation
+2. Tap ⋮ (three dots) menu > "Allow restricted settings"
+3. Then enable Accessibility service in Settings > Accessibility
