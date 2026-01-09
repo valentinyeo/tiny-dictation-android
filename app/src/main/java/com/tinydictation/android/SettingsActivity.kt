@@ -33,6 +33,10 @@ class SettingsActivity : AppCompatActivity() {
     companion object {
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.3.4:
+            • Fixed button contrast in dark mode
+            • Improved readability for primary buttons
+
             v1.3.1:
             • Fixed bubble display (no more double bubble)
             • Bubble now appears on right side of screen
