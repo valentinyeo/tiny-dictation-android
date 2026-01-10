@@ -21,6 +21,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.util.DebugLog
@@ -68,16 +69,48 @@ class DictationKeyboardService : InputMethodService() {
     private var longPressRunnable: Runnable? = null
     private var isLongPressTriggered = false
 
-    // Backspace repeat handling
-    private var backspaceHandler: Handler? = null
-    private var backspaceRunnable: Runnable? = null
-    private val BACKSPACE_INITIAL_DELAY = 400L  // Delay before repeat starts
+    // Backspace repeat handling - uses persistent handler and flag-based control
+    private val backspaceHandler = Handler(Looper.getMainLooper())
+    @Volatile private var isBackspaceHeld = false    // Flag to track if button is held
+    private val BACKSPACE_INITIAL_DELAY = 400L       // Delay before repeat starts
     private val BACKSPACE_REPEAT_DELAY_START = 100L  // Initial repeat delay (slower)
-    private val BACKSPACE_REPEAT_DELAY_MIN = 30L     // Minimum repeat delay (fastest)
+    private val BACKSPACE_REPEAT_DELAY_MIN = 25L     // Minimum repeat delay (fastest)
     private val BACKSPACE_ACCELERATION_TIME = 1500L  // Time to reach max speed (ms)
     private val BACKSPACE_WORD_DELETE_TIME = 2000L   // Time before switching to word deletion (ms)
+    private val BACKSPACE_WORD_DELETE_DELAY = 80L    // Delay between word deletions
     private var backspaceStartTime = 0L              // When backspace hold started
-    private var currentBackspaceDelay = BACKSPACE_REPEAT_DELAY_START
+
+    // Single runnable instance that checks the flag to decide whether to continue
+    private val backspaceRepeatRunnable = object : Runnable {
+        override fun run() {
+            // Check flag - if button was released, stop immediately
+            if (!isBackspaceHeld) {
+                DebugLog.d("DictationKeyboardService: Backspace released, stopping repeat")
+                return
+            }
+
+            val holdDuration = System.currentTimeMillis() - backspaceStartTime
+
+            if (holdDuration >= BACKSPACE_WORD_DELETE_TIME) {
+                // After 2 seconds, delete words instead of characters
+                deleteWord()
+                // Continue word deletion as long as button is held
+                backspaceHandler.postDelayed(this, BACKSPACE_WORD_DELETE_DELAY)
+            } else {
+                // Delete single character
+                sendBackspace()
+
+                // Calculate accelerated delay based on hold duration
+                // Linear interpolation from REPEAT_DELAY_START to REPEAT_DELAY_MIN
+                val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
+                val currentDelay = (BACKSPACE_REPEAT_DELAY_START -
+                    (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
+
+                // Continue character deletion with current delay
+                backspaceHandler.postDelayed(this, currentDelay)
+            }
+        }
+    }
 
     override fun onCreate() {
         super.onCreate()
@@ -91,7 +124,8 @@ class DictationKeyboardService : InputMethodService() {
         DebugLog.i("DictationKeyboardService: Service destroyed")
         instance = null
         longPressHandler?.removeCallbacksAndMessages(null)
-        backspaceHandler?.removeCallbacksAndMessages(null)
+        isBackspaceHeld = false
+        backspaceHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
@@ -240,9 +274,15 @@ class DictationKeyboardService : InputMethodService() {
             selectAll()
         }
 
-        // Paste button
-        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.setOnClickListener {
-            pasteFromClipboard()
+        // Paste button - short press paste, long press opens history
+        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.let { btnPaste ->
+            btnPaste.setOnClickListener {
+                pasteFromClipboard()
+            }
+            btnPaste.setOnLongClickListener {
+                openTranscriptionHistory()
+                true
+            }
         }
 
         // Enter button
@@ -287,6 +327,16 @@ class DictationKeyboardService : InputMethodService() {
         DebugLog.i("DictationKeyboardService: Long press - opening settings")
 
         val intent = Intent(this, SettingsActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
+    private fun openTranscriptionHistory() {
+        Log.i(TAG, "DictationKeyboardService: Opening transcription history")
+        DebugLog.i("DictationKeyboardService: Long press paste - opening history")
+
+        val intent = Intent(this, HistoryActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
@@ -370,53 +420,39 @@ class DictationKeyboardService : InputMethodService() {
      *
      * Behavior:
      * - Tap: delete one character
-     * - Hold (0-1.5s): delete characters with accelerating speed
-     * - Hold (after 2s): switch to word-by-word deletion
+     * - Hold (0-1.5s): delete characters with accelerating speed (starts at 100ms, goes to 25ms)
+     * - Hold (after 2s): switch to word-by-word deletion (continues indefinitely)
+     *
+     * Uses flag-based control to ensure the repeat loop continues as long as
+     * the button is held, and stops immediately when released.
      */
     private fun handleBackspaceTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                DebugLog.d("DictationKeyboardService: Backspace ACTION_DOWN")
+
                 // Send first backspace immediately
                 sendBackspace()
 
-                // Record start time and reset delay
+                // Record start time and set flag to indicate button is held
                 backspaceStartTime = System.currentTimeMillis()
-                currentBackspaceDelay = BACKSPACE_REPEAT_DELAY_START
+                isBackspaceHeld = true
 
-                // Set up repeating backspace with acceleration
-                backspaceHandler = Handler(Looper.getMainLooper())
-                backspaceRunnable = object : Runnable {
-                    override fun run() {
-                        val holdDuration = System.currentTimeMillis() - backspaceStartTime
+                // Remove any pending callbacks (in case of race condition)
+                backspaceHandler.removeCallbacks(backspaceRepeatRunnable)
 
-                        if (holdDuration >= BACKSPACE_WORD_DELETE_TIME) {
-                            // After 2 seconds, delete words instead of characters
-                            deleteWord()
-                            // Use a slightly slower rate for word deletion
-                            backspaceHandler?.postDelayed(this, 150L)
-                        } else {
-                            // Delete single character
-                            sendBackspace()
-
-                            // Calculate accelerated delay based on hold duration
-                            // Linear interpolation from REPEAT_DELAY_START to REPEAT_DELAY_MIN
-                            val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
-                            currentBackspaceDelay = (BACKSPACE_REPEAT_DELAY_START -
-                                (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
-
-                            backspaceHandler?.postDelayed(this, currentBackspaceDelay)
-                        }
-                    }
-                }
-                // Start repeating after initial delay
-                backspaceHandler?.postDelayed(backspaceRunnable!!, BACKSPACE_INITIAL_DELAY)
+                // Start the repeat loop after initial delay
+                backspaceHandler.postDelayed(backspaceRepeatRunnable, BACKSPACE_INITIAL_DELAY)
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                // Stop repeating
-                backspaceRunnable?.let { backspaceHandler?.removeCallbacks(it) }
-                backspaceHandler = null
-                backspaceRunnable = null
+                DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL")
+
+                // Clear the flag - this will cause the runnable to stop on next iteration
+                isBackspaceHeld = false
+
+                // Also remove pending callbacks immediately for faster response
+                backspaceHandler.removeCallbacks(backspaceRepeatRunnable)
                 return true
             }
         }

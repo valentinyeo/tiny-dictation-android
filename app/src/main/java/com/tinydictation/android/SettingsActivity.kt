@@ -54,6 +54,17 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.14:
+            • Fixed backspace button stopping after 1-2 seconds
+            • Backspace now keeps deleting as long as button is held
+            • Accelerates from slow to fast over 1.5 seconds
+            • After 2 seconds switches to faster word-by-word deletion
+            • Uses robust flag-based control to prevent premature stopping
+
+            v1.10.13:
+            • Long-press paste button now opens transcription history
+            • Quick access to past dictations from keyboard bar
+
             v1.10.12:
             • Added proper Select All icon to keyboard bar
             • Icon shows nested rectangles with dashed selection border
