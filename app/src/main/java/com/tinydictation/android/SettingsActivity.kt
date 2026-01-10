@@ -57,6 +57,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.3:
+            • NEW: Emoji picker button added to keyboard bar
+            • Tap the smiley icon to open emoji picker
+            • 8 emoji categories: Smileys, Gestures, Hearts, Animals, Food, Activities, Objects, Symbols
+            • Tap any emoji to insert it, tap chevron to close picker
+
             v1.11.2:
             • FIX: Added echo cancellation to prevent transcribing speaker audio
             • Mic no longer picks up WhatsApp voice messages, YouTube, etc.

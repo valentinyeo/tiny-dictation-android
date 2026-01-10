@@ -17,6 +17,7 @@ import android.util.Log
 import android.content.pm.PackageManager
 import android.os.Build
 import android.view.KeyEvent
+import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
@@ -27,6 +28,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import androidx.recyclerview.widget.GridLayoutManager
+import androidx.recyclerview.widget.RecyclerView
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
@@ -48,6 +51,93 @@ class DictationKeyboardService : InputMethodService() {
         /** Broadcast action for pasting text from HistoryActivity */
         const val ACTION_PASTE_TEXT = "com.tinydictation.ACTION_PASTE_TEXT"
         const val EXTRA_TEXT = "text"
+
+        // Emoji categories with common emojis
+        val EMOJI_SMILEYS = listOf(
+            "\uD83D\uDE00", "\uD83D\uDE03", "\uD83D\uDE04", "\uD83D\uDE01", "\uD83D\uDE06",
+            "\uD83D\uDE05", "\uD83D\uDE02", "\uD83E\uDD23", "\uD83D\uDE0A", "\uD83D\uDE07",
+            "\uD83D\uDE42", "\uD83D\uDE43", "\uD83D\uDE09", "\uD83D\uDE0C", "\uD83D\uDE0D",
+            "\uD83E\uDD70", "\uD83D\uDE18", "\uD83D\uDE17", "\uD83D\uDE1A", "\uD83D\uDE19",
+            "\uD83D\uDE0B", "\uD83D\uDE1B", "\uD83D\uDE1C", "\uD83E\uDD2A", "\uD83D\uDE1D",
+            "\uD83E\uDD11", "\uD83E\uDD17", "\uD83E\uDD2D", "\uD83E\uDD2B", "\uD83E\uDD14",
+            "\uD83E\uDD10", "\uD83E\uDD28", "\uD83D\uDE10", "\uD83D\uDE11", "\uD83D\uDE36",
+            "\uD83D\uDE0F", "\uD83D\uDE12", "\uD83D\uDE44", "\uD83D\uDE2C", "\uD83E\uDD25",
+            "\uD83D\uDE14", "\uD83D\uDE1E", "\uD83D\uDE1F", "\uD83D\uDE15", "\uD83D\uDE41",
+            "\uD83D\uDE23", "\uD83D\uDE16", "\uD83D\uDE2B", "\uD83D\uDE29", "\uD83E\uDD7A",
+            "\uD83D\uDE22", "\uD83D\uDE2D", "\uD83D\uDE24", "\uD83D\uDE20", "\uD83D\uDE21",
+            "\uD83E\uDD2C", "\uD83E\uDD2F", "\uD83D\uDE33", "\uD83E\uDD75", "\uD83E\uDD76"
+        )
+
+        val EMOJI_GESTURES = listOf(
+            "\uD83D\uDC4B", "\uD83E\uDD1A", "\uD83D\uDD90", "\u270B", "\uD83D\uDD96",
+            "\uD83D\uDC4C", "\uD83E\uDD0C", "\uD83E\uDD0F", "\u270C", "\uD83E\uDD1E",
+            "\uD83E\uDD1F", "\uD83E\uDD18", "\uD83E\uDD19", "\uD83D\uDC48", "\uD83D\uDC49",
+            "\uD83D\uDC46", "\uD83D\uDD95", "\uD83D\uDC47", "\u261D", "\uD83D\uDC4D",
+            "\uD83D\uDC4E", "\u270A", "\uD83D\uDC4A", "\uD83E\uDD1B", "\uD83E\uDD1C",
+            "\uD83D\uDC4F", "\uD83D\uDE4C", "\uD83D\uDC50", "\uD83E\uDD32", "\uD83E\uDD1D",
+            "\uD83D\uDE4F", "\u270D", "\uD83D\uDC85", "\uD83E\uDD33", "\uD83D\uDCAA",
+            "\uD83E\uDDB5", "\uD83E\uDDB6", "\uD83D\uDC42", "\uD83D\uDC43", "\uD83E\uDDE0"
+        )
+
+        val EMOJI_HEARTS = listOf(
+            "\u2764", "\uD83E\uDDE1", "\uD83D\uDC9B", "\uD83D\uDC9A", "\uD83D\uDC99",
+            "\uD83D\uDC9C", "\uD83E\uDD0E", "\uD83D\uDDA4", "\uD83E\uDD0D", "\uD83D\uDC94",
+            "\u2763", "\uD83D\uDC95", "\uD83D\uDC9E", "\uD83D\uDC93", "\uD83D\uDC97",
+            "\uD83D\uDC96", "\uD83D\uDC98", "\uD83D\uDC9D", "\uD83D\uDC9F", "\u2665",
+            "\uD83D\uDC8B", "\uD83D\uDC4B", "\u2728", "\uD83C\uDF1F", "\u2B50",
+            "\uD83D\uDD25", "\uD83D\uDCA5", "\uD83C\uDF08", "\u2600", "\uD83C\uDF19"
+        )
+
+        val EMOJI_ANIMALS = listOf(
+            "\uD83D\uDC36", "\uD83D\uDC31", "\uD83D\uDC2D", "\uD83D\uDC39", "\uD83D\uDC30",
+            "\uD83E\uDD8A", "\uD83D\uDC3B", "\uD83D\uDC3C", "\uD83D\uDC28", "\uD83D\uDC2F",
+            "\uD83E\uDD81", "\uD83D\uDC2E", "\uD83D\uDC37", "\uD83D\uDC38", "\uD83D\uDC35",
+            "\uD83D\uDC14", "\uD83D\uDC27", "\uD83D\uDC26", "\uD83E\uDD86", "\uD83E\uDD85",
+            "\uD83E\uDD89", "\uD83E\uDD87", "\uD83D\uDC3A", "\uD83D\uDC17", "\uD83D\uDC34",
+            "\uD83E\uDD84", "\uD83D\uDC1D", "\uD83D\uDC1B", "\uD83E\uDD8B", "\uD83D\uDC0C",
+            "\uD83D\uDC1A", "\uD83D\uDC22", "\uD83D\uDC0D", "\uD83E\uDD8E", "\uD83E\uDD96"
+        )
+
+        val EMOJI_FOOD = listOf(
+            "\uD83C\uDF4E", "\uD83C\uDF4A", "\uD83C\uDF4B", "\uD83C\uDF4C", "\uD83C\uDF49",
+            "\uD83C\uDF47", "\uD83C\uDF53", "\uD83C\uDF48", "\uD83C\uDF52", "\uD83C\uDF51",
+            "\uD83E\uDD5D", "\uD83C\uDF45", "\uD83E\uDD51", "\uD83E\uDD66", "\uD83E\uDD52",
+            "\uD83C\uDF36", "\uD83C\uDF3D", "\uD83E\uDD55", "\uD83E\uDDC4", "\uD83E\uDDC5",
+            "\uD83C\uDF5E", "\uD83E\uDD50", "\uD83E\uDD56", "\uD83E\uDDC0", "\uD83C\uDF56",
+            "\uD83C\uDF55", "\uD83C\uDF54", "\uD83C\uDF5F", "\uD83C\uDF2D", "\uD83E\uDD6A",
+            "\uD83C\uDF2E", "\uD83C\uDF2F", "\uD83E\uDD59", "\uD83E\uDD5A", "\uD83E\uDD5E",
+            "\uD83C\uDF70", "\uD83C\uDF82", "\uD83E\uDDC1", "\uD83C\uDF69", "\uD83C\uDF6A"
+        )
+
+        val EMOJI_ACTIVITIES = listOf(
+            "\u26BD", "\uD83C\uDFC0", "\uD83C\uDFC8", "\u26BE", "\uD83E\uDD4E",
+            "\uD83C\uDFBE", "\uD83C\uDFD0", "\uD83C\uDFC9", "\uD83E\uDD4F", "\uD83C\uDFB1",
+            "\uD83C\uDFD3", "\uD83C\uDFF8", "\uD83C\uDFD2", "\uD83C\uDFD1", "\uD83E\uDD4D",
+            "\u26F3", "\uD83C\uDFF9", "\uD83C\uDFA3", "\uD83E\uDD3C", "\uD83E\uDD4A",
+            "\uD83E\uDD3D", "\u26F7", "\uD83C\uDFC2", "\uD83E\uDD3A", "\uD83C\uDFC7",
+            "\uD83C\uDFCB", "\uD83E\uDD38", "\uD83D\uDEB4", "\uD83C\uDFC3", "\uD83E\uDDD8",
+            "\uD83C\uDFC6", "\uD83E\uDD47", "\uD83E\uDD48", "\uD83E\uDD49", "\uD83C\uDF96"
+        )
+
+        val EMOJI_OBJECTS = listOf(
+            "\uD83D\uDCF1", "\uD83D\uDCBB", "\uD83D\uDCBD", "\uD83D\uDCBE", "\uD83D\uDCBF",
+            "\uD83D\uDCF7", "\uD83D\uDCF9", "\uD83D\uDCFA", "\uD83D\uDCFB", "\uD83D\uDCFC",
+            "\u23F0", "\u231A", "\uD83D\uDCA1", "\uD83D\uDD26", "\uD83D\uDD0B",
+            "\uD83D\uDD0C", "\uD83D\uDECB", "\uD83D\uDECF", "\uD83D\uDEBF", "\uD83D\uDEC1",
+            "\uD83D\uDCDA", "\uD83D\uDCD6", "\uD83D\uDCDD", "\u270F", "\uD83D\uDD8A",
+            "\uD83D\uDD8B", "\uD83D\uDCBC", "\uD83D\uDCC1", "\uD83D\uDCC2", "\uD83D\uDCC5",
+            "\uD83D\uDCCB", "\uD83D\uDCC8", "\uD83D\uDCC9", "\uD83D\uDCCA", "\uD83D\uDD12"
+        )
+
+        val EMOJI_SYMBOLS = listOf(
+            "\u2714", "\u2716", "\u274C", "\u2B55", "\u2757",
+            "\u2753", "\u2705", "\u2795", "\u2796", "\u2797",
+            "\u27A1", "\u2B05", "\u2B06", "\u2B07", "\u21A9",
+            "\u21AA", "\uD83D\uDD04", "\uD83D\uDD01", "\uD83D\uDD00", "\uD83D\uDD02",
+            "\u25B6", "\u23F8", "\u23F9", "\u23FA", "\u23ED",
+            "\u23EE", "\u23E9", "\u23EA", "\uD83D\uDD0A", "\uD83D\uDD07",
+            "\uD83D\uDD14", "\uD83D\uDD15", "\uD83C\uDFB5", "\uD83C\uDFB6", "\u2122"
+        )
 
         @Volatile
         private var instance: DictationKeyboardService? = null
@@ -81,6 +171,12 @@ class DictationKeyboardService : InputMethodService() {
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
+
+    // Emoji picker
+    private var emojiPickerView: View? = null
+    private var isEmojiPickerVisible = false
+    private var currentEmojiCategory = EMOJI_SMILEYS
+    private var emojiAdapter: EmojiAdapter? = null
 
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
@@ -262,6 +358,7 @@ class DictationKeyboardService : InputMethodService() {
         // Apply button and icon colors to all buttons
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboardMic), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
@@ -322,6 +419,11 @@ class DictationKeyboardService : InputMethodService() {
         // Language button
         keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)?.setOnClickListener {
             toggleLanguage()
+        }
+
+        // Emoji button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnEmoji)?.setOnClickListener {
+            toggleEmojiPicker()
         }
 
         // Backspace button - with hold-to-repeat
@@ -826,5 +928,232 @@ class DictationKeyboardService : InputMethodService() {
     fun refreshTheme() {
         DebugLog.i("DictationKeyboardService: Refreshing theme from settings change")
         applyTheme()
+    }
+
+    // ==================== Emoji Picker ====================
+
+    /**
+     * Toggles the emoji picker visibility.
+     */
+    private fun toggleEmojiPicker() {
+        if (isEmojiPickerVisible) {
+            hideEmojiPicker()
+        } else {
+            showEmojiPicker()
+        }
+    }
+
+    /**
+     * Shows the emoji picker, replacing the keyboard bar temporarily.
+     */
+    private fun showEmojiPicker() {
+        Log.i(TAG, "DictationKeyboardService: Showing emoji picker")
+        DebugLog.i("DictationKeyboardService: Opening emoji picker")
+
+        // Inflate emoji picker if not already done
+        if (emojiPickerView == null) {
+            emojiPickerView = layoutInflater.inflate(R.layout.view_emoji_picker, null)
+            setupEmojiPicker()
+        }
+
+        // Hide the keyboard bar and show emoji picker
+        keyboardView?.visibility = View.GONE
+
+        // Set the emoji picker as the input view
+        setInputView(emojiPickerView!!)
+        isEmojiPickerVisible = true
+
+        // Show smileys category by default
+        showEmojiCategory(EMOJI_SMILEYS)
+        updateCategoryTabHighlight(R.id.tabSmileys)
+    }
+
+    /**
+     * Hides the emoji picker and shows the keyboard bar again.
+     */
+    private fun hideEmojiPicker() {
+        Log.i(TAG, "DictationKeyboardService: Hiding emoji picker")
+        DebugLog.i("DictationKeyboardService: Closing emoji picker")
+
+        keyboardView?.visibility = View.VISIBLE
+        setInputView(keyboardView!!)
+        isEmojiPickerVisible = false
+    }
+
+    /**
+     * Sets up the emoji picker with category tabs and grid.
+     */
+    private fun setupEmojiPicker() {
+        val picker = emojiPickerView ?: return
+
+        // Setup RecyclerView with grid layout
+        val emojiGrid = picker.findViewById<RecyclerView>(R.id.emojiGrid)
+        emojiGrid.layoutManager = GridLayoutManager(this, 8) // 8 columns
+
+        emojiAdapter = EmojiAdapter(EMOJI_SMILEYS) { emoji ->
+            insertEmoji(emoji)
+        }
+        emojiGrid.adapter = emojiAdapter
+
+        // Setup category tab clicks
+        picker.findViewById<TextView>(R.id.tabSmileys)?.setOnClickListener {
+            showEmojiCategory(EMOJI_SMILEYS)
+            updateCategoryTabHighlight(R.id.tabSmileys)
+        }
+        picker.findViewById<TextView>(R.id.tabGestures)?.setOnClickListener {
+            showEmojiCategory(EMOJI_GESTURES)
+            updateCategoryTabHighlight(R.id.tabGestures)
+        }
+        picker.findViewById<TextView>(R.id.tabHearts)?.setOnClickListener {
+            showEmojiCategory(EMOJI_HEARTS)
+            updateCategoryTabHighlight(R.id.tabHearts)
+        }
+        picker.findViewById<TextView>(R.id.tabAnimals)?.setOnClickListener {
+            showEmojiCategory(EMOJI_ANIMALS)
+            updateCategoryTabHighlight(R.id.tabAnimals)
+        }
+        picker.findViewById<TextView>(R.id.tabFood)?.setOnClickListener {
+            showEmojiCategory(EMOJI_FOOD)
+            updateCategoryTabHighlight(R.id.tabFood)
+        }
+        picker.findViewById<TextView>(R.id.tabActivities)?.setOnClickListener {
+            showEmojiCategory(EMOJI_ACTIVITIES)
+            updateCategoryTabHighlight(R.id.tabActivities)
+        }
+        picker.findViewById<TextView>(R.id.tabObjects)?.setOnClickListener {
+            showEmojiCategory(EMOJI_OBJECTS)
+            updateCategoryTabHighlight(R.id.tabObjects)
+        }
+        picker.findViewById<TextView>(R.id.tabSymbols)?.setOnClickListener {
+            showEmojiCategory(EMOJI_SYMBOLS)
+            updateCategoryTabHighlight(R.id.tabSymbols)
+        }
+
+        // Setup close button
+        picker.findViewById<FrameLayout>(R.id.btnCloseEmoji)?.setOnClickListener {
+            hideEmojiPicker()
+        }
+
+        // Apply theme to emoji picker
+        applyEmojiPickerTheme()
+    }
+
+    /**
+     * Updates the emoji grid to show a specific category.
+     */
+    private fun showEmojiCategory(emojis: List<String>) {
+        currentEmojiCategory = emojis
+        emojiAdapter?.updateEmojis(emojis)
+    }
+
+    /**
+     * Highlights the selected category tab.
+     */
+    private fun updateCategoryTabHighlight(selectedTabId: Int) {
+        val picker = emojiPickerView ?: return
+        val tabIds = listOf(
+            R.id.tabSmileys, R.id.tabGestures, R.id.tabHearts, R.id.tabAnimals,
+            R.id.tabFood, R.id.tabActivities, R.id.tabObjects, R.id.tabSymbols
+        )
+
+        for (tabId in tabIds) {
+            val tab = picker.findViewById<TextView>(tabId)
+            tab?.alpha = if (tabId == selectedTabId) 1.0f else 0.5f
+        }
+    }
+
+    /**
+     * Applies the current theme to the emoji picker.
+     */
+    private fun applyEmojiPickerTheme() {
+        val picker = emojiPickerView ?: return
+        val prefs = PreferenceManager(this)
+        val themeSetting = prefs.getKeyboardTheme()
+
+        val useDarkTheme = when (themeSetting) {
+            PreferenceManager.THEME_LIGHT -> false
+            PreferenceManager.THEME_DARK -> true
+            else -> {
+                val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+
+        val backgroundColor = if (useDarkTheme) {
+            ContextCompat.getColor(this, R.color.surface_variant)
+        } else {
+            Color.parseColor("#F5F5F5")
+        }
+
+        val buttonColor = if (useDarkTheme) {
+            ContextCompat.getColor(this, R.color.surface)
+        } else {
+            Color.parseColor("#E0E0E0")
+        }
+
+        val iconColor = if (useDarkTheme) {
+            ContextCompat.getColor(this, R.color.on_surface)
+        } else {
+            Color.parseColor("#1C1B1F")
+        }
+
+        // Apply background
+        picker.findViewById<LinearLayout>(R.id.emojiPickerContainer)?.setBackgroundColor(backgroundColor)
+
+        // Apply theme to close button
+        applyButtonTheme(picker.findViewById(R.id.btnCloseEmoji), buttonColor, iconColor)
+    }
+
+    /**
+     * Inserts an emoji into the current text field.
+     */
+    private fun insertEmoji(emoji: String) {
+        Log.d(TAG, "DictationKeyboardService: Inserting emoji: $emoji")
+        DebugLog.d("DictationKeyboardService: Emoji inserted")
+
+        currentInputConnection?.let { ic ->
+            ic.commitText(emoji, 1)
+        }
+    }
+
+    /**
+     * RecyclerView adapter for emoji grid.
+     */
+    inner class EmojiAdapter(
+        private var emojis: List<String>,
+        private val onEmojiClick: (String) -> Unit
+    ) : RecyclerView.Adapter<EmojiAdapter.EmojiViewHolder>() {
+
+        inner class EmojiViewHolder(val textView: TextView) : RecyclerView.ViewHolder(textView)
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): EmojiViewHolder {
+            val textView = TextView(parent.context).apply {
+                layoutParams = android.view.ViewGroup.LayoutParams(
+                    android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                    (44 * resources.displayMetrics.density).toInt()
+                )
+                gravity = android.view.Gravity.CENTER
+                textSize = 24f
+                isClickable = true
+                isFocusable = true
+                setBackgroundResource(android.R.drawable.list_selector_background)
+            }
+            return EmojiViewHolder(textView)
+        }
+
+        override fun onBindViewHolder(holder: EmojiViewHolder, position: Int) {
+            val emoji = emojis[position]
+            holder.textView.text = emoji
+            holder.textView.setOnClickListener {
+                onEmojiClick(emoji)
+            }
+        }
+
+        override fun getItemCount(): Int = emojis.size
+
+        fun updateEmojis(newEmojis: List<String>) {
+            emojis = newEmojis
+            notifyDataSetChanged()
+        }
     }
 }

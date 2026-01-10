@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Lucide-style emoji/smile icon with rounded strokes -->
+    <!-- Circle face -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#49454F"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M12,2 C6.48,2 2,6.48 2,12 C2,17.52 6.48,22 12,22 C17.52,22 22,17.52 22,12 C22,6.48 17.52,2 12,2 Z" />
+    <!-- Left eye -->
+    <path
+        android:fillColor="#49454F"
+        android:pathData="M9,9 m-1.25,0 a1.25,1.25 0,1 1,2.5 0 a1.25,1.25 0,1 1,-2.5 0" />
+    <!-- Right eye -->
+    <path
+        android:fillColor="#49454F"
+        android:pathData="M15,9 m-1.25,0 a1.25,1.25 0,1 1,2.5 0 a1.25,1.25 0,1 1,-2.5 0" />
+    <!-- Smile -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#49454F"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M8,14 C8.5,16 10,17 12,17 C14,17 15.5,16 16,14" />
+</vector>

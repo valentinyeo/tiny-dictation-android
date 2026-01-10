@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Emoji picker overlay for the keyboard.
+     Contains category tabs at top and a scrollable grid of emojis.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/emojiPickerContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface_variant"
+    android:paddingBottom="4dp">
+
+    <!-- Category tabs -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:paddingHorizontal="4dp"
+        android:paddingTop="8dp">
+
+        <LinearLayout
+            android:id="@+id/emojiCategoryTabs"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/tabSmileys"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#128512;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Smileys" />
+
+            <TextView
+                android:id="@+id/tabGestures"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#128075;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Gestures" />
+
+            <TextView
+                android:id="@+id/tabHearts"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#10084;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Hearts and symbols" />
+
+            <TextView
+                android:id="@+id/tabAnimals"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#128049;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Animals" />
+
+            <TextView
+                android:id="@+id/tabFood"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#127829;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Food and drink" />
+
+            <TextView
+                android:id="@+id/tabActivities"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#9917;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Activities" />
+
+            <TextView
+                android:id="@+id/tabObjects"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#128161;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Objects" />
+
+            <TextView
+                android:id="@+id/tabSymbols"
+                android:layout_width="44dp"
+                android:layout_height="36dp"
+                android:gravity="center"
+                android:text="&#10004;"
+                android:textSize="20sp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:contentDescription="Symbols" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Divider -->
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="#33FFFFFF"
+        android:layout_marginTop="4dp" />
+
+    <!-- Emoji grid in a ScrollView -->
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scrollbars="vertical"
+        android:paddingHorizontal="8dp"
+        android:paddingTop="8dp">
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/emojiGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:clipToPadding="false" />
+
+    </ScrollView>
+
+    <!-- Close button bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:paddingVertical="6dp">
+
+        <FrameLayout
+            android:id="@+id/btnCloseEmoji"
+            android:layout_width="48dp"
+            android:layout_height="40dp"
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="Close emoji picker">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_chevron_down"
+                app:tint="@color/on_surface" />
+        </FrameLayout>
+
+    </LinearLayout>
+
+</LinearLayout>

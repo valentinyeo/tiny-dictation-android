@@ -61,6 +61,24 @@
             android:textStyle="bold" />
     </FrameLayout>
 
+    <!-- Emoji picker button -->
+    <FrameLayout
+        android:id="@+id/btnEmoji"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Emoji picker">
+
+        <ImageView
+            android:id="@+id/ivEmoji"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_emoji"
+            app:tint="@color/on_surface" />
+    </FrameLayout>
+
     <!-- Mic button - toggle dictation (long press = settings) -->
     <FrameLayout
         android:id="@+id/btnKeyboardMic"
@@ -159,7 +177,7 @@
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:layout_gravity="bottom|end"
-    android:text="v1.10.24"
+    android:text="v1.11.3"
     android:textSize="7sp"
     android:textColor="#66FFFFFF"
     android:alpha="0.5"
