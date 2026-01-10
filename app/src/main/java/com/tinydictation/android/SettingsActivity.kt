@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.11:
+            • Fixed mutual exclusivity between dictation modes
+            • Companion bar now hides when Tiny Dictation keyboard opens
+            • Added floating bar button to companion bar for quick mode switching
+            • Tap the new sidebar icon to switch from companion mode to floating bubble
+
             v1.10.10:
             • Fixed Keyboard Companion bar overlaying keyboard suggestions
             • Raised bar position to sit above SwiftKey/Gboard suggestion row

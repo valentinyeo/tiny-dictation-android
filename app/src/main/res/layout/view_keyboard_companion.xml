@@ -62,6 +62,24 @@
                 android:textStyle="bold" />
         </FrameLayout>
 
+        <!-- Floating bar button - switch to floating bubble mode -->
+        <FrameLayout
+            android:id="@+id/btnCompanionFloatingBar"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
+            android:layout_marginStart="6dp"
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="Switch to floating bubble mode">
+
+            <ImageView
+                android:id="@+id/ivCompanionFloatingBar"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_floating_bar"
+                app:tint="@color/on_surface" />
+        </FrameLayout>
+
         <!-- Expand button - switch to full Tiny Dictation keyboard -->
         <FrameLayout
             android:id="@+id/btnCompanionExpand"

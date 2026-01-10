@@ -99,6 +99,11 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
+        // Hide the companion bar since Tiny Dictation keyboard is now active
+        // This ensures mutual exclusivity between dictation modes
+        KeyboardCompanionService.getInstance()?.hideBar()
+        Log.d(TAG, "DictationKeyboardService: Hiding companion bar (if any)")
+
         return try {
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
@@ -555,6 +560,10 @@ class DictationKeyboardService : InputMethodService() {
 
         // Auto-hide bubbles when keyboard is visible
         BubbleService.getInstance()?.setKeyboardVisible(true)
+
+        // Hide companion bar since Tiny Dictation keyboard is now active
+        // This ensures mutual exclusivity between dictation modes
+        KeyboardCompanionService.getInstance()?.hideBar()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {

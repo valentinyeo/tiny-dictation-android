@@ -64,6 +64,7 @@ class KeyboardCompanionService : LifecycleService() {
     private var micIcon: ImageView? = null
     private var languageButton: FrameLayout? = null
     private var languageText: TextView? = null
+    private var floatingBarButton: FrameLayout? = null
     private var expandButton: FrameLayout? = null
 
     // Keyboard visibility tracking
@@ -265,6 +266,7 @@ class KeyboardCompanionService : LifecycleService() {
         micIcon = companionView?.findViewById(R.id.ivCompanionMic)
         languageButton = companionView?.findViewById(R.id.btnCompanionLanguage)
         languageText = companionView?.findViewById(R.id.tvCompanionLanguage)
+        floatingBarButton = companionView?.findViewById(R.id.btnCompanionFloatingBar)
         expandButton = companionView?.findViewById(R.id.btnCompanionExpand)
 
         // Setup button handlers
@@ -322,6 +324,7 @@ class KeyboardCompanionService : LifecycleService() {
         micIcon = null
         languageButton = null
         languageText = null
+        floatingBarButton = null
         expandButton = null
     }
 
@@ -344,6 +347,11 @@ class KeyboardCompanionService : LifecycleService() {
         // Language button - toggle language
         languageButton?.setOnClickListener {
             toggleLanguage()
+        }
+
+        // Floating bar button - switch to floating bubble mode
+        floatingBarButton?.setOnClickListener {
+            switchToFloatingBubbleMode()
         }
 
         // Expand button - switch to full Tiny Dictation keyboard
@@ -389,6 +397,7 @@ class KeyboardCompanionService : LifecycleService() {
         // Apply button and icon colors
         applyButtonTheme(micButton, buttonColor, iconColor)
         applyButtonTheme(languageButton, buttonColor, iconColor)
+        applyButtonTheme(floatingBarButton, buttonColor, iconColor)
         applyButtonTheme(expandButton, buttonColor, iconColor)
 
         // Apply text color to language text
@@ -467,6 +476,41 @@ class KeyboardCompanionService : LifecycleService() {
 
         // Provide haptic feedback
         vibrateForFeedback()
+    }
+
+    /**
+     * Switches to floating bubble mode.
+     * Changes preference to bubble mode, stops companion service, and starts BubbleService with UI.
+     */
+    private fun switchToFloatingBubbleMode() {
+        Log.i(TAG, "KeyboardCompanionService: Switching to floating bubble mode")
+        DebugLog.i("KeyboardCompanionService: Switching to bubble mode")
+
+        vibrateForFeedback()
+
+        // Change preference to bubble mode
+        preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
+        Log.d(TAG, "Preference changed to MODE_BUBBLE")
+
+        // Hide the companion bar first
+        hideCompanionBar()
+
+        // Stop this service (KeyboardCompanionService)
+        // Note: BubbleService is already running for transcription, we just need to
+        // recreate its bubble UI since it was created without UI in companion mode
+        stopSelf()
+
+        // Restart BubbleService so it creates the bubble UI
+        // Small delay to allow this service to stop first
+        mainHandler.postDelayed({
+            // Stop and restart BubbleService to recreate with UI
+            BubbleService.stop(this)
+            mainHandler.postDelayed({
+                BubbleService.start(this)
+                Log.i(TAG, "BubbleService restarted with bubble UI")
+                DebugLog.i("KeyboardCompanionService: BubbleService restarted in bubble mode")
+            }, 200)
+        }, 100)
     }
 
     /**
@@ -625,6 +669,16 @@ class KeyboardCompanionService : LifecycleService() {
         mainHandler.post {
             updateMicButton()
             updateLanguageButton()
+        }
+    }
+
+    /**
+     * Hides the companion bar. Called when switching to a different dictation mode
+     * (e.g., when Tiny Dictation keyboard becomes active).
+     */
+    fun hideBar() {
+        mainHandler.post {
+            hideCompanionBar()
         }
     }
 
