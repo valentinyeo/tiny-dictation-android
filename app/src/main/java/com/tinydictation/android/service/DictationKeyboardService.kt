@@ -2,7 +2,6 @@ package com.tinydictation.android.service
 
 import android.animation.ObjectAnimator
 import android.content.BroadcastReceiver
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -341,7 +340,6 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
@@ -411,17 +409,6 @@ class DictationKeyboardService : InputMethodService() {
             selectAll()
         }
 
-        // Paste button - short press opens history, long press pastes from clipboard
-        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.let { btnPaste ->
-            btnPaste.setOnClickListener {
-                openTranscriptionHistory()
-            }
-            btnPaste.setOnLongClickListener {
-                pasteFromClipboard()
-                true
-            }
-        }
-
         // Enter button
         keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
             sendEnterKey()
@@ -464,16 +451,6 @@ class DictationKeyboardService : InputMethodService() {
         DebugLog.i("DictationKeyboardService: Long press - opening settings")
 
         val intent = Intent(this, SettingsActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        startActivity(intent)
-    }
-
-    private fun openTranscriptionHistory() {
-        Log.i(TAG, "DictationKeyboardService: Opening transcription history")
-        DebugLog.i("DictationKeyboardService: Long press paste - opening history")
-
-        val intent = Intent(this, HistoryActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
@@ -743,21 +720,6 @@ class DictationKeyboardService : InputMethodService() {
             val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
             val totalLength = before.length + after.length
             ic.setSelection(0, totalLength)
-        }
-    }
-
-    private fun pasteFromClipboard() {
-        Log.i(TAG, "DictationKeyboardService: Paste")
-        DebugLog.d("DictationKeyboardService: Pasting from clipboard")
-
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = clipboard.primaryClip
-        if (clip != null && clip.itemCount > 0) {
-            val text = clip.getItemAt(0).coerceToText(this).toString()
-            if (text.isNotEmpty()) {
-                currentInputConnection?.commitText(text, 1)
-                Log.d(TAG, "Pasted ${text.length} characters")
-            }
         }
     }
 

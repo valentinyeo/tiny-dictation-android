@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.16:
+            • SIMPLIFY: Removed paste button from keyboard
+            • Text is typed directly - no clipboard needed
+            • History still accessible from Settings
+
             v1.11.15:
             • SIMPLIFY: Removed floating bubble and companion bar modes
             • App now focuses exclusively on keyboard-based dictation

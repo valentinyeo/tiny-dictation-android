@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Keyboard bar layout for Tiny Dictation IME.
-     Buttons: Chevron (far left) | Language, Emoji, Mic, Enter, Backspace, Paste, All (right-aligned)
+     Buttons: Chevron (far left) | Language, Mic, Enter, Backspace, All (right-aligned)
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -112,24 +112,6 @@
             android:layout_height="24dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_backspace"
-            app:tint="@color/on_surface" />
-    </FrameLayout>
-
-    <!-- Paste button -->
-    <FrameLayout
-        android:id="@+id/btnPaste"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Paste">
-
-        <ImageView
-            android:id="@+id/ivPaste"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_paste"
             app:tint="@color/on_surface" />
     </FrameLayout>
 
