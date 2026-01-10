@@ -526,17 +526,61 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Handles keyboard button click - opens the system keyboard picker.
-     * This allows users to switch to Tiny Dictation keyboard or back to another keyboard.
+     * Handles keyboard button click - switches directly to Tiny Dictation keyboard.
+     * If WRITE_SECURE_SETTINGS permission is granted, switches directly.
+     * Otherwise falls back to showing the keyboard picker.
      */
     private fun handleKeyboardButtonClick() {
-        Log.i(TAG, "Keyboard button clicked - showing keyboard picker")
-        DebugLog.i("BubbleService: Opening keyboard picker")
+        Log.i(TAG, "Keyboard button clicked - switching to Tiny Dictation keyboard")
+        DebugLog.i("BubbleService: Switching to Tiny Dictation keyboard")
 
+        vibrateForFeedback()
+
+        // Try direct switch if we have the permission
+        if (switchToTinyDictationKeyboard()) {
+            Log.i(TAG, "Successfully switched to Tiny Dictation keyboard")
+            DebugLog.i("BubbleService: Direct switch successful")
+        } else {
+            // Fall back to keyboard picker
+            Log.i(TAG, "Direct switch not available, showing picker")
+            DebugLog.i("BubbleService: Showing keyboard picker (no permission)")
+            showInputMethodPicker()
+        }
+    }
+
+    /**
+     * Attempts to switch directly to Tiny Dictation keyboard.
+     * Requires WRITE_SECURE_SETTINGS permission (granted via ADB).
+     * @return true if successful, false if permission not granted
+     */
+    private fun switchToTinyDictationKeyboard(): Boolean {
+        val imeId = "$packageName/.service.DictationKeyboardService"
+
+        return try {
+            // This requires WRITE_SECURE_SETTINGS permission
+            val success = android.provider.Settings.Secure.putString(
+                contentResolver,
+                android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
+                imeId
+            )
+            if (success) {
+                Log.i(TAG, "Set default IME to: $imeId")
+            }
+            success
+        } catch (e: SecurityException) {
+            // Permission not granted - this is expected for most users
+            Log.d(TAG, "WRITE_SECURE_SETTINGS not granted, will use picker")
+            false
+        } catch (e: Exception) {
+            Log.e(TAG, "Error switching keyboard", e)
+            false
+        }
+    }
+
+    private fun showInputMethodPicker() {
         try {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.showInputMethodPicker()
-            vibrateForFeedback()
         } catch (e: Exception) {
             Log.e(TAG, "Error showing keyboard picker", e)
             DebugLog.e("BubbleService: Error showing keyboard picker - ${e.message}")

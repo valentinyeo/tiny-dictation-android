@@ -53,6 +53,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.18:
+            • Keyboard bubble now switches directly to Tiny Dictation keyboard
+            • Grant WRITE_SECURE_SETTINGS via ADB for direct switching
+            • Falls back to picker if permission not granted
+
             v1.9.17:
             • Added switch back button to return to previous keyboard instantly
             • No more keyboard picker - one tap to switch back to Gboard/other
