@@ -9,7 +9,9 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
+import com.tinydictation.android.transcription.engines.AssemblyAIEngine
 import com.tinydictation.android.transcription.engines.DeepgramEngine
+import com.tinydictation.android.transcription.engines.GeminiEngine
 import com.tinydictation.android.transcription.engines.GroqEngine
 import com.tinydictation.android.transcription.engines.OpenAIEngine
 import com.tinydictation.android.transcription.engines.SherpaOnnxEngine
@@ -302,6 +304,28 @@ class TranscriptionManager(
                     engine.setModel(preferenceManager.getOpenAIModel())
                     if (autoDetect) engine.setAutoDetectLanguage(true)
                     Log.i(TAG, "Using OpenAI engine with model ${preferenceManager.getOpenAIModel()}")
+                    engine
+                }
+                PreferenceManager.PROVIDER_ASSEMBLYAI -> {
+                    val assemblyaiApiKey = preferenceManager.getAssemblyAIApiKey()
+                    if (assemblyaiApiKey.isNullOrBlank()) {
+                        Log.e(TAG, "AssemblyAI selected but no API key")
+                        return null
+                    }
+                    val engine = AssemblyAIEngine(assemblyaiApiKey)
+                    if (autoDetect) engine.setAutoDetectLanguage(true)
+                    Log.i(TAG, "Using AssemblyAI engine")
+                    engine
+                }
+                PreferenceManager.PROVIDER_GEMINI -> {
+                    val geminiApiKey = preferenceManager.getGeminiApiKey()
+                    if (geminiApiKey.isNullOrBlank()) {
+                        Log.e(TAG, "Gemini selected but no API key")
+                        return null
+                    }
+                    val engine = GeminiEngine(geminiApiKey)
+                    if (autoDetect) engine.setAutoDetectLanguage(true)
+                    Log.i(TAG, "Using Gemini engine")
                     engine
                 }
                 else -> {

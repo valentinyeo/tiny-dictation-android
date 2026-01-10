@@ -57,6 +57,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.1:
+            • NEW: Added AssemblyAI and Gemini (Google) as cloud transcription providers
+            • Both new providers auto-detect language by default
+
             v1.11.0:
             • NEW: Multiple cloud providers - choose Deepgram, Groq, or OpenAI
             • Model selection for each provider (nova-3, whisper-large-v3, gpt-4o-transcribe, etc.)
@@ -582,6 +586,10 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var groqApiKeyInput: TextInputEditText
     private lateinit var tilOpenAIApiKey: TextInputLayout
     private lateinit var openAIApiKeyInput: TextInputEditText
+    private lateinit var tilAssemblyAIApiKey: TextInputLayout
+    private lateinit var assemblyAIApiKeyInput: TextInputEditText
+    private lateinit var tilGeminiApiKey: TextInputLayout
+    private lateinit var geminiApiKeyInput: TextInputEditText
     private lateinit var layoutAutoDetect: LinearLayout
     private lateinit var autoDetectSwitch: MaterialSwitch
 
@@ -847,6 +855,10 @@ class SettingsActivity : AppCompatActivity() {
         groqApiKeyInput = findViewById(R.id.etGroqApiKey)
         tilOpenAIApiKey = findViewById(R.id.tilOpenAIApiKey)
         openAIApiKeyInput = findViewById(R.id.etOpenAIApiKey)
+        tilAssemblyAIApiKey = findViewById(R.id.tilAssemblyAIApiKey)
+        assemblyAIApiKeyInput = findViewById(R.id.etAssemblyAIApiKey)
+        tilGeminiApiKey = findViewById(R.id.tilGeminiApiKey)
+        geminiApiKeyInput = findViewById(R.id.etGeminiApiKey)
         layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
 
@@ -970,7 +982,9 @@ class SettingsActivity : AppCompatActivity() {
         val providers = listOf(
             "Deepgram" to PreferenceManager.PROVIDER_DEEPGRAM,
             "Groq (Whisper)" to PreferenceManager.PROVIDER_GROQ,
-            "OpenAI" to PreferenceManager.PROVIDER_OPENAI
+            "OpenAI" to PreferenceManager.PROVIDER_OPENAI,
+            "AssemblyAI" to PreferenceManager.PROVIDER_ASSEMBLYAI,
+            "Gemini (Google)" to PreferenceManager.PROVIDER_GEMINI
         )
 
         val displayNames = providers.map { it.first }
@@ -1011,6 +1025,8 @@ class SettingsActivity : AppCompatActivity() {
         // Load saved API keys
         preferenceManager.getGroqApiKey()?.let { groqApiKeyInput.setText(it) }
         preferenceManager.getOpenAIApiKey()?.let { openAIApiKeyInput.setText(it) }
+        preferenceManager.getAssemblyAIApiKey()?.let { assemblyAIApiKeyInput.setText(it) }
+        preferenceManager.getGeminiApiKey()?.let { geminiApiKeyInput.setText(it) }
     }
 
     private fun updateCloudModelDropdown(provider: String) {
@@ -1031,8 +1047,18 @@ class SettingsActivity : AppCompatActivity() {
                 "gpt-4o-mini-transcribe (Cheaper)" to PreferenceManager.OPENAI_GPT4O_MINI,
                 "whisper-1 (Original)" to PreferenceManager.OPENAI_WHISPER_1
             )
+            PreferenceManager.PROVIDER_ASSEMBLYAI -> emptyList() // AssemblyAI has no model options
+            PreferenceManager.PROVIDER_GEMINI -> emptyList() // Gemini has no model options
             else -> emptyList()
         }
+
+        // Hide model dropdown for providers with no model options
+        val tilCloudModel = findViewById<TextInputLayout>(R.id.tilCloudModel)
+        if (models.isEmpty()) {
+            tilCloudModel.visibility = View.GONE
+            return
+        }
+        tilCloudModel.visibility = View.VISIBLE
 
         val displayNames = models.map { it.first }
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
@@ -1069,6 +1095,8 @@ class SettingsActivity : AppCompatActivity() {
         tilApiKey.visibility = if (provider == PreferenceManager.PROVIDER_DEEPGRAM) View.VISIBLE else View.GONE
         tilGroqApiKey.visibility = if (provider == PreferenceManager.PROVIDER_GROQ) View.VISIBLE else View.GONE
         tilOpenAIApiKey.visibility = if (provider == PreferenceManager.PROVIDER_OPENAI) View.VISIBLE else View.GONE
+        tilAssemblyAIApiKey.visibility = if (provider == PreferenceManager.PROVIDER_ASSEMBLYAI) View.VISIBLE else View.GONE
+        tilGeminiApiKey.visibility = if (provider == PreferenceManager.PROVIDER_GEMINI) View.VISIBLE else View.GONE
     }
 
     private fun updateAutoDetectVisibility() {
@@ -1536,6 +1564,8 @@ class SettingsActivity : AppCompatActivity() {
         val apiKey = apiKeyInput.text?.toString()?.trim()
         val groqApiKey = groqApiKeyInput.text?.toString()?.trim()
         val openAIApiKey = openAIApiKeyInput.text?.toString()?.trim()
+        val assemblyAIApiKey = assemblyAIApiKeyInput.text?.toString()?.trim()
+        val geminiApiKey = geminiApiKeyInput.text?.toString()?.trim()
 
         // API key validation based on selected cloud provider
         val engine = preferenceManager.getTranscriptionEngine()
@@ -1561,6 +1591,18 @@ class SettingsActivity : AppCompatActivity() {
                         return
                     }
                 }
+                PreferenceManager.PROVIDER_ASSEMBLYAI -> {
+                    if (assemblyAIApiKey.isNullOrEmpty()) {
+                        assemblyAIApiKeyInput.error = "API key is required for AssemblyAI"
+                        return
+                    }
+                }
+                PreferenceManager.PROVIDER_GEMINI -> {
+                    if (geminiApiKey.isNullOrEmpty()) {
+                        geminiApiKeyInput.error = "API key is required for Gemini"
+                        return
+                    }
+                }
             }
         }
 
@@ -1577,6 +1619,16 @@ class SettingsActivity : AppCompatActivity() {
         // Save OpenAI API key if provided
         if (!openAIApiKey.isNullOrEmpty()) {
             preferenceManager.setOpenAIApiKey(openAIApiKey)
+        }
+
+        // Save AssemblyAI API key if provided
+        if (!assemblyAIApiKey.isNullOrEmpty()) {
+            preferenceManager.setAssemblyAIApiKey(assemblyAIApiKey)
+        }
+
+        // Save Gemini API key if provided
+        if (!geminiApiKey.isNullOrEmpty()) {
+            preferenceManager.setGeminiApiKey(geminiApiKey)
         }
 
         // Save auto-punctuation

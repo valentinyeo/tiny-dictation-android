@@ -76,6 +76,8 @@ class PreferenceManager(context: Context) {
         const val PROVIDER_DEEPGRAM = "deepgram"
         const val PROVIDER_GROQ = "groq"
         const val PROVIDER_OPENAI = "openai"
+        const val PROVIDER_ASSEMBLYAI = "assemblyai"
+        const val PROVIDER_GEMINI = "gemini"
 
         // Deepgram model constants
         const val DEEPGRAM_NOVA_3 = "nova-3"
@@ -96,6 +98,8 @@ class PreferenceManager(context: Context) {
         // New preference keys for multi-provider support
         private const val KEY_GROQ_API_KEY = "groq_api_key"
         private const val KEY_OPENAI_API_KEY = "openai_api_key"
+        private const val KEY_ASSEMBLYAI_API_KEY = "assemblyai_api_key"
+        private const val KEY_GEMINI_API_KEY = "gemini_api_key"
         private const val KEY_CLOUD_PROVIDER = "cloud_provider"
         private const val KEY_DEEPGRAM_MODEL = "deepgram_model"
         private const val KEY_GROQ_MODEL = "groq_model"
@@ -640,6 +644,54 @@ class PreferenceManager(context: Context) {
         return !getOpenAIApiKey().isNullOrBlank()
     }
 
+    /**
+     * Gets the stored AssemblyAI API key.
+     * @return The API key, or null if not set
+     */
+    fun getAssemblyAIApiKey(): String? {
+        return prefs.getString(KEY_ASSEMBLYAI_API_KEY, null)
+    }
+
+    /**
+     * Sets the AssemblyAI API key.
+     * @param key The API key to store
+     */
+    fun setAssemblyAIApiKey(key: String) {
+        prefs.edit().putString(KEY_ASSEMBLYAI_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if an AssemblyAI API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasAssemblyAIApiKey(): Boolean {
+        return !getAssemblyAIApiKey().isNullOrBlank()
+    }
+
+    /**
+     * Gets the stored Gemini API key.
+     * @return The API key, or null if not set
+     */
+    fun getGeminiApiKey(): String? {
+        return prefs.getString(KEY_GEMINI_API_KEY, null)
+    }
+
+    /**
+     * Sets the Gemini API key.
+     * @param key The API key to store
+     */
+    fun setGeminiApiKey(key: String) {
+        prefs.edit().putString(KEY_GEMINI_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if a Gemini API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasGeminiApiKey(): Boolean {
+        return !getGeminiApiKey().isNullOrBlank()
+    }
+
     // ========== Provider Model Selection ==========
 
     /**
@@ -717,6 +769,8 @@ class PreferenceManager(context: Context) {
         return when (getCloudProvider()) {
             PROVIDER_GROQ -> true  // All Whisper models support auto-detect
             PROVIDER_OPENAI -> true  // All OpenAI models support auto-detect
+            PROVIDER_ASSEMBLYAI -> true  // AssemblyAI auto-detects by default
+            PROVIDER_GEMINI -> true  // Gemini auto-detects by default
             PROVIDER_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
             else -> false
         }

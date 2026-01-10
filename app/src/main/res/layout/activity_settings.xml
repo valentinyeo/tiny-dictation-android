@@ -351,6 +351,46 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
+                    <!-- AssemblyAI API Key (visible when AssemblyAI selected) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilAssemblyAIApiKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="AssemblyAI API Key"
+                        android:visibility="gone"
+                        app:endIconMode="password_toggle"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etAssemblyAIApiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:maxLines="1" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Gemini API Key (visible when Gemini selected) -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilGeminiApiKey"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:hint="Gemini API Key"
+                        android:visibility="gone"
+                        app:endIconMode="password_toggle"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/etGeminiApiKey"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="textPassword"
+                            android:maxLines="1" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
                     <!-- Auto-detect Language Switch (visible when supported) -->
                     <LinearLayout
                         android:id="@+id/layoutAutoDetect"
