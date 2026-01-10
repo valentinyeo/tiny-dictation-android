@@ -566,6 +566,9 @@ class BubbleService : LifecycleService() {
 
         vibrateForFeedback()
 
+        // Show toast for feedback so user knows button was pressed
+        Toast.makeText(this, "Switching keyboard...", Toast.LENGTH_SHORT).show()
+
         // Try direct switch if we have the permission
         if (switchToTinyDictationKeyboard()) {
             Log.i(TAG, "Successfully switched to Tiny Dictation keyboard")
@@ -574,7 +577,7 @@ class BubbleService : LifecycleService() {
             // Fall back to keyboard picker
             Log.i(TAG, "Direct switch not available, showing picker")
             DebugLog.i("BubbleService: Showing keyboard picker (no permission)")
-            showInputMethodPicker()
+            showInputMethodPickerWithFallback()
         }
     }
 
@@ -585,6 +588,8 @@ class BubbleService : LifecycleService() {
      */
     private fun switchToTinyDictationKeyboard(): Boolean {
         val imeId = "$packageName/.service.DictationKeyboardService"
+        Log.d(TAG, "Attempting to switch to IME: $imeId")
+        DebugLog.d("BubbleService: IME ID = $imeId")
 
         return try {
             // This requires WRITE_SECURE_SETTINGS permission
@@ -593,6 +598,8 @@ class BubbleService : LifecycleService() {
                 android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
                 imeId
             )
+            Log.d(TAG, "Direct switch result: $success")
+            DebugLog.d("BubbleService: Direct switch result=$success")
             if (success) {
                 Log.i(TAG, "Set default IME to: $imeId")
             }
@@ -600,21 +607,45 @@ class BubbleService : LifecycleService() {
         } catch (e: SecurityException) {
             // Permission not granted - this is expected for most users
             Log.d(TAG, "WRITE_SECURE_SETTINGS not granted, will use picker")
+            DebugLog.d("BubbleService: No WRITE_SECURE_SETTINGS permission")
             false
         } catch (e: Exception) {
             Log.e(TAG, "Error switching keyboard", e)
+            DebugLog.e("BubbleService: Switch error - ${e.message}")
             false
         }
     }
 
-    private fun showInputMethodPicker() {
+    /**
+     * Shows the input method picker with multiple fallback approaches.
+     * Some Android versions/devices have issues with showInputMethodPicker() from services.
+     */
+    private fun showInputMethodPickerWithFallback() {
         try {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            Log.d(TAG, "InputMethodManager obtained: $imm")
+
+            // Try the standard approach first
             imm.showInputMethodPicker()
+            Log.i(TAG, "showInputMethodPicker() called successfully")
+            DebugLog.i("BubbleService: Picker shown via IMM")
         } catch (e: Exception) {
-            Log.e(TAG, "Error showing keyboard picker", e)
-            DebugLog.e("BubbleService: Error showing keyboard picker - ${e.message}")
-            Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
+            Log.e(TAG, "Error showing keyboard picker via IMM", e)
+            DebugLog.e("BubbleService: IMM picker error - ${e.message}")
+
+            // Fallback: Try opening keyboard settings directly
+            try {
+                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                Toast.makeText(this, "Select Tiny Dictation keyboard", Toast.LENGTH_LONG).show()
+                DebugLog.i("BubbleService: Opened keyboard settings as fallback")
+            } catch (e2: Exception) {
+                Log.e(TAG, "Error opening keyboard settings", e2)
+                DebugLog.e("BubbleService: Settings fallback error - ${e2.message}")
+                Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

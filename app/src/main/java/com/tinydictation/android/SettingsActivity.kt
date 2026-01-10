@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.16:
+            • Fixed keyboard switch button not working on floating bar and companion bar
+            • Added toast feedback when button is pressed ("Switching keyboard...")
+            • Added fallback to open keyboard settings if picker fails
+            • Better debug logging for keyboard switch troubleshooting
+
             v1.10.15:
             • Fixed companion bar NOT hiding when Tiny Dictation keyboard opens
             • Now stops KeyboardCompanionService entirely (not just hiding the bar)
@@ -908,8 +914,8 @@ class SettingsActivity : AppCompatActivity() {
     private fun setupDictationModeDropdown() {
         // Mode options: display name to preference value
         val modes = listOf(
-            "Floating Bubble" to PreferenceManager.MODE_BUBBLE,
-            "Keyboard Companion" to PreferenceManager.MODE_COMPANION,
+            "Vertical Floating Bar" to PreferenceManager.MODE_BUBBLE,
+            "Horizontal Floating Bar" to PreferenceManager.MODE_COMPANION,
             "Full Keyboard (IME)" to PreferenceManager.MODE_KEYBOARD
         )
 
@@ -992,7 +998,7 @@ class SettingsActivity : AppCompatActivity() {
                 when (toMode) {
                     PreferenceManager.MODE_BUBBLE -> {
                         BubbleService.start(this)
-                        Toast.makeText(this, "Switched to floating bubble mode", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(this, "Switched to vertical floating bar mode", Toast.LENGTH_SHORT).show()
                     }
                     PreferenceManager.MODE_KEYBOARD -> {
                         // Start BubbleService for transcription (no UI), IME is activated by system
@@ -1006,7 +1012,7 @@ class SettingsActivity : AppCompatActivity() {
                         KeyboardCompanionService.start(this)
                         // Also start BubbleService in background for transcription (without UI)
                         BubbleService.start(this)
-                        Toast.makeText(this, "Keyboard companion mode active - bar appears with keyboard", Toast.LENGTH_LONG).show()
+                        Toast.makeText(this, "Horizontal floating bar mode active - bar appears with keyboard", Toast.LENGTH_LONG).show()
                     }
                 }
             }

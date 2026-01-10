@@ -515,12 +515,16 @@ class KeyboardCompanionService : LifecycleService() {
 
     /**
      * Switches to Tiny Dictation keyboard.
+     * Shows a toast for feedback and attempts direct switch or shows picker.
      */
     private fun switchToTinyDictationKeyboard() {
         Log.i(TAG, "KeyboardCompanionService: Switching to Tiny Dictation keyboard")
         DebugLog.i("KeyboardCompanionService: Switching to keyboard")
 
         vibrateForFeedback()
+
+        // Show toast for feedback so user knows button was pressed
+        Toast.makeText(this, "Switching keyboard...", Toast.LENGTH_SHORT).show()
 
         // Try direct switch if we have permission
         val imeId = "$packageName/.service.DictationKeyboardService"
@@ -550,15 +554,38 @@ class KeyboardCompanionService : LifecycleService() {
             // Fall back to keyboard picker
             Log.i(TAG, "Showing keyboard picker as fallback")
             DebugLog.i("KeyboardCompanionService: Showing keyboard picker")
+            showInputMethodPickerWithFallback()
+        }
+    }
+
+    /**
+     * Shows the input method picker with multiple fallback approaches.
+     * Some Android versions/devices have issues with showInputMethodPicker() from services.
+     */
+    private fun showInputMethodPickerWithFallback() {
+        try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            Log.d(TAG, "InputMethodManager obtained: $imm")
+
+            // Try the standard approach first
+            imm.showInputMethodPicker()
+            Log.i(TAG, "showInputMethodPicker() called successfully")
+            DebugLog.i("KeyboardCompanionService: Picker shown via IMM")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing keyboard picker via IMM", e)
+            DebugLog.e("KeyboardCompanionService: IMM picker error - ${e.message}")
+
+            // Fallback: Try opening keyboard settings directly
             try {
-                val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-                Log.d(TAG, "InputMethodManager obtained: $imm")
-                imm.showInputMethodPicker()
-                Log.i(TAG, "showInputMethodPicker() called successfully")
-                DebugLog.i("KeyboardCompanionService: Picker shown")
-            } catch (e: Exception) {
-                Log.e(TAG, "Error showing keyboard picker", e)
-                DebugLog.e("KeyboardCompanionService: Picker error - ${e.message}")
+                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                startActivity(intent)
+                Toast.makeText(this, "Select Tiny Dictation keyboard", Toast.LENGTH_LONG).show()
+                DebugLog.i("KeyboardCompanionService: Opened keyboard settings as fallback")
+            } catch (e2: Exception) {
+                Log.e(TAG, "Error opening keyboard settings", e2)
+                DebugLog.e("KeyboardCompanionService: Settings fallback error - ${e2.message}")
                 Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
             }
         }
