@@ -19,6 +19,7 @@ import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.util.AudioFocusManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
+import com.tinydictation.android.util.TranscriptionFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -164,7 +165,13 @@ class TranscriptionManager(
                 onTranscript = { text, isFinal ->
                     currentScope.launch(Dispatchers.Main) {
                         if (isListening) {
-                            onTranscript(text, isFinal)
+                            // Filter out Whisper hallucinations (sound descriptions, repetition, etc.)
+                            val filteredText = TranscriptionFilter.filter(text)
+                            if (filteredText != null) {
+                                onTranscript(filteredText, isFinal)
+                            } else {
+                                DebugLog.d("TranscriptionManager: Filtered out noise/hallucination: ${text.take(50)}...")
+                            }
                         }
                     }
                 },

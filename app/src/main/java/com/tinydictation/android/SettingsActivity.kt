@@ -64,6 +64,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.12:
+            • NEW: Filter Whisper hallucinations - removes (clicking), [door closing], etc.
+            • Filters out sound descriptions, repeated words, and spam phrases
+            • No more transcription garbage when there's silence or background noise
+
             v1.11.11:
             • NEW: Fallback model dropdown - choose which offline model to use
             • Whisper offline now correctly identified as auto-detecting language
