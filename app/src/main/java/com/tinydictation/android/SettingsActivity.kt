@@ -57,6 +57,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.6:
+            • NEW: Unified provider dropdown - cloud and offline providers in one place
+            • Model selection adapts to provider (shows download status for offline)
+            • Fallback toggle only appears when using cloud providers
+            • Cleaner, more intuitive settings UI
+
             v1.11.5:
             • FIX: Keyboard bar no longer appears blank after emoji picker fix
             • Fixed theme not applying to keyboard bar due to incorrect view cast
@@ -593,13 +599,10 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var changelogExpandIcon: ImageView
     private var isChangelogExpanded = false
 
-    // Engine selection
-    private lateinit var engineDropdown: AutoCompleteTextView
-    private lateinit var autoFallbackSwitch: MaterialSwitch
-
-    // Cloud provider/model selection
-    private lateinit var cloudProviderDropdown: AutoCompleteTextView
-    private lateinit var cloudModelDropdown: AutoCompleteTextView
+    // Unified provider/model selection
+    private lateinit var providerDropdown: AutoCompleteTextView
+    private lateinit var modelDropdown: AutoCompleteTextView
+    private lateinit var tilModel: TextInputLayout
     private lateinit var tilApiKey: TextInputLayout
     private lateinit var tilGroqApiKey: TextInputLayout
     private lateinit var groqApiKeyInput: TextInputEditText
@@ -611,6 +614,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var geminiApiKeyInput: TextInputEditText
     private lateinit var layoutAutoDetect: LinearLayout
     private lateinit var autoDetectSwitch: MaterialSwitch
+    private lateinit var layoutAutoFallback: LinearLayout
+    private lateinit var autoFallbackSwitch: MaterialSwitch
+    private lateinit var tvFallbackModel: TextView
 
     // Dictation mode selection
     private lateinit var dictationModeDropdown: AutoCompleteTextView
@@ -862,13 +868,10 @@ class SettingsActivity : AppCompatActivity() {
             toggleChangelog()
         }
 
-        // Engine selection views
-        engineDropdown = findViewById(R.id.actvEngine)
-        autoFallbackSwitch = findViewById(R.id.switchAutoFallback)
-
-        // Cloud provider/model views
-        cloudProviderDropdown = findViewById(R.id.actvCloudProvider)
-        cloudModelDropdown = findViewById(R.id.actvCloudModel)
+        // Unified provider/model views
+        providerDropdown = findViewById(R.id.actvProvider)
+        modelDropdown = findViewById(R.id.actvModel)
+        tilModel = findViewById(R.id.tilModel)
         tilApiKey = findViewById(R.id.tilApiKey)
         tilGroqApiKey = findViewById(R.id.tilGroqApiKey)
         groqApiKeyInput = findViewById(R.id.etGroqApiKey)
@@ -880,6 +883,9 @@ class SettingsActivity : AppCompatActivity() {
         geminiApiKeyInput = findViewById(R.id.etGeminiApiKey)
         layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
+        layoutAutoFallback = findViewById(R.id.layoutAutoFallback)
+        autoFallbackSwitch = findViewById(R.id.switchAutoFallback)
+        tvFallbackModel = findViewById(R.id.tvFallbackModel)
 
         // Model download views
         tvVoskEnStatus = findViewById(R.id.tvVoskEnStatus)
@@ -895,11 +901,8 @@ class SettingsActivity : AppCompatActivity() {
         btnDownloadWhisperBase = findViewById(R.id.btnDownloadWhisperBase)
         btnDownloadWhisperSmall = findViewById(R.id.btnDownloadWhisperSmall)
 
-        // Setup engine dropdown
-        setupEngineDropdown()
-
-        // Setup cloud provider dropdown
-        setupCloudProviderDropdown()
+        // Setup unified provider dropdown (combines cloud and offline providers)
+        setupUnifiedProviderDropdown()
 
         // Setup dictation mode dropdown
         dictationModeDropdown = findViewById(R.id.actvDictationMode)
@@ -929,116 +932,27 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupEngineDropdown() {
-        refreshEngineDropdown()
-    }
-
-    private fun refreshEngineDropdown() {
-        // Build dynamic engine list based on downloaded models
-        val engines = mutableListOf<Pair<String, String>>()
-
-        // Always available: Deepgram (Cloud)
-        engines.add("Deepgram (Cloud)" to PreferenceManager.ENGINE_DEEPGRAM)
-
-        // Vosk (if any model downloaded - check both en and de)
-        if (modelManager.isModelAvailable("vosk", "en") || modelManager.isModelAvailable("vosk", "de")) {
-            engines.add("Vosk (Fast Offline)" to PreferenceManager.ENGINE_VOSK)
-        }
-
-        // Whisper models - show downloaded ones
-        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")) {
-            engines.add("Whisper Tiny (Fast)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_TINY}")
-        }
-        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-base")) {
-            engines.add("Whisper Base (Balanced)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_BASE}")
-        }
-        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-small")) {
-            engines.add("Whisper Small (Accurate)" to "${PreferenceManager.ENGINE_SHERPA_ONNX}:${PreferenceManager.WHISPER_SMALL}")
-        }
-
-        val displayNames = engines.map { it.first }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        engineDropdown.setAdapter(adapter)
-
-        // Set current selection
-        val currentEngine = preferenceManager.getTranscriptionEngine()
-        val currentWhisperModel = preferenceManager.getWhisperModel()
-
-        // Build the key to match against
-        val currentKey = if (currentEngine == PreferenceManager.ENGINE_SHERPA_ONNX) {
-            "${PreferenceManager.ENGINE_SHERPA_ONNX}:$currentWhisperModel"
-        } else {
-            currentEngine
-        }
-
-        val currentIndex = engines.indexOfFirst { it.second == currentKey }
-        if (currentIndex >= 0) {
-            engineDropdown.setText(displayNames[currentIndex], false)
-        } else if (engines.isNotEmpty()) {
-            // Default to first available engine if current selection is invalid
-            engineDropdown.setText(displayNames[0], false)
-        }
-
-        // Handle selection changes
-        engineDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedValue = engines[position].second
-
-            // Check if it's a Whisper model selection (contains ":")
-            if (selectedValue.contains(":")) {
-                val parts = selectedValue.split(":")
-                preferenceManager.setTranscriptionEngine(parts[0])
-                preferenceManager.setWhisperModel(parts[1])
-                DebugLog.i("Engine changed to: ${parts[0]} with model: ${parts[1]}")
-            } else {
-                preferenceManager.setTranscriptionEngine(selectedValue)
-                DebugLog.i("Engine changed to: $selectedValue")
-            }
-        }
-    }
-
-    private fun setupCloudProviderDropdown() {
-        // Provider options
-        val providers = listOf(
-            "Deepgram" to PreferenceManager.PROVIDER_DEEPGRAM,
-            "Groq (Whisper)" to PreferenceManager.PROVIDER_GROQ,
-            "OpenAI" to PreferenceManager.PROVIDER_OPENAI,
-            "AssemblyAI" to PreferenceManager.PROVIDER_ASSEMBLYAI,
-            "Gemini (Google)" to PreferenceManager.PROVIDER_GEMINI
-        )
-
-        val displayNames = providers.map { it.first }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        cloudProviderDropdown.setAdapter(adapter)
-
-        // Set current selection
-        val currentProvider = preferenceManager.getCloudProvider()
-        val currentIndex = providers.indexOfFirst { it.second == currentProvider }
-        if (currentIndex >= 0) {
-            cloudProviderDropdown.setText(displayNames[currentIndex], false)
-        } else {
-            cloudProviderDropdown.setText(displayNames[0], false)
-        }
-
-        // Update model dropdown and API key visibility based on provider
-        updateCloudModelDropdown(currentProvider)
-        updateApiKeyVisibility(currentProvider)
-        updateAutoDetectVisibility()
-
-        // Handle selection changes
-        cloudProviderDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedProvider = providers[position].second
-            preferenceManager.setCloudProvider(selectedProvider)
-            updateCloudModelDropdown(selectedProvider)
-            updateApiKeyVisibility(selectedProvider)
-            updateAutoDetectVisibility()
-            DebugLog.i("Cloud provider changed to: $selectedProvider")
-        }
+    /**
+     * Sets up the unified provider dropdown that combines cloud and offline providers.
+     * Cloud providers: Deepgram, Groq, OpenAI, AssemblyAI, Gemini
+     * Offline providers: Vosk, Whisper (Sherpa-ONNX)
+     */
+    private fun setupUnifiedProviderDropdown() {
+        refreshProviderDropdown()
 
         // Setup auto-detect switch
         autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
         autoDetectSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setAutoDetectLanguage(isChecked)
             DebugLog.i("Auto-detect language: $isChecked")
+        }
+
+        // Setup auto-fallback switch
+        autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
+        autoFallbackSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoFallback(isChecked)
+            updateFallbackModelText()
+            DebugLog.i("Auto-fallback: $isChecked")
         }
 
         // Load saved API keys
@@ -1048,80 +962,305 @@ class SettingsActivity : AppCompatActivity() {
         preferenceManager.getGeminiApiKey()?.let { geminiApiKeyInput.setText(it) }
     }
 
-    private fun updateCloudModelDropdown(provider: String) {
+    private fun refreshProviderDropdown() {
+        // Build provider list with sections
+        val providers = mutableListOf<Pair<String, String>>()
+
+        // Cloud providers (always available)
+        providers.add("--- Cloud ---" to "header:cloud")
+        providers.add("Deepgram" to PreferenceManager.UNIFIED_DEEPGRAM)
+        providers.add("Groq (Whisper)" to PreferenceManager.UNIFIED_GROQ)
+        providers.add("OpenAI" to PreferenceManager.UNIFIED_OPENAI)
+        providers.add("AssemblyAI" to PreferenceManager.UNIFIED_ASSEMBLYAI)
+        providers.add("Gemini (Google)" to PreferenceManager.UNIFIED_GEMINI)
+
+        // Offline providers (show based on downloaded models)
+        val hasVoskModel = modelManager.isModelAvailable("vosk", "en") || modelManager.isModelAvailable("vosk", "de")
+        val hasWhisperModel = modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny") ||
+                modelManager.isModelAvailable("sherpa-onnx", "whisper-base") ||
+                modelManager.isModelAvailable("sherpa-onnx", "whisper-small")
+
+        if (hasVoskModel || hasWhisperModel) {
+            providers.add("--- Offline ---" to "header:offline")
+        }
+        if (hasVoskModel) {
+            providers.add("Vosk (Fast Offline)" to PreferenceManager.UNIFIED_VOSK)
+        }
+        if (hasWhisperModel) {
+            providers.add("Whisper (High Quality)" to PreferenceManager.UNIFIED_WHISPER)
+        }
+
+        // Filter out headers for the adapter, but keep them for display logic
+        val selectableProviders = providers.filter { !it.second.startsWith("header:") }
+        val displayNames = providers.map { it.first }
+
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        providerDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentProvider = preferenceManager.getUnifiedProvider()
+        val currentIndex = providers.indexOfFirst { it.second == currentProvider }
+        if (currentIndex >= 0) {
+            providerDropdown.setText(providers[currentIndex].first, false)
+        } else {
+            // Default to Deepgram
+            providerDropdown.setText("Deepgram", false)
+        }
+
+        // Update UI based on current provider
+        updateProviderUI(currentProvider)
+
+        // Handle selection changes
+        providerDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selected = providers[position]
+            // Skip headers
+            if (selected.second.startsWith("header:")) {
+                // Re-select the current value
+                providerDropdown.setText(providers.find { it.second == preferenceManager.getUnifiedProvider() }?.first ?: "Deepgram", false)
+                return@setOnItemClickListener
+            }
+
+            preferenceManager.setUnifiedProvider(selected.second)
+            updateProviderUI(selected.second)
+            DebugLog.i("Provider changed to: ${selected.second}")
+        }
+    }
+
+    /**
+     * Updates all UI elements based on the selected provider.
+     */
+    private fun updateProviderUI(provider: String) {
+        val isCloud = provider.startsWith("cloud:")
+
+        // Update model dropdown
+        updateModelDropdown(provider)
+
+        // Update API key visibility (only for cloud providers)
+        updateApiKeyVisibility(provider)
+
+        // Update auto-detect visibility
+        updateAutoDetectVisibility()
+
+        // Update fallback toggle visibility (only for cloud providers)
+        layoutAutoFallback.visibility = if (isCloud) View.VISIBLE else View.GONE
+        if (isCloud) {
+            updateFallbackModelText()
+        }
+    }
+
+    /**
+     * Updates the model dropdown based on the selected provider.
+     * For cloud providers, shows their available models.
+     * For offline providers, shows downloaded models with download status.
+     */
+    private fun updateModelDropdown(provider: String) {
         val models = when (provider) {
-            PreferenceManager.PROVIDER_DEEPGRAM -> listOf(
+            PreferenceManager.UNIFIED_DEEPGRAM -> listOf(
                 "nova-3 (Best)" to PreferenceManager.DEEPGRAM_NOVA_3,
                 "nova-2 (Default)" to PreferenceManager.DEEPGRAM_NOVA_2,
                 "enhanced" to PreferenceManager.DEEPGRAM_ENHANCED,
                 "base (Cheapest)" to PreferenceManager.DEEPGRAM_BASE
             )
-            PreferenceManager.PROVIDER_GROQ -> listOf(
+            PreferenceManager.UNIFIED_GROQ -> listOf(
                 "whisper-large-v3 (Best)" to PreferenceManager.GROQ_WHISPER_LARGE_V3,
                 "whisper-large-v3-turbo (Faster)" to PreferenceManager.GROQ_WHISPER_LARGE_V3_TURBO,
                 "distil-whisper (English only)" to PreferenceManager.GROQ_DISTIL_WHISPER
             )
-            PreferenceManager.PROVIDER_OPENAI -> listOf(
+            PreferenceManager.UNIFIED_OPENAI -> listOf(
                 "gpt-4o-transcribe (Best)" to PreferenceManager.OPENAI_GPT4O_TRANSCRIBE,
                 "gpt-4o-mini-transcribe (Cheaper)" to PreferenceManager.OPENAI_GPT4O_MINI,
                 "whisper-1 (Original)" to PreferenceManager.OPENAI_WHISPER_1
             )
-            PreferenceManager.PROVIDER_ASSEMBLYAI -> emptyList() // AssemblyAI has no model options
-            PreferenceManager.PROVIDER_GEMINI -> emptyList() // Gemini has no model options
+            PreferenceManager.UNIFIED_ASSEMBLYAI -> emptyList()
+            PreferenceManager.UNIFIED_GEMINI -> emptyList()
+            PreferenceManager.UNIFIED_VOSK -> buildVoskModelList()
+            PreferenceManager.UNIFIED_WHISPER -> buildWhisperModelList()
             else -> emptyList()
         }
 
-        // Hide model dropdown for providers with no model options
-        val tilCloudModel = findViewById<TextInputLayout>(R.id.tilCloudModel)
+        // Hide model dropdown if no models to show
         if (models.isEmpty()) {
-            tilCloudModel.visibility = View.GONE
+            tilModel.visibility = View.GONE
             return
         }
-        tilCloudModel.visibility = View.VISIBLE
+        tilModel.visibility = View.VISIBLE
 
         val displayNames = models.map { it.first }
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        cloudModelDropdown.setAdapter(adapter)
+        modelDropdown.setAdapter(adapter)
 
         // Set current selection
-        val currentModel = when (provider) {
-            PreferenceManager.PROVIDER_DEEPGRAM -> preferenceManager.getDeepgramModel()
-            PreferenceManager.PROVIDER_GROQ -> preferenceManager.getGroqModel()
-            PreferenceManager.PROVIDER_OPENAI -> preferenceManager.getOpenAIModel()
-            else -> ""
-        }
+        val currentModel = getCurrentModelForProvider(provider)
         val currentIndex = models.indexOfFirst { it.second == currentModel }
         if (currentIndex >= 0) {
-            cloudModelDropdown.setText(displayNames[currentIndex], false)
+            modelDropdown.setText(displayNames[currentIndex], false)
         } else if (models.isNotEmpty()) {
-            cloudModelDropdown.setText(displayNames[0], false)
+            modelDropdown.setText(displayNames[0], false)
         }
 
         // Handle selection changes
-        cloudModelDropdown.setOnItemClickListener { _, _, position, _ ->
+        modelDropdown.setOnItemClickListener { _, _, position, _ ->
             val selectedModel = models[position].second
-            when (provider) {
-                PreferenceManager.PROVIDER_DEEPGRAM -> preferenceManager.setDeepgramModel(selectedModel)
-                PreferenceManager.PROVIDER_GROQ -> preferenceManager.setGroqModel(selectedModel)
-                PreferenceManager.PROVIDER_OPENAI -> preferenceManager.setOpenAIModel(selectedModel)
+
+            // Check if it's a download action (starts with "download:")
+            if (selectedModel.startsWith("download:")) {
+                val modelId = selectedModel.removePrefix("download:")
+                triggerModelDownload(provider, modelId)
+                return@setOnItemClickListener
             }
+
+            saveModelForProvider(provider, selectedModel)
             updateAutoDetectVisibility()
-            DebugLog.i("Cloud model changed to: $selectedModel")
+            DebugLog.i("Model changed to: $selectedModel")
         }
     }
 
+    /**
+     * Builds Vosk model list with download status indicators.
+     */
+    private fun buildVoskModelList(): List<Pair<String, String>> {
+        val models = mutableListOf<Pair<String, String>>()
+        val voskEnAvailable = modelManager.isModelAvailable("vosk", "en")
+        val voskDeAvailable = modelManager.isModelAvailable("vosk", "de")
+
+        if (voskEnAvailable) {
+            models.add("English (41MB) \u2713" to "en")
+        } else {
+            models.add("English (41MB) \u2193" to "download:en")
+        }
+
+        if (voskDeAvailable) {
+            models.add("German (45MB) \u2713" to "de")
+        } else {
+            models.add("German (45MB) \u2193" to "download:de")
+        }
+
+        return models
+    }
+
+    /**
+     * Builds Whisper model list with download status indicators.
+     */
+    private fun buildWhisperModelList(): List<Pair<String, String>> {
+        val models = mutableListOf<Pair<String, String>>()
+        val tinyAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")
+        val baseAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-base")
+        val smallAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-small")
+
+        if (tinyAvailable) {
+            models.add("Tiny - Fast (75MB) \u2713" to PreferenceManager.WHISPER_TINY)
+        } else {
+            models.add("Tiny - Fast (75MB) \u2193" to "download:whisper-tiny")
+        }
+
+        if (baseAvailable) {
+            models.add("Base - Balanced (150MB) \u2713" to PreferenceManager.WHISPER_BASE)
+        } else {
+            models.add("Base - Balanced (150MB) \u2193" to "download:whisper-base")
+        }
+
+        if (smallAvailable) {
+            models.add("Small - Accurate (500MB) \u2713" to PreferenceManager.WHISPER_SMALL)
+        } else {
+            models.add("Small - Accurate (500MB) \u2193" to "download:whisper-small")
+        }
+
+        return models
+    }
+
+    /**
+     * Gets the current model selection for the given provider.
+     */
+    private fun getCurrentModelForProvider(provider: String): String {
+        return when (provider) {
+            PreferenceManager.UNIFIED_DEEPGRAM -> preferenceManager.getDeepgramModel()
+            PreferenceManager.UNIFIED_GROQ -> preferenceManager.getGroqModel()
+            PreferenceManager.UNIFIED_OPENAI -> preferenceManager.getOpenAIModel()
+            PreferenceManager.UNIFIED_VOSK -> preferenceManager.getLanguage()
+            PreferenceManager.UNIFIED_WHISPER -> preferenceManager.getWhisperModel()
+            else -> ""
+        }
+    }
+
+    /**
+     * Saves the model selection for the given provider.
+     */
+    private fun saveModelForProvider(provider: String, model: String) {
+        when (provider) {
+            PreferenceManager.UNIFIED_DEEPGRAM -> preferenceManager.setDeepgramModel(model)
+            PreferenceManager.UNIFIED_GROQ -> preferenceManager.setGroqModel(model)
+            PreferenceManager.UNIFIED_OPENAI -> preferenceManager.setOpenAIModel(model)
+            PreferenceManager.UNIFIED_VOSK -> preferenceManager.setLanguage(model)
+            PreferenceManager.UNIFIED_WHISPER -> preferenceManager.setWhisperModel(model)
+        }
+    }
+
+    /**
+     * Triggers a model download when user taps on a not-yet-downloaded model.
+     */
+    private fun triggerModelDownload(provider: String, modelId: String) {
+        val engineId = when (provider) {
+            PreferenceManager.UNIFIED_VOSK -> "vosk"
+            PreferenceManager.UNIFIED_WHISPER -> "sherpa-onnx"
+            else -> return
+        }
+
+        // Find the appropriate button and status view
+        val (button, statusView) = when {
+            provider == PreferenceManager.UNIFIED_VOSK && modelId == "en" -> btnDownloadVoskEn to tvVoskEnStatus
+            provider == PreferenceManager.UNIFIED_VOSK && modelId == "de" -> btnDownloadVoskDe to tvVoskDeStatus
+            provider == PreferenceManager.UNIFIED_WHISPER && modelId == "whisper-tiny" -> btnDownloadWhisperTiny to tvWhisperTinyStatus
+            provider == PreferenceManager.UNIFIED_WHISPER && modelId == "whisper-base" -> btnDownloadWhisperBase to tvWhisperBaseStatus
+            provider == PreferenceManager.UNIFIED_WHISPER && modelId == "whisper-small" -> btnDownloadWhisperSmall to tvWhisperSmallStatus
+            else -> return
+        }
+
+        // Trigger the download
+        handleModelButton(engineId, modelId, button, statusView)
+
+        // Refresh dropdown after download completes (handled in handleModelButton)
+    }
+
     private fun updateApiKeyVisibility(provider: String) {
-        tilApiKey.visibility = if (provider == PreferenceManager.PROVIDER_DEEPGRAM) View.VISIBLE else View.GONE
-        tilGroqApiKey.visibility = if (provider == PreferenceManager.PROVIDER_GROQ) View.VISIBLE else View.GONE
-        tilOpenAIApiKey.visibility = if (provider == PreferenceManager.PROVIDER_OPENAI) View.VISIBLE else View.GONE
-        tilAssemblyAIApiKey.visibility = if (provider == PreferenceManager.PROVIDER_ASSEMBLYAI) View.VISIBLE else View.GONE
-        tilGeminiApiKey.visibility = if (provider == PreferenceManager.PROVIDER_GEMINI) View.VISIBLE else View.GONE
+        tilApiKey.visibility = if (provider == PreferenceManager.UNIFIED_DEEPGRAM) View.VISIBLE else View.GONE
+        tilGroqApiKey.visibility = if (provider == PreferenceManager.UNIFIED_GROQ) View.VISIBLE else View.GONE
+        tilOpenAIApiKey.visibility = if (provider == PreferenceManager.UNIFIED_OPENAI) View.VISIBLE else View.GONE
+        tilAssemblyAIApiKey.visibility = if (provider == PreferenceManager.UNIFIED_ASSEMBLYAI) View.VISIBLE else View.GONE
+        tilGeminiApiKey.visibility = if (provider == PreferenceManager.UNIFIED_GEMINI) View.VISIBLE else View.GONE
     }
 
     private fun updateAutoDetectVisibility() {
         // Show auto-detect option only for providers/models that support it
         val supportsAutoDetect = preferenceManager.currentProviderSupportsAutoDetect()
         layoutAutoDetect.visibility = if (supportsAutoDetect) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Updates the fallback model indicator text.
+     */
+    private fun updateFallbackModelText() {
+        if (!autoFallbackSwitch.isChecked) {
+            tvFallbackModel.visibility = View.GONE
+            return
+        }
+
+        // Find the best available offline model
+        val fallbackName = when {
+            modelManager.isModelAvailable("vosk", "en") -> "Vosk English"
+            modelManager.isModelAvailable("vosk", "de") -> "Vosk German"
+            modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny") -> "Whisper Tiny"
+            modelManager.isModelAvailable("sherpa-onnx", "whisper-base") -> "Whisper Base"
+            modelManager.isModelAvailable("sherpa-onnx", "whisper-small") -> "Whisper Small"
+            else -> null
+        }
+
+        if (fallbackName != null) {
+            tvFallbackModel.text = "Using: $fallbackName"
+            tvFallbackModel.visibility = View.VISIBLE
+        } else {
+            tvFallbackModel.text = "No offline model available"
+            tvFallbackModel.visibility = View.VISIBLE
+        }
     }
 
     private fun setupKeyboardThemeDropdown() {
@@ -1337,9 +1476,6 @@ class SettingsActivity : AppCompatActivity() {
         keyboardBubbleSwitch.isChecked = prefs.getBoolean("show_keyboard_bubble", false)
         updateKeyboardSetupButtonVisibility()
 
-        // Load auto-fallback setting
-        autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
-
         // Update model status
         updateModelStatus()
     }
@@ -1510,11 +1646,6 @@ class SettingsActivity : AppCompatActivity() {
             saveSettings()
         }
 
-        // Auto-fallback toggle applies immediately
-        autoFallbackSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setAutoFallback(isChecked)
-        }
-
         // Model download/delete buttons
         btnDownloadVoskEn.setOnClickListener {
             handleModelButton("vosk", "en", btnDownloadVoskEn, tvVoskEnStatus)
@@ -1555,7 +1686,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
 
                 updateModelStatus()
-                refreshEngineDropdown()
+                refreshProviderDropdown()
                 button.isEnabled = true
             }
         } else {
@@ -1573,7 +1704,7 @@ class SettingsActivity : AppCompatActivity() {
                 }
 
                 updateModelStatus()
-                refreshEngineDropdown()
+                refreshProviderDropdown()
                 button.isEnabled = true
             }
         }
@@ -1586,37 +1717,37 @@ class SettingsActivity : AppCompatActivity() {
         val assemblyAIApiKey = assemblyAIApiKeyInput.text?.toString()?.trim()
         val geminiApiKey = geminiApiKeyInput.text?.toString()?.trim()
 
-        // API key validation based on selected cloud provider
-        val engine = preferenceManager.getTranscriptionEngine()
-        val cloudProvider = preferenceManager.getCloudProvider()
+        // API key validation based on selected provider
+        val unifiedProvider = preferenceManager.getUnifiedProvider()
 
-        if (engine == PreferenceManager.ENGINE_DEEPGRAM) {
-            when (cloudProvider) {
-                PreferenceManager.PROVIDER_DEEPGRAM -> {
+        // Only validate API key for cloud providers
+        if (unifiedProvider.startsWith("cloud:")) {
+            when (unifiedProvider) {
+                PreferenceManager.UNIFIED_DEEPGRAM -> {
                     if (apiKey.isNullOrEmpty()) {
                         apiKeyInput.error = "API key is required for Deepgram"
                         return
                     }
                 }
-                PreferenceManager.PROVIDER_GROQ -> {
+                PreferenceManager.UNIFIED_GROQ -> {
                     if (groqApiKey.isNullOrEmpty()) {
                         groqApiKeyInput.error = "API key is required for Groq"
                         return
                     }
                 }
-                PreferenceManager.PROVIDER_OPENAI -> {
+                PreferenceManager.UNIFIED_OPENAI -> {
                     if (openAIApiKey.isNullOrEmpty()) {
                         openAIApiKeyInput.error = "API key is required for OpenAI"
                         return
                     }
                 }
-                PreferenceManager.PROVIDER_ASSEMBLYAI -> {
+                PreferenceManager.UNIFIED_ASSEMBLYAI -> {
                     if (assemblyAIApiKey.isNullOrEmpty()) {
                         assemblyAIApiKeyInput.error = "API key is required for AssemblyAI"
                         return
                     }
                 }
-                PreferenceManager.PROVIDER_GEMINI -> {
+                PreferenceManager.UNIFIED_GEMINI -> {
                     if (geminiApiKey.isNullOrEmpty()) {
                         geminiApiKeyInput.error = "API key is required for Gemini"
                         return

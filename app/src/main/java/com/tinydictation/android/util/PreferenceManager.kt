@@ -105,6 +105,16 @@ class PreferenceManager(context: Context) {
         private const val KEY_GROQ_MODEL = "groq_model"
         private const val KEY_OPENAI_MODEL = "openai_model"
         private const val KEY_AUTO_DETECT_LANGUAGE = "auto_detect_language"
+        private const val KEY_UNIFIED_PROVIDER = "unified_provider"  // Combined cloud/offline selection
+
+        // Unified provider IDs (combines cloud providers and offline engines)
+        const val UNIFIED_DEEPGRAM = "cloud:deepgram"
+        const val UNIFIED_GROQ = "cloud:groq"
+        const val UNIFIED_OPENAI = "cloud:openai"
+        const val UNIFIED_ASSEMBLYAI = "cloud:assemblyai"
+        const val UNIFIED_GEMINI = "cloud:gemini"
+        const val UNIFIED_VOSK = "offline:vosk"
+        const val UNIFIED_WHISPER = "offline:whisper"
     }
 
     private val prefs: SharedPreferences
@@ -766,13 +776,90 @@ class PreferenceManager(context: Context) {
      * @return true if auto-detect is supported
      */
     fun currentProviderSupportsAutoDetect(): Boolean {
-        return when (getCloudProvider()) {
-            PROVIDER_GROQ -> true  // All Whisper models support auto-detect
-            PROVIDER_OPENAI -> true  // All OpenAI models support auto-detect
-            PROVIDER_ASSEMBLYAI -> true  // AssemblyAI auto-detects by default
-            PROVIDER_GEMINI -> true  // Gemini auto-detects by default
-            PROVIDER_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
+        val unified = getUnifiedProvider()
+        return when {
+            unified.startsWith("offline:") -> false  // Offline providers don't support auto-detect
+            unified == UNIFIED_GROQ -> true  // All Whisper models support auto-detect
+            unified == UNIFIED_OPENAI -> true  // All OpenAI models support auto-detect
+            unified == UNIFIED_ASSEMBLYAI -> true  // AssemblyAI auto-detects by default
+            unified == UNIFIED_GEMINI -> true  // Gemini auto-detects by default
+            unified == UNIFIED_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
             else -> false
         }
+    }
+
+    // ========== Unified Provider ==========
+
+    /**
+     * Gets the unified provider selection (cloud or offline).
+     * @return Unified provider ID (e.g., "cloud:deepgram", "offline:vosk")
+     */
+    fun getUnifiedProvider(): String {
+        val stored = prefs.getString(KEY_UNIFIED_PROVIDER, null)
+        if (stored != null) return stored
+
+        // Migration: convert old settings to unified format
+        val engine = getTranscriptionEngine()
+        return when (engine) {
+            ENGINE_VOSK -> UNIFIED_VOSK
+            ENGINE_SHERPA_ONNX -> UNIFIED_WHISPER
+            ENGINE_DEEPGRAM -> {
+                // Map cloud provider to unified format
+                when (getCloudProvider()) {
+                    PROVIDER_GROQ -> UNIFIED_GROQ
+                    PROVIDER_OPENAI -> UNIFIED_OPENAI
+                    PROVIDER_ASSEMBLYAI -> UNIFIED_ASSEMBLYAI
+                    PROVIDER_GEMINI -> UNIFIED_GEMINI
+                    else -> UNIFIED_DEEPGRAM
+                }
+            }
+            else -> UNIFIED_DEEPGRAM
+        }
+    }
+
+    /**
+     * Sets the unified provider selection.
+     * @param provider Unified provider ID
+     */
+    fun setUnifiedProvider(provider: String) {
+        prefs.edit().putString(KEY_UNIFIED_PROVIDER, provider).apply()
+
+        // Also update legacy settings for backwards compatibility
+        if (provider.startsWith("cloud:")) {
+            setTranscriptionEngine(ENGINE_DEEPGRAM)
+            val cloudProvider = provider.removePrefix("cloud:")
+            setCloudProvider(cloudProvider)
+        } else if (provider == UNIFIED_VOSK) {
+            setTranscriptionEngine(ENGINE_VOSK)
+        } else if (provider == UNIFIED_WHISPER) {
+            setTranscriptionEngine(ENGINE_SHERPA_ONNX)
+        }
+    }
+
+    /**
+     * Checks if the current provider is a cloud provider.
+     * @return true if cloud provider is selected
+     */
+    fun isCloudProvider(): Boolean {
+        return getUnifiedProvider().startsWith("cloud:")
+    }
+
+    /**
+     * Checks if the current provider is an offline provider.
+     * @return true if offline provider is selected
+     */
+    fun isOfflineProvider(): Boolean {
+        return getUnifiedProvider().startsWith("offline:")
+    }
+
+    /**
+     * Gets the best available offline model for fallback.
+     * @return Display name of the fallback model, or null if none available
+     */
+    fun getFallbackModelName(): String? {
+        // Check Vosk models first (faster startup)
+        // Note: This would need ModelManager, so we return a static fallback for now
+        // The SettingsActivity will determine the actual available model
+        return null  // Let SettingsActivity handle this with ModelManager
     }
 }
