@@ -6,10 +6,13 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
+import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
@@ -21,6 +24,8 @@ import kotlinx.coroutines.launch
 /**
  * AccessibilityService for injecting transcribed text into any focused text field.
  * This service allows Tiny Dictation to work with any app on the device.
+ *
+ * Also provides keyboard visibility detection for KeyboardCompanionService.
  */
 class DictationAccessibilityService : AccessibilityService() {
 
@@ -29,6 +34,12 @@ class DictationAccessibilityService : AccessibilityService() {
 
         @Volatile
         private var instance: DictationAccessibilityService? = null
+
+        /**
+         * Callback for keyboard visibility changes.
+         * KeyboardCompanionService registers this to receive updates.
+         */
+        var onKeyboardVisibilityChanged: ((Boolean) -> Unit)? = null
 
         /**
          * Gets the current service instance, if available.
@@ -94,18 +105,144 @@ class DictationAccessibilityService : AccessibilityService() {
 
     private val serviceScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private lateinit var preferenceManager: PreferenceManager
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    // Keyboard visibility tracking
+    private var lastKnownKeyboardVisible = false
 
     override fun onServiceConnected() {
         preferenceManager = PreferenceManager(this)
         super.onServiceConnected()
         Log.i(TAG, "DictationAccessibilityService connected")
         instance = this
+
+        // Setup keyboard visibility monitoring using SoftKeyboardController (API 24+)
+        setupKeyboardVisibilityMonitoring()
+    }
+
+    /**
+     * Sets up keyboard visibility monitoring using SoftKeyboardController.
+     * Available on API 24+ (Android 7.0+).
+     */
+    private fun setupKeyboardVisibilityMonitoring() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val controller = softKeyboardController
+                controller.addOnShowModeChangedListener { _, showMode ->
+                    // SHOW_MODE_AUTO means keyboard follows system behavior
+                    // SHOW_MODE_HIDDEN means keyboard is hidden
+                    // We can't directly determine visibility from showMode alone,
+                    // but we can use this as a hint combined with focus events.
+                    Log.d(TAG, "Soft keyboard show mode changed: $showMode")
+                    DebugLog.d("AccessibilityService: Keyboard show mode: $showMode")
+                }
+                Log.i(TAG, "SoftKeyboardController listener registered")
+                DebugLog.i("AccessibilityService: SoftKeyboardController monitoring enabled")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to setup SoftKeyboardController", e)
+                DebugLog.e("AccessibilityService: SoftKeyboardController setup failed - ${e.message}")
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        // We primarily use this service for text injection,
-        // not for processing accessibility events.
-        // Events are listened to maintain service connection.
+        if (event == null) return
+
+        // Detect keyboard visibility from window state changes and focus events
+        when (event.eventType) {
+            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED -> {
+                // Check if an InputMethod window appeared/disappeared
+                val className = event.className?.toString() ?: ""
+                val packageName = event.packageName?.toString() ?: ""
+
+                // InputMethod class names typically contain "InputMethod" or are from IME packages
+                val isInputMethod = className.contains("InputMethod", ignoreCase = true) ||
+                        packageName.contains(".inputmethod", ignoreCase = true) ||
+                        packageName.contains("keyboard", ignoreCase = true) ||
+                        packageName == "com.google.android.inputmethod.latin" ||  // Gboard
+                        packageName == "com.samsung.android.honeyboard" ||  // Samsung keyboard
+                        packageName == "com.swiftkey.swiftkey" ||  // SwiftKey
+                        packageName == "com.touchtype.swiftkey"    // SwiftKey alternative
+
+                if (isInputMethod) {
+                    Log.d(TAG, "InputMethod window state changed: pkg=$packageName, class=$className")
+                    DebugLog.d("AccessibilityService: IME window detected: $packageName")
+
+                    // When we see an InputMethod window, keyboard is likely visible
+                    notifyKeyboardVisibility(true)
+                }
+            }
+
+            AccessibilityEvent.TYPE_VIEW_FOCUSED -> {
+                // When a text field gets focus, keyboard might appear
+                val source = event.source
+                if (source != null && source.isEditable) {
+                    Log.d(TAG, "Editable field focused - keyboard may appear")
+                    // Delay check to allow keyboard animation
+                    mainHandler.postDelayed({
+                        checkKeyboardVisibilityFromFocus()
+                    }, 300)
+                    source.recycle()
+                }
+            }
+
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> {
+                // Windows changed - check if keyboard window appeared/disappeared
+                checkKeyboardVisibilityFromWindows()
+            }
+        }
+    }
+
+    /**
+     * Checks keyboard visibility by looking at accessibility windows.
+     * TYPE_INPUT_METHOD windows indicate keyboard is visible.
+     */
+    private fun checkKeyboardVisibilityFromWindows() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            try {
+                val windowsList = windows
+                var keyboardFound = false
+
+                for (window in windowsList) {
+                    // TYPE_INPUT_METHOD = 2 (keyboard window)
+                    if (window.type == android.view.accessibility.AccessibilityWindowInfo.TYPE_INPUT_METHOD) {
+                        keyboardFound = true
+                        break
+                    }
+                }
+
+                if (keyboardFound != lastKnownKeyboardVisible) {
+                    Log.d(TAG, "Keyboard visibility from windows: $keyboardFound")
+                    DebugLog.d("AccessibilityService: Keyboard visible (from windows): $keyboardFound")
+                    notifyKeyboardVisibility(keyboardFound)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error checking keyboard visibility from windows", e)
+            }
+        }
+    }
+
+    /**
+     * Check keyboard visibility when a text field is focused.
+     * Uses windows API to determine if IME is present.
+     */
+    private fun checkKeyboardVisibilityFromFocus() {
+        checkKeyboardVisibilityFromWindows()
+    }
+
+    /**
+     * Notifies listeners about keyboard visibility changes.
+     */
+    private fun notifyKeyboardVisibility(isVisible: Boolean) {
+        if (isVisible != lastKnownKeyboardVisible) {
+            lastKnownKeyboardVisible = isVisible
+            Log.i(TAG, "Keyboard visibility changed: $isVisible")
+            DebugLog.i("AccessibilityService: Keyboard visibility -> $isVisible")
+
+            mainHandler.post {
+                onKeyboardVisibilityChanged?.invoke(isVisible)
+            }
+        }
     }
 
     override fun onInterrupt() {
@@ -117,6 +254,7 @@ class DictationAccessibilityService : AccessibilityService() {
         super.onDestroy()
         Log.i(TAG, "DictationAccessibilityService destroyed")
         serviceScope.cancel()
+        onKeyboardVisibilityChanged = null
         instance = null
     }
 

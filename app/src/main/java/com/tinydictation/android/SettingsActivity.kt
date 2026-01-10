@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.7:
+            • Fixed Keyboard Companion bar not appearing when keyboard opens
+            • Now uses AccessibilityService to detect keyboard visibility
+            • More reliable detection works with Gboard, SwiftKey, Samsung keyboard, etc.
+            • Previous overlay-based detection didn't work (overlays don't get window insets)
+
             v1.10.6:
             • Fixed button state bleed bug in keyboard bar
             • Pressing Enter no longer causes Chevron button to show activated state

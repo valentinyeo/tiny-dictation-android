@@ -10,7 +10,6 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
-import android.graphics.Rect
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.os.Build
@@ -21,7 +20,6 @@ import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewTreeObserver
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
@@ -45,10 +43,14 @@ import com.tinydictation.android.util.PreferenceManager
  * This provides dictation controls without replacing the user's preferred keyboard.
  *
  * Key features:
- * - Detects when any keyboard is visible using WindowInsets API
- * - Positions itself at the top edge of the keyboard
+ * - Detects keyboard visibility via AccessibilityService (TYPE_INPUT_METHOD windows)
+ * - Positions itself at the top edge of the keyboard (using estimated height)
  * - Contains Mic, Language, and Expand buttons
  * - Hides automatically when keyboard is dismissed
+ *
+ * Note: Keyboard detection uses DictationAccessibilityService to monitor for
+ * TYPE_INPUT_METHOD windows, which is more reliable than overlay-based detection
+ * since TYPE_APPLICATION_OVERLAY windows don't participate in window insets.
  */
 class KeyboardCompanionService : LifecycleService() {
 
@@ -66,9 +68,10 @@ class KeyboardCompanionService : LifecycleService() {
 
     // Keyboard visibility tracking
     private var isKeyboardVisible = false
-    private var lastKnownKeyboardHeight = 0
-    private var keyboardDetectorView: View? = null
-    private var keyboardDetectorParams: WindowManager.LayoutParams? = null
+
+    // Default keyboard height estimate (280dp is typical keyboard height)
+    private val defaultKeyboardHeight: Int
+        get() = (280 * resources.displayMetrics.density).toInt()
 
     // Handler for UI updates
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -104,16 +107,54 @@ class KeyboardCompanionService : LifecycleService() {
         DebugLog.i("KeyboardCompanionService: Starting foreground service")
         startForeground(NOTIFICATION_ID, createNotification())
 
-        // Create the keyboard detector overlay
-        createKeyboardDetector()
+        // Register for keyboard visibility updates from AccessibilityService
+        setupKeyboardVisibilityListener()
 
         return START_STICKY
+    }
+
+    /**
+     * Sets up keyboard visibility listener using AccessibilityService.
+     * This is more reliable than overlay-based detection since overlays
+     * don't participate in window insets.
+     */
+    private fun setupKeyboardVisibilityListener() {
+        Log.i(TAG, "Setting up keyboard visibility listener via AccessibilityService")
+        DebugLog.i("KeyboardCompanionService: Setting up keyboard listener")
+
+        DictationAccessibilityService.onKeyboardVisibilityChanged = { isVisible ->
+            Log.i(TAG, "Keyboard visibility callback: $isVisible")
+            DebugLog.i("KeyboardCompanionService: Keyboard visible=$isVisible")
+
+            mainHandler.post {
+                if (isVisible != isKeyboardVisible) {
+                    isKeyboardVisible = isVisible
+                    if (isVisible) {
+                        showCompanionBar(defaultKeyboardHeight)
+                    } else {
+                        hideCompanionBar()
+                    }
+                }
+            }
+        }
+
+        // Also check current state if accessibility service is already running
+        if (DictationAccessibilityService.isServiceRunning()) {
+            Log.i(TAG, "AccessibilityService already running - checking initial state")
+            DebugLog.i("KeyboardCompanionService: AccessibilityService active")
+        } else {
+            Log.w(TAG, "AccessibilityService not running - keyboard detection may not work")
+            DebugLog.w("KeyboardCompanionService: AccessibilityService NOT running!")
+        }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         Log.i(TAG, "KeyboardCompanionService onDestroy")
         DebugLog.i("KeyboardCompanionService: Service destroyed")
+
+        // Unregister keyboard visibility listener
+        DictationAccessibilityService.onKeyboardVisibilityChanged = null
 
         // Unregister screen lock receiver
         screenLockReceiver?.let { receiver ->
@@ -127,7 +168,6 @@ class KeyboardCompanionService : LifecycleService() {
         screenLockReceiver = null
 
         removeCompanionBar()
-        removeKeyboardDetector()
         instance = null
     }
 
@@ -169,125 +209,6 @@ class KeyboardCompanionService : LifecycleService() {
             registerReceiver(screenLockReceiver, filter)
         }
         Log.i(TAG, "Screen lock receiver registered")
-    }
-
-    /**
-     * Creates an invisible overlay view that we use to detect keyboard visibility.
-     * This works by using ViewTreeObserver to monitor layout changes and WindowInsets
-     * to determine when the IME (keyboard) is visible.
-     */
-    @SuppressLint("ClickableViewAccessibility")
-    private fun createKeyboardDetector() {
-        if (keyboardDetectorView != null) {
-            Log.d(TAG, "Keyboard detector already exists")
-            return
-        }
-
-        Log.i(TAG, "Creating keyboard detector overlay")
-        DebugLog.d("KeyboardCompanionService: Creating keyboard detector")
-
-        // Create an invisible view that spans the full screen
-        keyboardDetectorView = View(this).apply {
-            // Make it invisible but still able to receive layout events
-            setBackgroundColor(Color.TRANSPARENT)
-        }
-
-        // Create layout params for the detector view
-        keyboardDetectorParams = WindowManager.LayoutParams(
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.MATCH_PARENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                    WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-                    WindowManager.LayoutParams.FLAG_LAYOUT_INSET_DECOR,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.START
-            // Make it not interfere with touches
-            alpha = 0f
-        }
-
-        try {
-            windowManager.addView(keyboardDetectorView, keyboardDetectorParams)
-
-            // Set up the keyboard visibility listener using ViewTreeObserver
-            keyboardDetectorView?.viewTreeObserver?.addOnGlobalLayoutListener(
-                object : ViewTreeObserver.OnGlobalLayoutListener {
-                    private val visibleRect = Rect()
-                    private var lastLogTime = 0L
-
-                    override fun onGlobalLayout() {
-                        val view = keyboardDetectorView ?: return
-
-                        // Get the visible display frame
-                        view.getWindowVisibleDisplayFrame(visibleRect)
-
-                        // Get the actual screen height from display metrics (more reliable for overlays)
-                        val displayMetrics = resources.displayMetrics
-                        val screenHeight = displayMetrics.heightPixels
-
-                        // Calculate keyboard height
-                        val keyboardHeight = screenHeight - visibleRect.bottom
-
-                        // Log periodically for debugging (every 2 seconds)
-                        val now = System.currentTimeMillis()
-                        if (now - lastLogTime > 2000) {
-                            lastLogTime = now
-                            Log.d(TAG, "Keyboard detector: screenHeight=$screenHeight, visibleBottom=${visibleRect.bottom}, keyboardHeight=$keyboardHeight")
-                            DebugLog.d("KeyboardCompanionService: screen=$screenHeight, visible=${visibleRect.bottom}, kbd=$keyboardHeight")
-                        }
-
-                        // Consider keyboard visible if height is significant (> 150dp typically)
-                        val minKeyboardHeight = (150 * displayMetrics.density).toInt()
-                        val keyboardNowVisible = keyboardHeight > minKeyboardHeight
-
-                        if (keyboardNowVisible != isKeyboardVisible) {
-                            isKeyboardVisible = keyboardNowVisible
-                            lastKnownKeyboardHeight = if (keyboardNowVisible) keyboardHeight else 0
-
-                            Log.i(TAG, "Keyboard visibility changed: visible=$isKeyboardVisible, height=$keyboardHeight")
-                            DebugLog.i("KeyboardCompanionService: Keyboard visible=$isKeyboardVisible, height=$keyboardHeight")
-
-                            mainHandler.post {
-                                if (isKeyboardVisible) {
-                                    showCompanionBar(keyboardHeight)
-                                } else {
-                                    hideCompanionBar()
-                                }
-                            }
-                        } else if (keyboardNowVisible && keyboardHeight != lastKnownKeyboardHeight) {
-                            // Keyboard height changed (e.g., suggestions row appeared/disappeared)
-                            lastKnownKeyboardHeight = keyboardHeight
-                            mainHandler.post {
-                                updateCompanionBarPosition(keyboardHeight)
-                            }
-                        }
-                    }
-                }
-            )
-
-            Log.i(TAG, "Keyboard detector created successfully")
-            DebugLog.i("KeyboardCompanionService: Keyboard detector ready")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to create keyboard detector", e)
-            DebugLog.e("KeyboardCompanionService: Failed to create detector - ${e.message}")
-        }
-    }
-
-    /**
-     * Removes the keyboard detector overlay.
-     */
-    private fun removeKeyboardDetector() {
-        keyboardDetectorView?.let { view ->
-            try {
-                windowManager.removeView(view)
-                Log.i(TAG, "Keyboard detector removed")
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to remove keyboard detector", e)
-            }
-        }
-        keyboardDetectorView = null
     }
 
     /**
