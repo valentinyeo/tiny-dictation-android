@@ -52,6 +52,10 @@
     <string name="keyboard_enable_desc">Enable keyboard for direct text input (works better in terminal apps)</string>
     <string name="keyboard_bubble_title">Show Keyboard Bubble</string>
     <string name="keyboard_bubble_desc">Show button to switch keyboards</string>
+    <string name="keyboard_theme_title">Keyboard Theme</string>
+    <string name="keyboard_theme_system">System (Auto)</string>
+    <string name="keyboard_theme_light">Light</string>
+    <string name="keyboard_theme_dark">Dark</string>
 
     <!-- Debug -->
     <string name="debug_title">Debug</string>

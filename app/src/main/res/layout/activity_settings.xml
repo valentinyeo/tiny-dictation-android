@@ -1010,6 +1010,23 @@
                         android:visibility="gone"
                         style="@style/Widget.Material3.Button.TonalButton" />
 
+                    <!-- Keyboard Theme Dropdown -->
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/tilKeyboardTheme"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="16dp"
+                        android:hint="@string/keyboard_theme_title"
+                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu">
+
+                        <AutoCompleteTextView
+                            android:id="@+id/actvKeyboardTheme"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:inputType="none" />
+
+                    </com.google.android.material.textfield.TextInputLayout>
+
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>

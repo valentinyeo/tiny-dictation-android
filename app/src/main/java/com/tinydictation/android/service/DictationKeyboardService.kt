@@ -3,6 +3,10 @@ package com.tinydictation.android.service
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.RippleDrawable
 import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
@@ -14,6 +18,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.R
@@ -90,6 +95,7 @@ class DictationKeyboardService : InputMethodService() {
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
 
             setupButtonHandlers()
+            applyTheme()
             updateMicButton()
             updateLanguageButton()
 
@@ -101,6 +107,93 @@ class DictationKeyboardService : InputMethodService() {
                 text = "Tiny Dictation Keyboard"
                 setPadding(16, 16, 16, 16)
                 textSize = 16f
+            }
+        }
+    }
+
+    /**
+     * Applies the selected theme colors to the keyboard.
+     */
+    private fun applyTheme() {
+        val prefs = PreferenceManager(this)
+        val themeSetting = prefs.getKeyboardTheme()
+
+        // Determine if we should use dark theme
+        val useDarkTheme = when (themeSetting) {
+            PreferenceManager.THEME_LIGHT -> false
+            PreferenceManager.THEME_DARK -> true
+            else -> { // THEME_SYSTEM
+                val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+
+        // Define colors based on theme
+        val backgroundColor: Int
+        val buttonColor: Int
+        val iconColor: Int
+
+        if (useDarkTheme) {
+            // Dark theme - use existing dark colors from colors.xml
+            backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
+            buttonColor = ContextCompat.getColor(this, R.color.surface)
+            iconColor = ContextCompat.getColor(this, R.color.on_surface)
+        } else {
+            // Light theme - white background, gray buttons, black icons
+            backgroundColor = Color.parseColor("#F5F5F5")
+            buttonColor = Color.parseColor("#E0E0E0")
+            iconColor = Color.parseColor("#1C1B1F")
+        }
+
+        // Apply background color to root layout
+        (keyboardView as? LinearLayout)?.setBackgroundColor(backgroundColor)
+
+        // Apply button and icon colors to all buttons
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboardMic), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
+
+        // Apply text color to language text
+        languageText?.setTextColor(iconColor)
+
+        // Apply text color to "All" button text
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.let { button ->
+            val textView = button.getChildAt(0) as? TextView
+            textView?.setTextColor(iconColor)
+        }
+
+        DebugLog.d("DictationKeyboardService: Applied theme - dark=$useDarkTheme")
+    }
+
+    /**
+     * Applies theme colors to a button.
+     */
+    private fun applyButtonTheme(button: FrameLayout?, buttonColor: Int, iconColor: Int) {
+        button ?: return
+
+        // Create new background drawable with themed color
+        val backgroundDrawable = GradientDrawable().apply {
+            setColor(buttonColor)
+            cornerRadius = 12 * resources.displayMetrics.density
+        }
+
+        // Wrap in ripple for touch feedback
+        val rippleDrawable = RippleDrawable(
+            android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
+            backgroundDrawable,
+            null
+        )
+        button.background = rippleDrawable
+
+        // Apply icon tint to ImageView children
+        for (i in 0 until button.childCount) {
+            val child = button.getChildAt(i)
+            if (child is ImageView) {
+                child.setColorFilter(iconColor)
             }
         }
     }
@@ -215,9 +308,33 @@ class DictationKeyboardService : InputMethodService() {
         val color = if (isRecording) {
             ContextCompat.getColor(this, R.color.bubble_recording)
         } else {
-            ContextCompat.getColor(this, R.color.on_surface)
+            // Use themed icon color when not recording
+            getThemedIconColor()
         }
         micIcon?.setColorFilter(color)
+    }
+
+    /**
+     * Gets the appropriate icon color based on the current theme setting.
+     */
+    private fun getThemedIconColor(): Int {
+        val prefs = PreferenceManager(this)
+        val themeSetting = prefs.getKeyboardTheme()
+
+        val useDarkTheme = when (themeSetting) {
+            PreferenceManager.THEME_LIGHT -> false
+            PreferenceManager.THEME_DARK -> true
+            else -> { // THEME_SYSTEM
+                val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
+
+        return if (useDarkTheme) {
+            ContextCompat.getColor(this, R.color.on_surface)
+        } else {
+            Color.parseColor("#1C1B1F")
+        }
     }
 
     private fun updateLanguageButton() {

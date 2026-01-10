@@ -1,9 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Keyboard bar layout for Tiny Dictation IME.
-     Buttons: Mic, Language, Backspace, Select All, Paste, Enter
+     Buttons: Switch Back, Mic, Language | Backspace, Enter, Paste, All
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/keyboardContainer"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
@@ -13,11 +14,29 @@
     android:background="@color/surface_variant"
     android:minHeight="64dp">
 
+    <!-- Switch back to previous keyboard (small chevron) -->
+    <FrameLayout
+        android:id="@+id/btnSwitchBack"
+        android:layout_width="36dp"
+        android:layout_height="48dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Switch to previous keyboard">
+
+        <ImageView
+            android:id="@+id/ivSwitchBack"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_chevron_down"
+            app:tint="@color/on_surface" />
+    </FrameLayout>
+
     <!-- Mic button - toggle dictation (long press = settings) -->
     <FrameLayout
         android:id="@+id/btnKeyboardMic"
         android:layout_width="48dp"
         android:layout_height="48dp"
+        android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
         android:contentDescription="Toggle dictation">
 
@@ -66,6 +85,7 @@
         android:contentDescription="Backspace">
 
         <ImageView
+            android:id="@+id/ivBackspace"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
@@ -83,6 +103,7 @@
         android:contentDescription="Enter">
 
         <ImageView
+            android:id="@+id/ivEnter"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
@@ -100,6 +121,7 @@
         android:contentDescription="Paste">
 
         <ImageView
+            android:id="@+id/ivPaste"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
@@ -117,6 +139,7 @@
         android:contentDescription="Select all">
 
         <TextView
+            android:id="@+id/tvSelectAll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
@@ -124,23 +147,6 @@
             android:textSize="12sp"
             android:textColor="@color/on_surface"
             android:textStyle="bold" />
-    </FrameLayout>
-
-    <!-- Switch back to previous keyboard -->
-    <FrameLayout
-        android:id="@+id/btnSwitchBack"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Switch to previous keyboard">
-
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_keyboard_return"
-            app:tint="@color/on_surface" />
     </FrameLayout>
 
 </LinearLayout>

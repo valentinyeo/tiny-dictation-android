@@ -33,6 +33,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_NOTE_APP_PACKAGE = "note_app_package"
         private const val KEY_SIMULATE_TYPING = "simulate_typing"
         private const val KEY_HIDE_BUBBLES = "hide_bubbles"
+        private const val KEY_KEYBOARD_THEME = "keyboard_theme"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -52,6 +53,11 @@ class PreferenceManager(context: Context) {
         const val WHISPER_BASE = "whisper-base"
         const val WHISPER_SMALL = "whisper-small"
         const val DEFAULT_WHISPER_MODEL = WHISPER_TINY
+
+        // Keyboard theme constants
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
     }
 
     private val prefs: SharedPreferences
@@ -427,5 +433,23 @@ class PreferenceManager(context: Context) {
      */
     fun setHideBubbles(hidden: Boolean) {
         prefs.edit().putBoolean(KEY_HIDE_BUBBLES, hidden).apply()
+    }
+
+    // ========== Keyboard Theme ==========
+
+    /**
+     * Gets the keyboard theme setting.
+     * @return Theme ID ("system", "light", or "dark")
+     */
+    fun getKeyboardTheme(): String {
+        return prefs.getString(KEY_KEYBOARD_THEME, THEME_SYSTEM) ?: THEME_SYSTEM
+    }
+
+    /**
+     * Sets the keyboard theme.
+     * @param theme Theme ID (system, light, dark)
+     */
+    fun setKeyboardTheme(theme: String) {
+        prefs.edit().putString(KEY_KEYBOARD_THEME, theme).apply()
     }
 }

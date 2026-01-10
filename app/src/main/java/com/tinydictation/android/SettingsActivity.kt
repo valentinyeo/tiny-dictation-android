@@ -53,6 +53,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.23:
+            • Moved switch-back button to left side with small chevron icon
+            • New button order: Chevron, Mic, Lang | Backspace, Enter, Paste, All
+
+            v1.9.22:
+            • Added keyboard theme setting: System (Auto), Light, or Dark
+            • Keyboard appearance now matches your preference
+            • Light theme: white background, gray buttons, black icons
+            • Mic button still turns red when recording regardless of theme
+
             v1.9.21:
             • Fixed keyboard insets so apps resize content properly
             • PWA and web apps should no longer be hidden behind keyboard
@@ -356,6 +366,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var btnSelectNoteApp: MaterialButton
     private lateinit var keyboardBubbleSwitch: MaterialSwitch
     private lateinit var btnSetupKeyboard: MaterialButton
+    private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var shareDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
@@ -589,6 +600,7 @@ class SettingsActivity : AppCompatActivity() {
         btnSelectNoteApp = findViewById(R.id.btnSelectNoteApp)
         keyboardBubbleSwitch = findViewById(R.id.switchKeyboardBubble)
         btnSetupKeyboard = findViewById(R.id.btnSetupKeyboard)
+        keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         shareDebugLogButton = findViewById(R.id.btnShareDebugLog)
         saveButton = findViewById(R.id.btnSave)
@@ -630,6 +642,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Setup engine dropdown
         setupEngineDropdown()
+
+        // Setup keyboard theme dropdown
+        setupKeyboardThemeDropdown()
     }
 
     private fun toggleChangelog() {
@@ -707,6 +722,36 @@ class SettingsActivity : AppCompatActivity() {
                 preferenceManager.setTranscriptionEngine(selectedValue)
                 DebugLog.i("Engine changed to: $selectedValue")
             }
+        }
+    }
+
+    private fun setupKeyboardThemeDropdown() {
+        // Theme options: display name to preference value
+        val themes = listOf(
+            getString(R.string.keyboard_theme_system) to PreferenceManager.THEME_SYSTEM,
+            getString(R.string.keyboard_theme_light) to PreferenceManager.THEME_LIGHT,
+            getString(R.string.keyboard_theme_dark) to PreferenceManager.THEME_DARK
+        )
+
+        val displayNames = themes.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        keyboardThemeDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentTheme = preferenceManager.getKeyboardTheme()
+        val currentIndex = themes.indexOfFirst { it.second == currentTheme }
+        if (currentIndex >= 0) {
+            keyboardThemeDropdown.setText(displayNames[currentIndex], false)
+        } else {
+            // Default to System
+            keyboardThemeDropdown.setText(displayNames[0], false)
+        }
+
+        // Handle selection changes - apply immediately
+        keyboardThemeDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedValue = themes[position].second
+            preferenceManager.setKeyboardTheme(selectedValue)
+            DebugLog.i("Keyboard theme changed to: $selectedValue")
         }
     }
 
