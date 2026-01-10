@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Keyboard bar layout for Tiny Dictation IME.
-     Buttons: Chevron (far left) | All, Paste, Backspace, Enter, Mic, Language (right-aligned)
+     Buttons: Chevron (far left) | Language, Mic, Enter, Backspace, Paste, All (right-aligned)
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -37,59 +37,41 @@
         android:layout_height="1dp"
         android:layout_weight="1" />
 
-    <!-- Select All button -->
+    <!-- Language switch button -->
     <FrameLayout
-        android:id="@+id/btnSelectAll"
+        android:id="@+id/btnLanguage"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Select all">
+        android:contentDescription="Switch language">
 
         <TextView
-            android:id="@+id/tvSelectAll"
+            android:id="@+id/tvLanguage"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="All"
-            android:textSize="12sp"
+            android:text="EN"
+            android:textSize="14sp"
             android:textColor="@color/on_surface"
             android:textStyle="bold" />
     </FrameLayout>
 
-    <!-- Paste button -->
+    <!-- Mic button - toggle dictation (long press = settings) -->
     <FrameLayout
-        android:id="@+id/btnPaste"
+        android:id="@+id/btnKeyboardMic"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Paste">
+        android:contentDescription="Toggle dictation">
 
         <ImageView
-            android:id="@+id/ivPaste"
+            android:id="@+id/ivKeyboardMic"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_paste"
-            app:tint="@color/on_surface" />
-    </FrameLayout>
-
-    <!-- Backspace button -->
-    <FrameLayout
-        android:id="@+id/btnBackspace"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:layout_marginStart="6dp"
-        android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Backspace">
-
-        <ImageView
-            android:id="@+id/ivBackspace"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_backspace"
+            android:src="@drawable/ic_mic"
             app:tint="@color/on_surface" />
     </FrameLayout>
 
@@ -111,40 +93,58 @@
             app:tint="@color/on_surface" />
     </FrameLayout>
 
-    <!-- Mic button - toggle dictation (long press = settings) -->
+    <!-- Backspace button -->
     <FrameLayout
-        android:id="@+id/btnKeyboardMic"
+        android:id="@+id/btnBackspace"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Toggle dictation">
+        android:contentDescription="Backspace">
 
         <ImageView
-            android:id="@+id/ivKeyboardMic"
+            android:id="@+id/ivBackspace"
             android:layout_width="24dp"
             android:layout_height="24dp"
             android:layout_gravity="center"
-            android:src="@drawable/ic_mic"
+            android:src="@drawable/ic_backspace"
             app:tint="@color/on_surface" />
     </FrameLayout>
 
-    <!-- Language switch button - FAR RIGHT -->
+    <!-- Paste button -->
     <FrameLayout
-        android:id="@+id/btnLanguage"
+        android:id="@+id/btnPaste"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Switch language">
+        android:contentDescription="Paste">
+
+        <ImageView
+            android:id="@+id/ivPaste"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_paste"
+            app:tint="@color/on_surface" />
+    </FrameLayout>
+
+    <!-- Select All button -->
+    <FrameLayout
+        android:id="@+id/btnSelectAll"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Select all">
 
         <TextView
-            android:id="@+id/tvLanguage"
+            android:id="@+id/tvSelectAll"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:text="EN"
-            android:textSize="14sp"
+            android:text="All"
+            android:textSize="12sp"
             android:textColor="@color/on_surface"
             android:textStyle="bold" />
     </FrameLayout>

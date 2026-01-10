@@ -54,6 +54,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.9:
+            • Reordered keyboard buttons for better ergonomics
+            • New order: Chevron | Language, Mic, Enter, Backspace, Paste, All
+
             v1.10.8:
             • Enhanced backspace button hold behavior
             • Hold to delete: starts slow, accelerates over 1.5 seconds
