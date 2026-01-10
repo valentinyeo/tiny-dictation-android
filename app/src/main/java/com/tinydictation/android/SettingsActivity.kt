@@ -54,6 +54,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.12:
+            • Added proper Select All icon to keyboard bar
+            • Icon shows nested rectangles with dashed selection border
+            • Matches the visual style of other keyboard icons
+
             v1.10.11:
             • Fixed mutual exclusivity between dictation modes
             • Companion bar now hides when Tiny Dictation keyboard opens
