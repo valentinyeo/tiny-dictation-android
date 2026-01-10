@@ -3,6 +3,7 @@ package com.tinydictation.android
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -12,12 +13,14 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.tinydictation.android.history.TranscriptionEntry
 import com.tinydictation.android.history.TranscriptionHistoryManager
+import com.tinydictation.android.service.DictationKeyboardService
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -161,19 +164,18 @@ class HistoryActivity : AppCompatActivity() {
             .map { it.text }
 
         if (selectedTexts.isNotEmpty()) {
-            val combinedText = selectedTexts.joinToString("\n\n")
+            // Join with newlines between items
+            val combinedText = selectedTexts.joinToString("\n")
+
+            // Copy to clipboard
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Transcriptions", combinedText)
             clipboard.setPrimaryClip(clip)
 
-            val count = selectedTexts.size
-            Toast.makeText(
-                this,
-                resources.getQuantityString(R.plurals.history_copied_count, count, count),
-                Toast.LENGTH_SHORT
-            ).show()
+            // Send text to keyboard service to paste into current text field
+            pasteViaKeyboard(combinedText)
 
-            // Close after copying selected items
+            // Close after pasting selected items
             finish()
         }
     }
@@ -199,12 +201,28 @@ class HistoryActivity : AppCompatActivity() {
     }
 
     private fun copyToClipboardAndClose(entry: TranscriptionEntry) {
+        val text = entry.text
+
+        // Copy to clipboard
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Transcription", entry.text)
+        val clip = ClipData.newPlainText("Transcription", text)
         clipboard.setPrimaryClip(clip)
-        Toast.makeText(this, R.string.history_copied, Toast.LENGTH_SHORT).show()
+
+        // Send text to keyboard service to paste into current text field
+        pasteViaKeyboard(text)
+
         // Close immediately after copying for quick workflow
         finish()
+    }
+
+    /**
+     * Sends text to DictationKeyboardService to paste into the current text field.
+     */
+    private fun pasteViaKeyboard(text: String) {
+        val intent = Intent(DictationKeyboardService.ACTION_PASTE_TEXT).apply {
+            putExtra(DictationKeyboardService.EXTRA_TEXT, text)
+        }
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
     /**

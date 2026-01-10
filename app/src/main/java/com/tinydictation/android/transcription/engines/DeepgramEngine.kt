@@ -6,6 +6,7 @@ import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.transcription.DeepgramClient
 import com.tinydictation.android.transcription.TranscriptionEngine
 import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,9 +32,18 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private val audioRecorder = AudioRecorder()
     private var scope: CoroutineScope? = null
     private var currentLanguage = "en"
+    private var currentModel = PreferenceManager.DEEPGRAM_NOVA_2
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
     private var onErrorCallback: ((String) -> Unit)? = null
     private var isSessionActive = false
+
+    /**
+     * Sets the Deepgram model to use.
+     */
+    fun setModel(model: String) {
+        currentModel = model
+        Log.i(TAG, "DeepgramEngine: Model set to $model")
+    }
 
     override suspend fun isReady(context: Context, language: String): Boolean {
         // Deepgram is always ready if we have an API key
@@ -58,8 +68,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             return
         }
 
-        Log.i(TAG, "DeepgramEngine starting session (language=$currentLanguage)")
-        DebugLog.i("DeepgramEngine: Starting session")
+        Log.i(TAG, "DeepgramEngine starting session (language=$currentLanguage, model=$currentModel)")
+        DebugLog.i("DeepgramEngine: Starting session (model=$currentModel)")
 
         onTranscriptCallback = onTranscript
         onErrorCallback = onError
@@ -79,7 +89,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                     DebugLog.e("DeepgramEngine: Error - $error")
                     onErrorCallback?.invoke(error)
                 },
-                language = currentLanguage
+                language = currentLanguage,
+                model = currentModel
             )
         }
     }
@@ -126,11 +137,20 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                         onInterim = { text -> transcript(text, false) },
                         onFinal = { text -> transcript(text, true) },
                         onError = { err -> error(err) },
-                        language = currentLanguage
+                        language = currentLanguage,
+                        model = currentModel
                     )
                 }
             }
         }
+    }
+
+    /**
+     * Enable auto language detection (only supported by nova-3).
+     */
+    fun setAutoDetectLanguage(enabled: Boolean) {
+        currentLanguage = if (enabled && currentModel == PreferenceManager.DEEPGRAM_NOVA_3) "auto" else "en"
+        Log.i(TAG, "DeepgramEngine: Auto-detect language = $enabled (actual: $currentLanguage)")
     }
 
     override fun getSupportedLanguages(): List<String> {

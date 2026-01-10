@@ -32,6 +32,7 @@ import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
 import com.tinydictation.android.service.DictationKeyboardService
@@ -56,6 +57,14 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.0:
+            • NEW: Multiple cloud providers - choose Deepgram, Groq, or OpenAI
+            • Model selection for each provider (nova-3, whisper-large-v3, gpt-4o-transcribe, etc.)
+            • Auto language detection toggle for supported providers/models
+            • Improved paste UX: tap history item to paste, long-press for multi-select
+            • Reduced clipboard toasts - only copies when pasting from history
+            • Language button hides when auto-detect is enabled
+
             v1.10.28:
             • Fixed keyboard overlaying regular apps (WhatsApp, chat apps)
             • Reverted problematic PWA inset fix that broke normal apps
@@ -565,6 +574,17 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var engineDropdown: AutoCompleteTextView
     private lateinit var autoFallbackSwitch: MaterialSwitch
 
+    // Cloud provider/model selection
+    private lateinit var cloudProviderDropdown: AutoCompleteTextView
+    private lateinit var cloudModelDropdown: AutoCompleteTextView
+    private lateinit var tilApiKey: TextInputLayout
+    private lateinit var tilGroqApiKey: TextInputLayout
+    private lateinit var groqApiKeyInput: TextInputEditText
+    private lateinit var tilOpenAIApiKey: TextInputLayout
+    private lateinit var openAIApiKeyInput: TextInputEditText
+    private lateinit var layoutAutoDetect: LinearLayout
+    private lateinit var autoDetectSwitch: MaterialSwitch
+
     // Dictation mode selection
     private lateinit var dictationModeDropdown: AutoCompleteTextView
     private lateinit var barOrientationDropdown: AutoCompleteTextView
@@ -819,6 +839,17 @@ class SettingsActivity : AppCompatActivity() {
         engineDropdown = findViewById(R.id.actvEngine)
         autoFallbackSwitch = findViewById(R.id.switchAutoFallback)
 
+        // Cloud provider/model views
+        cloudProviderDropdown = findViewById(R.id.actvCloudProvider)
+        cloudModelDropdown = findViewById(R.id.actvCloudModel)
+        tilApiKey = findViewById(R.id.tilApiKey)
+        tilGroqApiKey = findViewById(R.id.tilGroqApiKey)
+        groqApiKeyInput = findViewById(R.id.etGroqApiKey)
+        tilOpenAIApiKey = findViewById(R.id.tilOpenAIApiKey)
+        openAIApiKeyInput = findViewById(R.id.etOpenAIApiKey)
+        layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
+        autoDetectSwitch = findViewById(R.id.switchAutoDetect)
+
         // Model download views
         tvVoskEnStatus = findViewById(R.id.tvVoskEnStatus)
         tvVoskDeStatus = findViewById(R.id.tvVoskDeStatus)
@@ -835,6 +866,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Setup engine dropdown
         setupEngineDropdown()
+
+        // Setup cloud provider dropdown
+        setupCloudProviderDropdown()
 
         // Setup dictation mode dropdown
         dictationModeDropdown = findViewById(R.id.actvDictationMode)
@@ -929,6 +963,118 @@ class SettingsActivity : AppCompatActivity() {
                 DebugLog.i("Engine changed to: $selectedValue")
             }
         }
+    }
+
+    private fun setupCloudProviderDropdown() {
+        // Provider options
+        val providers = listOf(
+            "Deepgram" to PreferenceManager.PROVIDER_DEEPGRAM,
+            "Groq (Whisper)" to PreferenceManager.PROVIDER_GROQ,
+            "OpenAI" to PreferenceManager.PROVIDER_OPENAI
+        )
+
+        val displayNames = providers.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        cloudProviderDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentProvider = preferenceManager.getCloudProvider()
+        val currentIndex = providers.indexOfFirst { it.second == currentProvider }
+        if (currentIndex >= 0) {
+            cloudProviderDropdown.setText(displayNames[currentIndex], false)
+        } else {
+            cloudProviderDropdown.setText(displayNames[0], false)
+        }
+
+        // Update model dropdown and API key visibility based on provider
+        updateCloudModelDropdown(currentProvider)
+        updateApiKeyVisibility(currentProvider)
+        updateAutoDetectVisibility()
+
+        // Handle selection changes
+        cloudProviderDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedProvider = providers[position].second
+            preferenceManager.setCloudProvider(selectedProvider)
+            updateCloudModelDropdown(selectedProvider)
+            updateApiKeyVisibility(selectedProvider)
+            updateAutoDetectVisibility()
+            DebugLog.i("Cloud provider changed to: $selectedProvider")
+        }
+
+        // Setup auto-detect switch
+        autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
+        autoDetectSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoDetectLanguage(isChecked)
+            DebugLog.i("Auto-detect language: $isChecked")
+        }
+
+        // Load saved API keys
+        preferenceManager.getGroqApiKey()?.let { groqApiKeyInput.setText(it) }
+        preferenceManager.getOpenAIApiKey()?.let { openAIApiKeyInput.setText(it) }
+    }
+
+    private fun updateCloudModelDropdown(provider: String) {
+        val models = when (provider) {
+            PreferenceManager.PROVIDER_DEEPGRAM -> listOf(
+                "nova-3 (Best)" to PreferenceManager.DEEPGRAM_NOVA_3,
+                "nova-2 (Default)" to PreferenceManager.DEEPGRAM_NOVA_2,
+                "enhanced" to PreferenceManager.DEEPGRAM_ENHANCED,
+                "base (Cheapest)" to PreferenceManager.DEEPGRAM_BASE
+            )
+            PreferenceManager.PROVIDER_GROQ -> listOf(
+                "whisper-large-v3 (Best)" to PreferenceManager.GROQ_WHISPER_LARGE_V3,
+                "whisper-large-v3-turbo (Faster)" to PreferenceManager.GROQ_WHISPER_LARGE_V3_TURBO,
+                "distil-whisper (English only)" to PreferenceManager.GROQ_DISTIL_WHISPER
+            )
+            PreferenceManager.PROVIDER_OPENAI -> listOf(
+                "gpt-4o-transcribe (Best)" to PreferenceManager.OPENAI_GPT4O_TRANSCRIBE,
+                "gpt-4o-mini-transcribe (Cheaper)" to PreferenceManager.OPENAI_GPT4O_MINI,
+                "whisper-1 (Original)" to PreferenceManager.OPENAI_WHISPER_1
+            )
+            else -> emptyList()
+        }
+
+        val displayNames = models.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        cloudModelDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentModel = when (provider) {
+            PreferenceManager.PROVIDER_DEEPGRAM -> preferenceManager.getDeepgramModel()
+            PreferenceManager.PROVIDER_GROQ -> preferenceManager.getGroqModel()
+            PreferenceManager.PROVIDER_OPENAI -> preferenceManager.getOpenAIModel()
+            else -> ""
+        }
+        val currentIndex = models.indexOfFirst { it.second == currentModel }
+        if (currentIndex >= 0) {
+            cloudModelDropdown.setText(displayNames[currentIndex], false)
+        } else if (models.isNotEmpty()) {
+            cloudModelDropdown.setText(displayNames[0], false)
+        }
+
+        // Handle selection changes
+        cloudModelDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedModel = models[position].second
+            when (provider) {
+                PreferenceManager.PROVIDER_DEEPGRAM -> preferenceManager.setDeepgramModel(selectedModel)
+                PreferenceManager.PROVIDER_GROQ -> preferenceManager.setGroqModel(selectedModel)
+                PreferenceManager.PROVIDER_OPENAI -> preferenceManager.setOpenAIModel(selectedModel)
+            }
+            updateAutoDetectVisibility()
+            DebugLog.i("Cloud model changed to: $selectedModel")
+        }
+    }
+
+    private fun updateApiKeyVisibility(provider: String) {
+        tilApiKey.visibility = if (provider == PreferenceManager.PROVIDER_DEEPGRAM) View.VISIBLE else View.GONE
+        tilGroqApiKey.visibility = if (provider == PreferenceManager.PROVIDER_GROQ) View.VISIBLE else View.GONE
+        tilOpenAIApiKey.visibility = if (provider == PreferenceManager.PROVIDER_OPENAI) View.VISIBLE else View.GONE
+    }
+
+    private fun updateAutoDetectVisibility() {
+        // Show auto-detect option only for providers/models that support it
+        val supportsAutoDetect = preferenceManager.currentProviderSupportsAutoDetect()
+        layoutAutoDetect.visibility = if (supportsAutoDetect) View.VISIBLE else View.GONE
     }
 
     private fun setupKeyboardThemeDropdown() {
@@ -1388,17 +1534,49 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val apiKey = apiKeyInput.text?.toString()?.trim()
+        val groqApiKey = groqApiKeyInput.text?.toString()?.trim()
+        val openAIApiKey = openAIApiKeyInput.text?.toString()?.trim()
 
-        // API key only required for Deepgram (cloud) engine
+        // API key validation based on selected cloud provider
         val engine = preferenceManager.getTranscriptionEngine()
-        if (engine == PreferenceManager.ENGINE_DEEPGRAM && apiKey.isNullOrEmpty()) {
-            apiKeyInput.error = "API key is required for Deepgram"
-            return
+        val cloudProvider = preferenceManager.getCloudProvider()
+
+        if (engine == PreferenceManager.ENGINE_DEEPGRAM) {
+            when (cloudProvider) {
+                PreferenceManager.PROVIDER_DEEPGRAM -> {
+                    if (apiKey.isNullOrEmpty()) {
+                        apiKeyInput.error = "API key is required for Deepgram"
+                        return
+                    }
+                }
+                PreferenceManager.PROVIDER_GROQ -> {
+                    if (groqApiKey.isNullOrEmpty()) {
+                        groqApiKeyInput.error = "API key is required for Groq"
+                        return
+                    }
+                }
+                PreferenceManager.PROVIDER_OPENAI -> {
+                    if (openAIApiKey.isNullOrEmpty()) {
+                        openAIApiKeyInput.error = "API key is required for OpenAI"
+                        return
+                    }
+                }
+            }
         }
 
-        // Save API key if provided
+        // Save Deepgram API key if provided
         if (!apiKey.isNullOrEmpty()) {
             preferenceManager.setApiKey(apiKey)
+        }
+
+        // Save Groq API key if provided
+        if (!groqApiKey.isNullOrEmpty()) {
+            preferenceManager.setGroqApiKey(groqApiKey)
+        }
+
+        // Save OpenAI API key if provided
+        if (!openAIApiKey.isNullOrEmpty()) {
+            preferenceManager.setOpenAIApiKey(openAIApiKey)
         }
 
         // Save auto-punctuation

@@ -149,10 +149,8 @@ class BubbleService : LifecycleService() {
                     injectText(text + " ")
                     // Also add to paste buffer for manual paste option
                     appendToBuffer(text)
-                    // Copy updated buffer to clipboard so it always has latest transcription
-                    copyBufferToClipboard()
-                    // Note: History is saved when user taps clipboard, not on every transcript
-                    // This prevents fragmented history entries
+                    // Note: Clipboard copy now only happens when user explicitly
+                    // pastes from history to avoid Android 13+ toast on every segment
                 }
             },
             onError = { error ->

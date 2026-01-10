@@ -10,6 +10,8 @@ import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.transcription.engines.DeepgramEngine
+import com.tinydictation.android.transcription.engines.GroqEngine
+import com.tinydictation.android.transcription.engines.OpenAIEngine
 import com.tinydictation.android.transcription.engines.SherpaOnnxEngine
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.util.AudioFocusManager
@@ -247,9 +249,15 @@ class TranscriptionManager(
 
         Log.d(TAG, "Preferred engine: $preferredEngineId, autoFallback: $autoFallback, whisperModel: $whisperModel")
 
-        // If preferred is Deepgram and auto-fallback is enabled, check connectivity
-        if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM && autoFallback) {
-            if (!isNetworkAvailable(ctx)) {
+        // Handle cloud providers (Deepgram is the engine ID for all cloud providers)
+        if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM) {
+            val cloudProvider = preferenceManager.getCloudProvider()
+            val autoDetect = preferenceManager.getAutoDetectLanguage()
+
+            Log.d(TAG, "Cloud provider: $cloudProvider, autoDetect: $autoDetect")
+
+            // If auto-fallback is enabled, check connectivity
+            if (autoFallback && !isNetworkAvailable(ctx)) {
                 Log.i(TAG, "No network, attempting fallback to offline engine")
                 DebugLog.i("TranscriptionManager: No network, falling back to offline")
 
@@ -262,40 +270,70 @@ class TranscriptionManager(
                 // Try Sherpa-ONNX with selected Whisper model
                 val sherpaEngine = engines[PreferenceManager.ENGINE_SHERPA_ONNX]
                 if (sherpaEngine != null && sherpaEngine.isReady(ctx, whisperModel)) {
-                    // Set the model for Sherpa-ONNX
                     (sherpaEngine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
                     return sherpaEngine
                 }
 
-                // No offline engine available
                 Log.w(TAG, "No offline models available for fallback")
                 DebugLog.w("TranscriptionManager: No offline models available")
             }
+
+            // Select cloud provider
+            return when (cloudProvider) {
+                PreferenceManager.PROVIDER_GROQ -> {
+                    val groqApiKey = preferenceManager.getGroqApiKey()
+                    if (groqApiKey.isNullOrBlank()) {
+                        Log.e(TAG, "Groq selected but no API key")
+                        return null
+                    }
+                    val engine = GroqEngine(groqApiKey)
+                    engine.setModel(preferenceManager.getGroqModel())
+                    if (autoDetect) engine.setAutoDetectLanguage(true)
+                    Log.i(TAG, "Using Groq engine with model ${preferenceManager.getGroqModel()}")
+                    engine
+                }
+                PreferenceManager.PROVIDER_OPENAI -> {
+                    val openaiApiKey = preferenceManager.getOpenAIApiKey()
+                    if (openaiApiKey.isNullOrBlank()) {
+                        Log.e(TAG, "OpenAI selected but no API key")
+                        return null
+                    }
+                    val engine = OpenAIEngine(openaiApiKey)
+                    engine.setModel(preferenceManager.getOpenAIModel())
+                    if (autoDetect) engine.setAutoDetectLanguage(true)
+                    Log.i(TAG, "Using OpenAI engine with model ${preferenceManager.getOpenAIModel()}")
+                    engine
+                }
+                else -> {
+                    // Default to Deepgram
+                    if (apiKey.isBlank()) {
+                        Log.e(TAG, "Deepgram selected but no API key")
+                        return null
+                    }
+                    val engine = engines[PreferenceManager.ENGINE_DEEPGRAM] as? DeepgramEngine
+                    engine?.setModel(preferenceManager.getDeepgramModel())
+                    if (autoDetect) engine?.setAutoDetectLanguage(true)
+                    Log.i(TAG, "Using Deepgram engine with model ${preferenceManager.getDeepgramModel()}")
+                    engine
+                }
+            }
         }
 
-        // Use preferred engine
+        // Use preferred offline engine
         val engine = engines[preferredEngineId]
 
         // For Sherpa-ONNX (Whisper), set the selected model variant
         if (preferredEngineId == PreferenceManager.ENGINE_SHERPA_ONNX) {
             (engine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
-            // Check if the selected Whisper model is ready
             if (engine != null && !engine.isReady(ctx, whisperModel)) {
                 Log.e(TAG, "Whisper model $whisperModel not downloaded")
                 return null
             }
         } else if (engine != null && !engine.requiresInternet) {
-            // For other offline engines (Vosk), check if model is ready
             if (!engine.isReady(ctx, currentLanguage)) {
                 Log.e(TAG, "Offline engine not ready (model not downloaded)")
                 return null
             }
-        }
-
-        // For Deepgram, check API key
-        if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM && apiKey.isBlank()) {
-            Log.e(TAG, "Deepgram selected but no API key")
-            return null
         }
 
         return engine

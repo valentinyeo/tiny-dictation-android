@@ -28,8 +28,7 @@ class DeepgramClient {
 
         /** Base query parameters for transcription - optimized for low latency */
         private const val BASE_PARAMS =
-            "model=nova-2" +
-            "&encoding=linear16" +
+            "encoding=linear16" +
             "&sample_rate=16000" +
             "&channels=1" +
             "&smart_format=true" +
@@ -37,9 +36,17 @@ class DeepgramClient {
             "&interim_results=true" +
             "&endpointing=150"  // Reduced from 300ms for faster finals
 
-        /** Builds params with specified language */
-        fun buildParams(language: String = "en"): String =
-            "language=$language&$BASE_PARAMS"
+        /** Builds params with specified language and model */
+        fun buildParams(language: String = "en", model: String = "nova-2"): String {
+            val params = StringBuilder()
+            params.append("model=$model")
+            params.append("&$BASE_PARAMS")
+            // Nova-3 can auto-detect language if language is "auto"
+            if (language != "auto") {
+                params.append("&language=$language")
+            }
+            return params.toString()
+        }
 
         /** Connection timeout in seconds */
         private const val CONNECT_TIMEOUT_SECONDS = 10L
@@ -69,14 +76,16 @@ class DeepgramClient {
      * @param onInterim Callback for interim (partial) transcription results
      * @param onFinal Callback for final transcription results
      * @param onError Callback for error messages
-     * @param language Language code ("en" for English, "de" for German)
+     * @param language Language code ("en" for English, "de" for German, "auto" for auto-detect)
+     * @param model Deepgram model ("nova-3", "nova-2", "enhanced", "base")
      */
     fun connect(
         apiKey: String,
         onInterim: (String) -> Unit,
         onFinal: (String) -> Unit,
         onError: (String) -> Unit,
-        language: String = "en"
+        language: String = "en",
+        model: String = "nova-2"
     ) {
         if (isConnected) {
             Log.d(TAG, "DeepgramClient already connected")
@@ -108,9 +117,9 @@ class DeepgramClient {
                 .build()
             okHttpClient = client
 
-            val params = buildParams(language)
+            val params = buildParams(language, model)
             val url = "$BASE_URL?$params"
-            Log.d(TAG, "Deepgram URL: $url (language=$language)")
+            Log.d(TAG, "Deepgram URL: $url (language=$language, model=$model)")
 
             val request = Request.Builder()
                 .url(url)

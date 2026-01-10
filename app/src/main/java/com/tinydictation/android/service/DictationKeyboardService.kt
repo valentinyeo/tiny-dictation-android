@@ -1,9 +1,11 @@
 package com.tinydictation.android.service
 
 import android.animation.ObjectAnimator
+import android.content.BroadcastReceiver
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -24,6 +26,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
@@ -41,6 +44,10 @@ class DictationKeyboardService : InputMethodService() {
     companion object {
         private const val TAG = "TinyDictation"
         private const val LONG_PRESS_THRESHOLD = 500L
+
+        /** Broadcast action for pasting text from HistoryActivity */
+        const val ACTION_PASTE_TEXT = "com.tinydictation.ACTION_PASTE_TEXT"
+        const val EXTRA_TEXT = "text"
 
         @Volatile
         private var instance: DictationKeyboardService? = null
@@ -60,6 +67,14 @@ class DictationKeyboardService : InputMethodService() {
         fun canCommitText(): Boolean {
             return instance?.currentInputConnection != null
         }
+
+        /**
+         * Pastes text into the current input field.
+         * Called from HistoryActivity via broadcast receiver.
+         */
+        fun pasteText(text: String): Boolean {
+            return instance?.commitTextInternal(text) ?: false
+        }
     }
 
     private var keyboardView: View? = null
@@ -69,6 +84,20 @@ class DictationKeyboardService : InputMethodService() {
 
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
+
+    // Broadcast receiver for paste requests from HistoryActivity
+    private val pasteTextReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == ACTION_PASTE_TEXT) {
+                val text = intent.getStringExtra(EXTRA_TEXT)
+                if (!text.isNullOrEmpty()) {
+                    Log.i(TAG, "Received paste request: ${text.take(50)}...")
+                    DebugLog.i("DictationKeyboardService: Pasting ${text.length} chars from history")
+                    commitTextInternal(text)
+                }
+            }
+        }
+    }
 
     // Long press handling for mic button
     private var longPressHandler: Handler? = null
@@ -133,11 +162,19 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService onCreate")
         DebugLog.i("DictationKeyboardService: Service created")
         instance = this
+
+        // Register broadcast receiver for paste requests from HistoryActivity
+        val filter = IntentFilter(ACTION_PASTE_TEXT)
+        LocalBroadcastManager.getInstance(this).registerReceiver(pasteTextReceiver, filter)
     }
 
     override fun onDestroy() {
         Log.i(TAG, "DictationKeyboardService onDestroy")
         DebugLog.i("DictationKeyboardService: Service destroyed")
+
+        // Unregister broadcast receiver
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
+
         instance = null
         longPressHandler?.removeCallbacksAndMessages(null)
         isBackspaceHeld = false
@@ -297,13 +334,13 @@ class DictationKeyboardService : InputMethodService() {
             selectAll()
         }
 
-        // Paste button - short press paste, long press opens history
+        // Paste button - short press opens history, long press pastes from clipboard
         keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.let { btnPaste ->
             btnPaste.setOnClickListener {
-                pasteFromClipboard()
+                openTranscriptionHistory()
             }
             btnPaste.setOnLongClickListener {
-                openTranscriptionHistory()
+                pasteFromClipboard()
                 true
             }
         }
@@ -468,8 +505,18 @@ class DictationKeyboardService : InputMethodService() {
 
     private fun updateLanguageButton() {
         val prefs = PreferenceManager(this)
-        val lang = prefs.getLanguage().uppercase()
-        languageText?.text = lang
+        val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
+
+        // Hide language button if auto-detect is enabled and the provider supports it
+        val autoDetectEnabled = prefs.getAutoDetectLanguage() && prefs.currentProviderSupportsAutoDetect()
+        if (autoDetectEnabled) {
+            languageButton?.visibility = View.GONE
+            DebugLog.d("DictationKeyboardService: Language button hidden (auto-detect enabled)")
+        } else {
+            languageButton?.visibility = View.VISIBLE
+            val lang = prefs.getLanguage().uppercase()
+            languageText?.text = lang
+        }
     }
 
     /**

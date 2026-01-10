@@ -71,6 +71,36 @@ class PreferenceManager(context: Context) {
         // Bar orientation constants
         const val ORIENTATION_VERTICAL = "vertical"
         const val ORIENTATION_HORIZONTAL = "horizontal"
+
+        // Cloud provider constants
+        const val PROVIDER_DEEPGRAM = "deepgram"
+        const val PROVIDER_GROQ = "groq"
+        const val PROVIDER_OPENAI = "openai"
+
+        // Deepgram model constants
+        const val DEEPGRAM_NOVA_3 = "nova-3"
+        const val DEEPGRAM_NOVA_2 = "nova-2"
+        const val DEEPGRAM_ENHANCED = "enhanced"
+        const val DEEPGRAM_BASE = "base"
+
+        // Groq model constants
+        const val GROQ_WHISPER_LARGE_V3 = "whisper-large-v3"
+        const val GROQ_WHISPER_LARGE_V3_TURBO = "whisper-large-v3-turbo"
+        const val GROQ_DISTIL_WHISPER = "distil-whisper-large-v3-en"
+
+        // OpenAI model constants
+        const val OPENAI_GPT4O_TRANSCRIBE = "gpt-4o-transcribe"
+        const val OPENAI_GPT4O_MINI = "gpt-4o-mini-transcribe"
+        const val OPENAI_WHISPER_1 = "whisper-1"
+
+        // New preference keys for multi-provider support
+        private const val KEY_GROQ_API_KEY = "groq_api_key"
+        private const val KEY_OPENAI_API_KEY = "openai_api_key"
+        private const val KEY_CLOUD_PROVIDER = "cloud_provider"
+        private const val KEY_DEEPGRAM_MODEL = "deepgram_model"
+        private const val KEY_GROQ_MODEL = "groq_model"
+        private const val KEY_OPENAI_MODEL = "openai_model"
+        private const val KEY_AUTO_DETECT_LANGUAGE = "auto_detect_language"
     }
 
     private val prefs: SharedPreferences
@@ -538,5 +568,157 @@ class PreferenceManager(context: Context) {
      */
     fun setBarTransparency(value: Float) {
         prefs.edit().putFloat(KEY_BAR_TRANSPARENCY, value.coerceIn(0f, 50f)).apply()
+    }
+
+    // ========== Cloud Provider ==========
+
+    /**
+     * Gets the selected cloud transcription provider.
+     * @return Provider ID ("deepgram", "groq", or "openai")
+     */
+    fun getCloudProvider(): String {
+        return prefs.getString(KEY_CLOUD_PROVIDER, PROVIDER_DEEPGRAM) ?: PROVIDER_DEEPGRAM
+    }
+
+    /**
+     * Sets the cloud transcription provider.
+     * @param provider Provider ID
+     */
+    fun setCloudProvider(provider: String) {
+        prefs.edit().putString(KEY_CLOUD_PROVIDER, provider).apply()
+    }
+
+    // ========== Groq API Key ==========
+
+    /**
+     * Gets the stored Groq API key.
+     * @return The API key, or null if not set
+     */
+    fun getGroqApiKey(): String? {
+        return prefs.getString(KEY_GROQ_API_KEY, null)
+    }
+
+    /**
+     * Sets the Groq API key.
+     * @param key The API key to store
+     */
+    fun setGroqApiKey(key: String) {
+        prefs.edit().putString(KEY_GROQ_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if a Groq API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasGroqApiKey(): Boolean {
+        return !getGroqApiKey().isNullOrBlank()
+    }
+
+    // ========== OpenAI API Key ==========
+
+    /**
+     * Gets the stored OpenAI API key.
+     * @return The API key, or null if not set
+     */
+    fun getOpenAIApiKey(): String? {
+        return prefs.getString(KEY_OPENAI_API_KEY, null)
+    }
+
+    /**
+     * Sets the OpenAI API key.
+     * @param key The API key to store
+     */
+    fun setOpenAIApiKey(key: String) {
+        prefs.edit().putString(KEY_OPENAI_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if an OpenAI API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasOpenAIApiKey(): Boolean {
+        return !getOpenAIApiKey().isNullOrBlank()
+    }
+
+    // ========== Provider Model Selection ==========
+
+    /**
+     * Gets the selected Deepgram model.
+     * @return Model ID ("nova-3", "nova-2", "enhanced", or "base")
+     */
+    fun getDeepgramModel(): String {
+        return prefs.getString(KEY_DEEPGRAM_MODEL, DEEPGRAM_NOVA_2) ?: DEEPGRAM_NOVA_2
+    }
+
+    /**
+     * Sets the Deepgram model.
+     * @param model Model ID
+     */
+    fun setDeepgramModel(model: String) {
+        prefs.edit().putString(KEY_DEEPGRAM_MODEL, model).apply()
+    }
+
+    /**
+     * Gets the selected Groq model.
+     * @return Model ID
+     */
+    fun getGroqModel(): String {
+        return prefs.getString(KEY_GROQ_MODEL, GROQ_WHISPER_LARGE_V3_TURBO) ?: GROQ_WHISPER_LARGE_V3_TURBO
+    }
+
+    /**
+     * Sets the Groq model.
+     * @param model Model ID
+     */
+    fun setGroqModel(model: String) {
+        prefs.edit().putString(KEY_GROQ_MODEL, model).apply()
+    }
+
+    /**
+     * Gets the selected OpenAI model.
+     * @return Model ID
+     */
+    fun getOpenAIModel(): String {
+        return prefs.getString(KEY_OPENAI_MODEL, OPENAI_GPT4O_TRANSCRIBE) ?: OPENAI_GPT4O_TRANSCRIBE
+    }
+
+    /**
+     * Sets the OpenAI model.
+     * @param model Model ID
+     */
+    fun setOpenAIModel(model: String) {
+        prefs.edit().putString(KEY_OPENAI_MODEL, model).apply()
+    }
+
+    // ========== Auto-Detect Language ==========
+
+    /**
+     * Gets whether auto language detection is enabled.
+     * When enabled, the transcription service will detect the language automatically.
+     * @return true if auto-detect is enabled
+     */
+    fun getAutoDetectLanguage(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_DETECT_LANGUAGE, false)
+    }
+
+    /**
+     * Sets whether to auto-detect language.
+     * @param enabled true to enable auto-detection
+     */
+    fun setAutoDetectLanguage(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_DETECT_LANGUAGE, enabled).apply()
+    }
+
+    /**
+     * Checks if the current provider/model combination supports automatic language detection.
+     * @return true if auto-detect is supported
+     */
+    fun currentProviderSupportsAutoDetect(): Boolean {
+        return when (getCloudProvider()) {
+            PROVIDER_GROQ -> true  // All Whisper models support auto-detect
+            PROVIDER_OPENAI -> true  // All OpenAI models support auto-detect
+            PROVIDER_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
+            else -> false
+        }
     }
 }
