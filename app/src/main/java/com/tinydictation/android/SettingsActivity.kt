@@ -60,6 +60,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.17:
+            • SIMPLIFY: Removed "Type instead of paste" toggle
+            • Keyboard always types directly - setting no longer needed
+
             v1.11.16:
             • SIMPLIFY: Removed paste button from keyboard
             • Text is typed directly - no clipboard needed
@@ -633,7 +637,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var headphoneMicSwitch: MaterialSwitch
     private lateinit var tvMicSourceStatus: TextView
-    private lateinit var simulateTypingSwitch: MaterialSwitch
     private lateinit var pauseMediaSwitch: MaterialSwitch
 
     // Audio device detection
@@ -891,7 +894,6 @@ class SettingsActivity : AppCompatActivity() {
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
         tvMicSourceStatus = findViewById(R.id.tvMicSourceStatus)
-        simulateTypingSwitch = findViewById(R.id.switchSimulateTyping)
         pauseMediaSwitch = findViewById(R.id.switchPauseMedia)
         btnSetupKeyboard = findViewById(R.id.btnSetupKeyboard)
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
@@ -1447,9 +1449,6 @@ class SettingsActivity : AppCompatActivity() {
         // Load headphone mic setting
         headphoneMicSwitch.isChecked = preferenceManager.getUseHeadphoneMic()
 
-        // Load simulate typing setting
-        simulateTypingSwitch.isChecked = preferenceManager.getSimulateTyping()
-
         // Load pause media during dictation setting
         pauseMediaSwitch.isChecked = preferenceManager.getPauseMediaDuringDictation()
 
@@ -1557,12 +1556,6 @@ class SettingsActivity : AppCompatActivity() {
             preferenceManager.setUseHeadphoneMic(isChecked)
             updateMicSourceStatus()
             DebugLog.i("Headphone mic setting changed to: $isChecked")
-        }
-
-        // Simulate typing toggle applies immediately
-        simulateTypingSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setSimulateTyping(isChecked)
-            DebugLog.i("Simulate typing setting changed to: $isChecked")
         }
 
         // Pause media toggle applies immediately
