@@ -57,6 +57,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.7:
+            • FIX: Keyboard bar visibility - ensure bar shows on startup
+            • Added explicit visibility control and error protection for emoji picker
+            • Added debug logging for keyboard initialization
+
             v1.11.6:
             • NEW: Unified provider dropdown - cloud and offline providers in one place
             • Model selection adapts to provider (shows download status for offline)

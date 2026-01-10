@@ -305,8 +305,23 @@ class DictationKeyboardService : InputMethodService() {
             keyboardBar = keyboardView?.findViewById(R.id.keyboardBar)
             emojiPickerPanel = keyboardView?.findViewById(R.id.emojiPickerPanel)
 
+            Log.i(TAG, "DictationKeyboardService: keyboardBar=${keyboardBar != null}, emojiPanel=${emojiPickerPanel != null}")
+
+            // Ensure keyboard bar is visible and emoji picker is hidden initially
+            keyboardBar?.visibility = View.VISIBLE
+            emojiPickerPanel?.visibility = View.GONE
+            isEmojiPickerVisible = false
+
             setupButtonHandlers()
-            setupEmojiPicker()
+
+            // Setup emoji picker in its own try-catch to prevent it from breaking the keyboard
+            try {
+                setupEmojiPicker()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error setting up emoji picker", e)
+                DebugLog.e("DictationKeyboardService: Emoji picker setup failed - ${e.message}")
+            }
+
             applyTheme()
             updateMicButton()
             updateLanguageButton()
