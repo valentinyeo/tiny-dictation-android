@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.5:
+            • Re-enabled Keyboard Companion mode
+            • Companion bar sits above your keyboard (between text and keyboard)
+            • Appears automatically when any keyboard opens
+            • Contains Mic, Language, and Keyboard switch buttons
+
             v1.10.4:
             • Fixed keyboard icon colors staying constant on press
             • Icons no longer change color when buttons are pressed/active
@@ -600,20 +606,19 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // Start the appropriate service based on mode
-        var mode = preferenceManager.getDictationMode()
-
-        // Migrate companion mode users to bubble mode with horizontal orientation
-        if (mode == PreferenceManager.MODE_COMPANION) {
-            Log.i(TAG, "Migrating companion mode to bubble mode with horizontal orientation")
-            preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
-            preferenceManager.setBarOrientation(PreferenceManager.ORIENTATION_HORIZONTAL)
-            mode = PreferenceManager.MODE_BUBBLE
-        }
+        val mode = preferenceManager.getDictationMode()
 
         when (mode) {
             PreferenceManager.MODE_BUBBLE -> {
                 BubbleService.start(this)
                 Log.i(TAG, "BubbleService started")
+            }
+            PreferenceManager.MODE_COMPANION -> {
+                // Start KeyboardCompanionService which shows bar above keyboard
+                KeyboardCompanionService.start(this)
+                // Also start BubbleService for transcription (without UI)
+                BubbleService.start(this)
+                Log.i(TAG, "KeyboardCompanionService started")
             }
             PreferenceManager.MODE_KEYBOARD -> {
                 // For keyboard mode, DictationKeyboardService is activated by the system as IME
@@ -846,9 +851,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupDictationModeDropdown() {
         // Mode options: display name to preference value
-        // Note: Keyboard Companion mode has been removed in favor of horizontal bar orientation
         val modes = listOf(
             "Floating Bubble" to PreferenceManager.MODE_BUBBLE,
+            "Keyboard Companion" to PreferenceManager.MODE_COMPANION,
             "Full Keyboard (IME)" to PreferenceManager.MODE_KEYBOARD
         )
 
@@ -941,15 +946,11 @@ class SettingsActivity : AppCompatActivity() {
                         Toast.makeText(this, "Enable Tiny Dictation keyboard in settings", Toast.LENGTH_LONG).show()
                     }
                     PreferenceManager.MODE_COMPANION -> {
-                        // Legacy: migrate companion mode users to bubble mode with horizontal orientation
-                        Log.i(TAG, "Migrating from companion mode to bubble mode with horizontal orientation")
-                        preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
-                        preferenceManager.setBarOrientation(PreferenceManager.ORIENTATION_HORIZONTAL)
+                        // Start KeyboardCompanionService for companion mode
+                        KeyboardCompanionService.start(this)
+                        // Also start BubbleService in background for transcription (without UI)
                         BubbleService.start(this)
-                        Toast.makeText(this, "Companion mode replaced by horizontal bubble bar", Toast.LENGTH_LONG).show()
-                        // Refresh the dropdown to show bubble mode
-                        setupDictationModeDropdown()
-                        setupBarOrientationDropdown()
+                        Toast.makeText(this, "Keyboard companion mode active - bar appears with keyboard", Toast.LENGTH_LONG).show()
                     }
                 }
             }

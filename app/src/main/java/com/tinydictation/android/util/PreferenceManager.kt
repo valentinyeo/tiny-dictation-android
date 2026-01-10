@@ -64,7 +64,7 @@ class PreferenceManager(context: Context) {
 
         // Dictation mode constants
         const val MODE_BUBBLE = "bubble"              // Floating bubble (default)
-        const val MODE_COMPANION = "companion"        // Keyboard companion bar (deprecated)
+        const val MODE_COMPANION = "companion"        // Keyboard companion bar (above system keyboard)
         const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard
 
         // Bar orientation constants

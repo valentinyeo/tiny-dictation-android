@@ -215,6 +215,7 @@ class KeyboardCompanionService : LifecycleService() {
             keyboardDetectorView?.viewTreeObserver?.addOnGlobalLayoutListener(
                 object : ViewTreeObserver.OnGlobalLayoutListener {
                     private val visibleRect = Rect()
+                    private var lastLogTime = 0L
 
                     override fun onGlobalLayout() {
                         val view = keyboardDetectorView ?: return
@@ -222,22 +223,31 @@ class KeyboardCompanionService : LifecycleService() {
                         // Get the visible display frame
                         view.getWindowVisibleDisplayFrame(visibleRect)
 
-                        // Get the actual screen height
-                        val screenHeight = view.rootView.height
+                        // Get the actual screen height from display metrics (more reliable for overlays)
+                        val displayMetrics = resources.displayMetrics
+                        val screenHeight = displayMetrics.heightPixels
 
                         // Calculate keyboard height
                         val keyboardHeight = screenHeight - visibleRect.bottom
 
+                        // Log periodically for debugging (every 2 seconds)
+                        val now = System.currentTimeMillis()
+                        if (now - lastLogTime > 2000) {
+                            lastLogTime = now
+                            Log.d(TAG, "Keyboard detector: screenHeight=$screenHeight, visibleBottom=${visibleRect.bottom}, keyboardHeight=$keyboardHeight")
+                            DebugLog.d("KeyboardCompanionService: screen=$screenHeight, visible=${visibleRect.bottom}, kbd=$keyboardHeight")
+                        }
+
                         // Consider keyboard visible if height is significant (> 150dp typically)
-                        val minKeyboardHeight = (150 * resources.displayMetrics.density).toInt()
+                        val minKeyboardHeight = (150 * displayMetrics.density).toInt()
                         val keyboardNowVisible = keyboardHeight > minKeyboardHeight
 
                         if (keyboardNowVisible != isKeyboardVisible) {
                             isKeyboardVisible = keyboardNowVisible
                             lastKnownKeyboardHeight = if (keyboardNowVisible) keyboardHeight else 0
 
-                            Log.d(TAG, "Keyboard visibility changed: visible=$isKeyboardVisible, height=$keyboardHeight")
-                            DebugLog.d("KeyboardCompanionService: Keyboard visible=$isKeyboardVisible, height=$keyboardHeight")
+                            Log.i(TAG, "Keyboard visibility changed: visible=$isKeyboardVisible, height=$keyboardHeight")
+                            DebugLog.i("KeyboardCompanionService: Keyboard visible=$isKeyboardVisible, height=$keyboardHeight")
 
                             mainHandler.post {
                                 if (isKeyboardVisible) {
@@ -286,8 +296,12 @@ class KeyboardCompanionService : LifecycleService() {
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun showCompanionBar(keyboardHeight: Int) {
+        Log.i(TAG, "showCompanionBar called with keyboardHeight=$keyboardHeight")
+        DebugLog.i("KeyboardCompanionService: showCompanionBar called, kbdHeight=$keyboardHeight")
+
         // Check if companion mode is the selected dictation mode
         val dictationMode = preferenceManager.getDictationMode()
+        Log.i(TAG, "Current dictation mode: $dictationMode")
         if (dictationMode != PreferenceManager.MODE_COMPANION) {
             Log.i(TAG, "Not showing companion bar - current mode is $dictationMode, not companion mode")
             DebugLog.i("KeyboardCompanionService: Not showing bar - mode is $dictationMode")
@@ -296,12 +310,13 @@ class KeyboardCompanionService : LifecycleService() {
 
         if (companionView != null) {
             // Already showing, just update position
+            Log.d(TAG, "Companion view already exists, updating position")
             updateCompanionBarPosition(keyboardHeight)
             return
         }
 
-        Log.i(TAG, "Showing companion bar above keyboard (height=$keyboardHeight)")
-        DebugLog.i("KeyboardCompanionService: Showing companion bar")
+        Log.i(TAG, "Creating companion bar above keyboard (height=$keyboardHeight)")
+        DebugLog.i("KeyboardCompanionService: Creating companion bar")
 
         val inflater = LayoutInflater.from(this)
         companionView = inflater.inflate(R.layout.view_keyboard_companion, null)
