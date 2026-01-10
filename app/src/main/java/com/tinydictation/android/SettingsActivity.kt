@@ -56,6 +56,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.24:
+            • Added tiny version number display on keyboard bar
+            • Shows current version in bottom-right corner for dev/testing
+            • Super subtle: 7sp font, 50% opacity, doesn't affect button placement
+
             v1.10.23:
             • Removed redundant Start/Stop Dictation button from Settings
             • Users now control dictation from the floating bar or keyboard

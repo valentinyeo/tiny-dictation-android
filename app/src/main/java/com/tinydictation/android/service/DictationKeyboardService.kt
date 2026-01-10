@@ -12,6 +12,8 @@ import android.inputmethodservice.InputMethodService
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.content.pm.PackageManager
+import android.os.Build
 import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
@@ -159,6 +161,7 @@ class DictationKeyboardService : InputMethodService() {
             applyTheme()
             updateMicButton()
             updateLanguageButton()
+            setupVersionDisplay()
 
             keyboardView!!
         } catch (e: Exception) {
@@ -457,6 +460,27 @@ class DictationKeyboardService : InputMethodService() {
         val prefs = PreferenceManager(this)
         val lang = prefs.getLanguage().uppercase()
         languageText?.text = lang
+    }
+
+    /**
+     * Sets up the tiny version display in the corner of the keyboard.
+     * Shows version dynamically for dev/testing purposes.
+     */
+    private fun setupVersionDisplay() {
+        val versionText = keyboardView?.findViewById<TextView>(R.id.tvKeyboardVersion)
+        try {
+            val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                packageManager.getPackageInfo(packageName, PackageManager.PackageInfoFlags.of(0))
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0)
+            }
+            val versionName = packageInfo.versionName
+            versionText?.text = "v$versionName"
+        } catch (e: Exception) {
+            DebugLog.e("DictationKeyboardService: Failed to get version - ${e.message}")
+            versionText?.visibility = View.GONE
+        }
     }
 
     /**
