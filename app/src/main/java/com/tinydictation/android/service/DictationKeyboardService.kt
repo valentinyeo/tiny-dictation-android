@@ -358,8 +358,8 @@ class DictationKeyboardService : InputMethodService() {
             iconColor = Color.parseColor("#1C1B1F")
         }
 
-        // Apply background color to root layout
-        (keyboardView as? LinearLayout)?.setBackgroundColor(backgroundColor)
+        // Apply background color to keyboard bar (it's a LinearLayout within the FrameLayout root)
+        (keyboardBar as? LinearLayout)?.setBackgroundColor(backgroundColor)
 
         // Apply button and icon colors to all buttons
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboardMic), buttonColor, iconColor)

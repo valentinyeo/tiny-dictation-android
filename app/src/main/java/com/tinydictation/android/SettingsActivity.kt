@@ -57,6 +57,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.5:
+            • FIX: Keyboard bar no longer appears blank after emoji picker fix
+            • Fixed theme not applying to keyboard bar due to incorrect view cast
+
             v1.11.4:
             • FIX: Emoji picker no longer crashes the keyboard
             • Fixed view inflation issue by integrating picker into keyboard layout
