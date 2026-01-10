@@ -56,6 +56,15 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.25:
+            • Redesigned transcription history for thumb-zone accessibility
+            • Grid/tiles layout with smaller font - see more transcriptions at once
+            • Reversed order: oldest at top, newest at bottom (right under your thumb)
+            • Single tap any tile to copy and close - quick workflow
+            • Back button moved to floating FAB in bottom-right corner
+            • Long-press for multi-select, copy FAB appears above back button
+            • Removed toolbar for cleaner, more spacious layout
+
             v1.10.24:
             • Added tiny version number display on keyboard bar
             • Shows current version in bottom-right corner for dev/testing

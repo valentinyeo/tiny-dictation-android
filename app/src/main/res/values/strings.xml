@@ -85,6 +85,7 @@
     <string name="cancel">Cancel</string>
     <string name="clear_all">Clear All</string>
     <string name="view_history">History</string>
+    <string name="back">Back</string>
 
     <!-- Plurals for multi-select -->
     <plurals name="history_selected_count">

@@ -7,21 +7,6 @@
     android:fitsSystemWindows="true"
     tools:context=".HistoryActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:fitsSystemWindows="true">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="@string/history_title"
-            app:navigationIcon="?attr/homeAsUpIndicator"
-            app:menu="@menu/menu_history" />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
     <!-- Empty state -->
     <LinearLayout
         android:id="@+id/emptyState"
@@ -29,8 +14,7 @@
         android:layout_height="match_parent"
         android:orientation="vertical"
         android:gravity="center"
-        android:visibility="gone"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:visibility="gone">
 
         <ImageView
             android:layout_width="80dp"
@@ -61,7 +45,7 @@
 
     </LinearLayout>
 
-    <!-- History list -->
+    <!-- History grid - no toolbar, more space for tiles -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerView"
         android:layout_width="match_parent"
@@ -69,20 +53,43 @@
         android:clipToPadding="false"
         android:paddingTop="8dp"
         android:paddingBottom="88dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior"
+        android:paddingHorizontal="4dp"
         tools:listitem="@layout/item_history" />
 
-    <!-- FAB for copying selected items -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fabCopySelected"
+    <!-- FAB container in bottom-right for thumb-zone access -->
+    <LinearLayout
+        android:id="@+id/fabContainer"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom|end"
         android:layout_margin="16dp"
-        android:contentDescription="@string/history_copy_selected"
-        android:src="@drawable/ic_copy"
-        android:visibility="gone"
-        app:tint="?attr/colorOnPrimaryContainer"
-        app:backgroundTint="?attr/colorPrimaryContainer" />
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <!-- Copy FAB - shown when items selected -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabCopySelected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:contentDescription="@string/history_copy_selected"
+            android:src="@drawable/ic_copy"
+            android:visibility="gone"
+            app:tint="?attr/colorOnPrimaryContainer"
+            app:backgroundTint="?attr/colorPrimaryContainer"
+            app:fabSize="normal" />
+
+        <!-- Back FAB - always visible, thumb-zone back navigation -->
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fabBack"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:contentDescription="@string/back"
+            android:src="@drawable/ic_arrow_back"
+            app:tint="?attr/colorOnSecondaryContainer"
+            app:backgroundTint="?attr/colorSecondaryContainer"
+            app:fabSize="normal" />
+
+    </LinearLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
