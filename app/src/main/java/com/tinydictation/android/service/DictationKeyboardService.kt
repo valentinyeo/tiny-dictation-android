@@ -1,28 +1,36 @@
 package com.tinydictation.android.service
 
+import android.content.ClipboardManager
+import android.content.Context
 import android.inputmethodservice.InputMethodService
 import android.os.Build
 import android.util.Log
+import android.view.KeyEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.content.ContextCompat
 import com.tinydictation.android.R
 import com.tinydictation.android.util.DebugLog
 
 /**
  * Input Method Service (IME) for Tiny Dictation.
  *
- * This provides a zero-height keyboard that allows direct text input via InputConnection.
+ * This provides a keyboard bar with action buttons for dictation and text manipulation.
  * Benefits over accessibility-based text injection:
  * 1. Works in apps where accessibility paste doesn't work (e.g., terminal/CLI apps)
  * 2. Fewer button presses to transmit dictated text
  * 3. More reliable text insertion
  *
- * The keyboard view is intentionally minimal/invisible since dictation is controlled
- * via the floating bubble. A small button is shown to switch to other keyboards.
+ * Buttons:
+ * - Mic: Toggle dictation on/off
+ * - Select All: Select all text in the field
+ * - Paste: Paste from clipboard
+ * - Enter: Send enter/return key
+ * - Switch: Change to another keyboard
  */
 class DictationKeyboardService : InputMethodService() {
 
@@ -66,6 +74,8 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     private var keyboardView: View? = null
+    private var micButton: FrameLayout? = null
+    private var micIcon: ImageView? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -83,23 +93,24 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Creates the input view (keyboard view).
-     * We use a minimal/zero-height view since dictation is done via the floating bubble.
      */
     override fun onCreateInputView(): View {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
         return try {
-            // Inflate our minimal keyboard layout
+            // Inflate our keyboard layout
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
-            // Set up the keyboard switch button
-            keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchKeyboard)?.setOnClickListener {
-                showKeyboardSwitcher()
-            }
+            // Get references to views
+            micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
+            micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
 
-            // Set up status text to indicate dictation mode
-            updateStatusText()
+            // Set up button click handlers
+            setupButtonHandlers()
+
+            // Update mic button state
+            updateMicButton()
 
             keyboardView!!
         } catch (e: Exception) {
@@ -108,8 +119,122 @@ class DictationKeyboardService : InputMethodService() {
             // Return a simple fallback view
             TextView(this).apply {
                 text = "Tiny Dictation Keyboard"
-                setPadding(16, 8, 16, 8)
+                setPadding(16, 16, 16, 16)
+                textSize = 16f
             }
+        }
+    }
+
+    /**
+     * Sets up click handlers for all keyboard buttons.
+     */
+    private fun setupButtonHandlers() {
+        // Mic button - toggle dictation
+        keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboardMic)?.setOnClickListener {
+            toggleDictation()
+        }
+
+        // Select All button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.setOnClickListener {
+            selectAll()
+        }
+
+        // Paste button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.setOnClickListener {
+            pasteFromClipboard()
+        }
+
+        // Enter button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
+            sendEnterKey()
+        }
+
+        // Keyboard switch button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchKeyboard)?.setOnClickListener {
+            showKeyboardSwitcher()
+        }
+    }
+
+    /**
+     * Toggles dictation on/off via the BubbleService.
+     */
+    private fun toggleDictation() {
+        Log.i(TAG, "DictationKeyboardService: Toggle dictation")
+        DebugLog.i("DictationKeyboardService: Toggling dictation")
+
+        // Toggle via BubbleService
+        BubbleService.getInstance()?.let { service ->
+            // This will trigger the bubble tap behavior
+            service.toggleRecording()
+            updateMicButton()
+        } ?: run {
+            // If BubbleService isn't running, try to start it
+            Log.w(TAG, "BubbleService not running - starting it")
+            DebugLog.w("DictationKeyboardService: Starting BubbleService")
+            BubbleService.start(this)
+        }
+    }
+
+    /**
+     * Updates the mic button appearance based on recording state.
+     */
+    private fun updateMicButton() {
+        val isRecording = BubbleService.getInstance()?.isCurrentlyRecording() ?: false
+        val color = if (isRecording) {
+            ContextCompat.getColor(this, R.color.bubble_recording)
+        } else {
+            ContextCompat.getColor(this, R.color.primary)
+        }
+        micIcon?.setColorFilter(color)
+    }
+
+    /**
+     * Selects all text in the current input field.
+     */
+    private fun selectAll() {
+        Log.i(TAG, "DictationKeyboardService: Select all")
+        DebugLog.d("DictationKeyboardService: Selecting all text")
+
+        currentInputConnection?.let { ic ->
+            // Get the full text
+            val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
+            val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
+            val totalLength = before.length + after.length
+
+            // Select all by setting selection from 0 to end
+            ic.setSelection(0, totalLength)
+        }
+    }
+
+    /**
+     * Pastes text from the system clipboard.
+     */
+    private fun pasteFromClipboard() {
+        Log.i(TAG, "DictationKeyboardService: Paste")
+        DebugLog.d("DictationKeyboardService: Pasting from clipboard")
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = clipboard.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).coerceToText(this).toString()
+            if (text.isNotEmpty()) {
+                currentInputConnection?.commitText(text, 1)
+                Log.d(TAG, "Pasted ${text.length} characters")
+            }
+        }
+    }
+
+    /**
+     * Sends an Enter/Return key event.
+     */
+    private fun sendEnterKey() {
+        Log.i(TAG, "DictationKeyboardService: Enter key")
+        DebugLog.d("DictationKeyboardService: Sending enter key")
+
+        currentInputConnection?.let { ic ->
+            // Send key down and up events for Enter
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }
     }
 
@@ -121,7 +246,7 @@ class DictationKeyboardService : InputMethodService() {
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}, hint: ${info?.hintText}")
         DebugLog.d("DictationKeyboardService: Started input for field: ${info?.fieldName}")
 
-        updateStatusText()
+        updateMicButton()
     }
 
     /**
@@ -139,19 +264,6 @@ class DictationKeyboardService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
-    }
-
-    /**
-     * Updates the status text shown on the keyboard view.
-     */
-    private fun updateStatusText() {
-        val statusText = keyboardView?.findViewById<TextView>(R.id.tvKeyboardStatus)
-        val isListening = BubbleService.isRunning()
-        statusText?.text = if (isListening) {
-            "Dictation active - speak now"
-        } else {
-            "Tap bubble to start dictation"
-        }
     }
 
     /**
@@ -201,6 +313,6 @@ class DictationKeyboardService : InputMethodService() {
      * Called by BubbleService to refresh the keyboard status display.
      */
     fun refreshStatus() {
-        updateStatusText()
+        updateMicButton()
     }
 }

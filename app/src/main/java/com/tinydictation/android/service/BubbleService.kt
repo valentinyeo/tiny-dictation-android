@@ -1108,6 +1108,44 @@ class BubbleService : LifecycleService() {
         Log.d(TAG, "Bubble state changed: $currentState -> $newState")
         currentState = newState
         updateBubbleUI()
+        // Notify keyboard service to update its mic button
+        DictationKeyboardService.getInstance()?.refreshStatus()
+    }
+
+    /**
+     * Toggles recording on/off. Called from keyboard service.
+     */
+    fun toggleRecording() {
+        Log.d(TAG, "toggleRecording() called - current state: $currentState")
+        DebugLog.d("BubbleService: toggleRecording from keyboard")
+        lifecycleScope.launch {
+            when (currentState) {
+                BubbleState.IDLE -> {
+                    Log.i(TAG, "Starting listening from keyboard")
+                    DebugLog.i("BubbleService: Starting listening from keyboard")
+                    clearBuffer()
+                    updateState(BubbleState.LISTENING)
+                    onListeningStarted?.invoke()
+                }
+                BubbleState.LISTENING, BubbleState.RECORDING -> {
+                    Log.i(TAG, "Stopping listening from keyboard")
+                    DebugLog.i("BubbleService: Stopping listening from keyboard")
+                    updateState(BubbleState.IDLE)
+                    onListeningStopped?.invoke()
+                }
+                BubbleState.PROCESSING -> {
+                    Log.d(TAG, "Toggle ignored - currently processing")
+                    DebugLog.d("BubbleService: Toggle ignored (processing)")
+                }
+            }
+        }
+    }
+
+    /**
+     * Checks if currently recording/listening.
+     */
+    fun isCurrentlyRecording(): Boolean {
+        return currentState == BubbleState.LISTENING || currentState == BubbleState.RECORDING
     }
 
     /**

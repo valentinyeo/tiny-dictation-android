@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Minimal keyboard layout for Tiny Dictation IME.
-     This is intentionally compact since dictation is controlled via the floating bubble.
-     The keyboard just needs to:
-     1. Show status (dictation active or not)
-     2. Provide a button to switch to another keyboard
+<!-- Keyboard bar layout for Tiny Dictation IME.
+     Contains action buttons for common operations:
+     - Mic: Toggle dictation
+     - Select All: Select all text
+     - Paste: Paste from clipboard
+     - Enter: Send enter key
+     - Switch: Change to another keyboard
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -11,48 +13,103 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:padding="8dp"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="12dp"
     android:background="@color/surface_variant"
-    android:minHeight="48dp">
+    android:minHeight="80dp">
 
-    <!-- Mic icon to indicate this is a dictation keyboard -->
-    <ImageView
-        android:id="@+id/ivKeyboardMic"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:layout_marginEnd="8dp"
-        android:src="@drawable/ic_mic"
-        app:tint="@color/primary"
-        android:contentDescription="@string/app_name" />
+    <!-- Mic button - toggle dictation -->
+    <FrameLayout
+        android:id="@+id/btnKeyboardMic"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Toggle dictation">
 
-    <!-- Status text showing dictation state -->
-    <TextView
-        android:id="@+id/tvKeyboardStatus"
+        <ImageView
+            android:id="@+id/ivKeyboardMic"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_mic"
+            app:tint="@color/primary" />
+    </FrameLayout>
+
+    <!-- Spacer -->
+    <View
         android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:text="@string/keyboard_status_idle"
-        android:textColor="@color/text_secondary"
-        android:textSize="14sp"
-        android:ellipsize="end"
-        android:maxLines="1" />
+        android:layout_height="1dp"
+        android:layout_weight="1" />
 
-    <!-- Button to switch to another keyboard -->
+    <!-- Select All button -->
+    <FrameLayout
+        android:id="@+id/btnSelectAll"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Select all">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="All"
+            android:textSize="14sp"
+            android:textColor="@color/text_secondary"
+            android:textStyle="bold" />
+    </FrameLayout>
+
+    <!-- Paste button -->
+    <FrameLayout
+        android:id="@+id/btnPaste"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Paste">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_paste"
+            app:tint="@color/text_secondary" />
+    </FrameLayout>
+
+    <!-- Enter button -->
+    <FrameLayout
+        android:id="@+id/btnEnter"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Enter">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_enter"
+            app:tint="@color/text_secondary" />
+    </FrameLayout>
+
+    <!-- Keyboard switch button -->
     <FrameLayout
         android:id="@+id/btnSwitchKeyboard"
-        android:layout_width="40dp"
-        android:layout_height="40dp"
-        android:background="?attr/selectableItemBackgroundBorderless"
+        android:layout_width="56dp"
+        android:layout_height="56dp"
+        android:layout_marginStart="8dp"
+        android:background="@drawable/keyboard_button_background"
         android:contentDescription="@string/keyboard_switch_hint">
 
         <ImageView
             android:id="@+id/ivSwitchKeyboard"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_keyboard_switch"
             app:tint="@color/text_secondary" />
-
     </FrameLayout>
 
 </LinearLayout>

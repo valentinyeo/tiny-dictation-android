@@ -53,6 +53,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.15:
+            • Added keyboard action buttons: Enter, Select All, Paste, Switch Keyboard
+            • Larger keyboard bar with 56dp buttons for easier tapping
+            • Mic button on keyboard toggles dictation like the bubble
+            • Recording state syncs between bubble and keyboard
+
             v1.9.14:
             • Added error handling to keyboard service to prevent crashes
             • Better logging for keyboard initialization issues
