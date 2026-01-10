@@ -34,6 +34,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_SIMULATE_TYPING = "simulate_typing"
         private const val KEY_HIDE_BUBBLES = "hide_bubbles"
         private const val KEY_KEYBOARD_THEME = "keyboard_theme"
+        private const val KEY_DICTATION_MODE = "dictation_mode"
+        private const val KEY_PAUSE_MEDIA_DURING_DICTATION = "pause_media_during_dictation"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -58,6 +60,11 @@ class PreferenceManager(context: Context) {
         const val THEME_SYSTEM = "system"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+
+        // Dictation mode constants
+        const val MODE_BUBBLE = "bubble"              // Floating bubble (default)
+        const val MODE_COMPANION = "companion"        // Keyboard companion bar
+        const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard
     }
 
     private val prefs: SharedPreferences
@@ -451,5 +458,42 @@ class PreferenceManager(context: Context) {
      */
     fun setKeyboardTheme(theme: String) {
         prefs.edit().putString(KEY_KEYBOARD_THEME, theme).apply()
+    }
+
+    // ========== Dictation Mode ==========
+
+    /**
+     * Gets the dictation mode setting.
+     * @return Mode ID ("bubble", "companion", or "keyboard")
+     */
+    fun getDictationMode(): String {
+        return prefs.getString(KEY_DICTATION_MODE, MODE_BUBBLE) ?: MODE_BUBBLE
+    }
+
+    /**
+     * Sets the dictation mode.
+     * @param mode Mode ID (bubble, companion, keyboard)
+     */
+    fun setDictationMode(mode: String) {
+        prefs.edit().putString(KEY_DICTATION_MODE, mode).apply()
+    }
+
+    // ========== Pause Media During Dictation ==========
+
+    /**
+     * Gets whether to pause media playback during dictation.
+     * When enabled, requests audio focus which pauses other audio apps (YouTube, Spotify, etc.)
+     * @return true if media should be paused during dictation
+     */
+    fun getPauseMediaDuringDictation(): Boolean {
+        return prefs.getBoolean(KEY_PAUSE_MEDIA_DURING_DICTATION, true)
+    }
+
+    /**
+     * Sets whether to pause media playback during dictation.
+     * @param enabled true to pause media during dictation
+     */
+    fun setPauseMediaDuringDictation(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PAUSE_MEDIA_DURING_DICTATION, enabled).apply()
     }
 }

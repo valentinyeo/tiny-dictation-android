@@ -1,12 +1,9 @@
 package com.tinydictation.android.service
 
 import android.annotation.SuppressLint
-import android.app.KeyguardManager
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
-import android.content.ClipData
-import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -29,11 +26,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
 import androidx.lifecycle.lifecycleScope
 import com.tinydictation.android.HistoryActivity
-import com.tinydictation.android.MainActivity
 import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
-import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
@@ -58,11 +53,8 @@ class BubbleService : LifecycleService() {
     private var currentState: BubbleState = BubbleState.IDLE
     private var currentLanguage: String = "en"  // "en" or "de"
 
-    // Text buffer for paste functionality
+    // Text buffer for transcription
     private val textBuffer = StringBuilder()
-
-    // Clipboard state: false = copy mode, true = paste mode (ready to paste)
-    private var isPasteMode = false
 
     // Compact/translucent mode
     private var isCompactMode = false
@@ -113,7 +105,7 @@ class BubbleService : LifecycleService() {
         // Register preference listener for bubble visibility changes
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "show_language_bubble" || key == "show_paste_bubble" || key == "show_note_bubble" || key == "show_keyboard_bubble") {
+            if (key == "show_language_bubble" || key == "show_keyboard_bubble") {
                 Log.i(TAG, "Preference changed: $key")
                 DebugLog.i("BubbleService: Preference changed: $key")
                 updateBubbleVisibility()
@@ -414,11 +406,20 @@ class BubbleService : LifecycleService() {
 
     /**
      * Creates and displays the floating bubble overlay.
+     * Only shows UI if bubble mode is selected or if specifically called with showUI=true.
      */
     @SuppressLint("ClickableViewAccessibility")
     private fun createBubble() {
         if (bubbleView != null) {
             Log.d(TAG, "Bubble already exists, skipping creation")
+            return
+        }
+
+        // Check if we should show the bubble UI based on dictation mode
+        val dictationMode = preferenceManager.getDictationMode()
+        if (dictationMode != PreferenceManager.MODE_BUBBLE) {
+            Log.i(TAG, "Skipping bubble UI creation - current mode is $dictationMode, not bubble mode")
+            DebugLog.i("BubbleService: Not creating bubble UI - mode is $dictationMode")
             return
         }
 
@@ -443,36 +444,17 @@ class BubbleService : LifecycleService() {
             y = 300  // A bit below the status bar
         }
 
-        // Main bubble touch handler (for mic)
+        // Main bubble touch handler (for mic) - handles tap, drag, and long-press
         bubbleView?.findViewById<FrameLayout>(R.id.bubbleContainer)?.setOnTouchListener { view, event ->
             handleTouch(view, event)
         }
 
-        // Language toggle click handler
-        bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.setOnClickListener {
+        // Language toggle click handler - now uses container for better touch target
+        bubbleView?.findViewById<FrameLayout>(R.id.languageButtonContainer)?.setOnClickListener {
             toggleLanguage()
         }
 
-        // Paste button click handler
-        // Tap: copy/paste toggle
-        // Long press: open history
-        bubbleView?.findViewById<TextView>(R.id.tvPasteButton)?.apply {
-            setOnClickListener {
-                handlePasteButtonClick()
-            }
-            setOnLongClickListener {
-                // Long press opens history
-                openHistoryActivity()
-                true
-            }
-        }
-
-        // Note button click handler - sends transcription to configured note app
-        bubbleView?.findViewById<FrameLayout>(R.id.noteButtonContainer)?.setOnClickListener {
-            handleNoteButtonClick()
-        }
-
-        // Keyboard switch button click handler - opens system keyboard picker
+        // Keyboard switch button click handler - switches to Tiny Dictation keyboard
         bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)?.setOnClickListener {
             handleKeyboardButtonClick()
         }
@@ -508,21 +490,6 @@ class BubbleService : LifecycleService() {
     private fun updateLanguageUI() {
         bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)?.text =
             currentLanguage.uppercase()
-    }
-
-    /**
-     * Handles paste button click with copy/paste toggle:
-     * - Tap when text in buffer: Copy to clipboard, enter paste mode
-     * - Tap in paste mode: Perform paste
-     */
-    private fun handlePasteButtonClick() {
-        if (isPasteMode) {
-            // Already copied - perform paste action
-            performPaste()
-        } else {
-            // Copy buffer to clipboard
-            copyBufferToClipboard()
-        }
     }
 
     /**
@@ -619,233 +586,7 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Handles note button click - sends transcription to configured note app.
-     * If there's pending transcription, waits for it to complete first.
-     */
-    private fun handleNoteButtonClick() {
-        val noteAppPackage = preferenceManager.getNoteAppPackage()
-        if (noteAppPackage == null) {
-            Toast.makeText(this, "Please configure a note app in Settings", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Check if there's pending audio being transcribed
-        val hasPending = transcriptionManager?.hasPendingAudio() == true
-
-        if (hasPending) {
-            Log.i(TAG, "Note button pressed with pending audio - flushing first")
-            DebugLog.i("BubbleService: Flushing pending audio before sending to note app")
-
-            Toast.makeText(this, "Processing...", Toast.LENGTH_SHORT).show()
-
-            // Flush pending audio, then send
-            lifecycleScope.launch {
-                try {
-                    val success = transcriptionManager?.flushPendingTranscription(10000) ?: true
-
-                    if (!success) {
-                        Log.w(TAG, "Flush timed out, sending what we have")
-                        DebugLog.w("BubbleService: Flush timed out for note")
-                    }
-
-                    // Small delay to allow any final transcription callbacks to process
-                    kotlinx.coroutines.delay(100)
-
-                    // Now send the complete buffer
-                    performSendToNoteApp(noteAppPackage)
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error during flush for note", e)
-                    DebugLog.e("BubbleService: Error flushing for note - ${e.message}")
-                    // Still try to send what we have
-                    performSendToNoteApp(noteAppPackage)
-                }
-            }
-        } else {
-            // No pending audio, send immediately
-            performSendToNoteApp(noteAppPackage)
-        }
-    }
-
-    /**
-     * Actually sends the transcription to the configured note app.
-     * Called after any pending transcription has been flushed.
-     */
-    private fun performSendToNoteApp(noteAppPackage: String) {
-        val text = textBuffer.toString().trim()
-        if (text.isEmpty()) {
-            Toast.makeText(this, "Nothing to send", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        Log.i(TAG, "Sending ${text.length} chars to note app: $noteAppPackage")
-        DebugLog.i("BubbleService: Sending to note app: $noteAppPackage")
-
-        try {
-            val sendIntent = Intent(Intent.ACTION_SEND).apply {
-                type = "text/plain"
-                putExtra(Intent.EXTRA_TEXT, text)
-                setPackage(noteAppPackage)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-
-            // Check if the configured app can handle this intent
-            val resolveInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                packageManager.resolveActivity(sendIntent, android.content.pm.PackageManager.ResolveInfoFlags.of(0))
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.resolveActivity(sendIntent, 0)
-            }
-
-            if (resolveInfo != null) {
-                startActivity(sendIntent)
-                Toast.makeText(this, "Sent to note app!", Toast.LENGTH_SHORT).show()
-                vibrateForFeedback()
-            } else {
-                // App might be uninstalled, try showing a chooser instead
-                Log.w(TAG, "Configured note app not found, showing chooser")
-                DebugLog.w("BubbleService: Note app $noteAppPackage not found")
-                val chooserIntent = Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-                    type = "text/plain"
-                    putExtra(Intent.EXTRA_TEXT, text)
-                }, "Send transcription to...").apply {
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                }
-                startActivity(chooserIntent)
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "Error sending to note app", e)
-            DebugLog.e("BubbleService: Error sending to note app - ${e.message}")
-            Toast.makeText(this, "Failed to open note app", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Copies the text buffer to clipboard and switches to paste mode.
-     * Also saves the transcription to history.
-     * If there's pending transcription, waits for it to complete first.
-     */
-    private fun copyBufferToClipboard() {
-        // Check if there's pending audio being transcribed
-        val hasPending = transcriptionManager?.hasPendingAudio() == true
-
-        if (hasPending) {
-            Log.i(TAG, "Copy requested with pending audio - flushing first")
-            DebugLog.i("BubbleService: Flushing pending audio before copy")
-
-            // Show loading indicator
-            val pasteButton = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
-            pasteButton?.text = "⏳"  // Hourglass while waiting
-            pasteButton?.setTextColor(android.graphics.Color.parseColor("#FFA500"))  // Orange
-
-            // Flush pending audio, then copy
-            lifecycleScope.launch {
-                try {
-                    val success = transcriptionManager?.flushPendingTranscription(10000) ?: true
-
-                    if (!success) {
-                        Log.w(TAG, "Flush timed out, copying what we have")
-                        DebugLog.w("BubbleService: Flush timed out")
-                    }
-
-                    // Small delay to allow any final transcription callbacks to process
-                    kotlinx.coroutines.delay(100)
-
-                    // Now copy the complete buffer
-                    performCopyToClipboard()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error during flush", e)
-                    DebugLog.e("BubbleService: Error flushing - ${e.message}")
-                    // Still try to copy what we have
-                    performCopyToClipboard()
-                }
-            }
-        } else {
-            // No pending audio, copy immediately
-            performCopyToClipboard()
-        }
-    }
-
-    /**
-     * Actually performs the copy to clipboard operation.
-     * Called after any pending transcription has been flushed.
-     */
-    private fun performCopyToClipboard() {
-        val text = textBuffer.toString().trim()
-        if (text.isEmpty()) {
-            Toast.makeText(this, "Nothing to copy", Toast.LENGTH_SHORT).show()
-            // Reset button state
-            updatePasteButtonIcon()
-            return
-        }
-
-        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val clip = ClipData.newPlainText("Dictation", text)
-        clipboard.setPrimaryClip(clip)
-
-        Log.i(TAG, "Copied ${text.length} chars to clipboard")
-        DebugLog.i("BubbleService: Copied to clipboard: ${text.take(50)}...")
-
-        // Save full buffer to history as ONE entry (not fragmented by speech pauses)
-        TranscriptionHistoryManager.getInstance(this).save(text, currentLanguage)
-        Toast.makeText(this, "✓ Copied! Ready to paste", Toast.LENGTH_SHORT).show()
-
-        // Vibrate to confirm copy
-        try {
-            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? android.os.Vibrator
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-                vibrator?.vibrate(android.os.VibrationEffect.createOneShot(100, android.os.VibrationEffect.DEFAULT_AMPLITUDE))
-            } else {
-                @Suppress("DEPRECATION")
-                vibrator?.vibrate(100)
-            }
-        } catch (e: Exception) {
-            // Ignore vibration errors
-        }
-
-        // Switch to paste mode (don't clear buffer yet)
-        isPasteMode = true
-        updatePasteButtonIcon()
-    }
-
-    /**
-     * Performs paste action via accessibility service.
-     */
-    private fun performPaste() {
-        val success = DictationAccessibilityService.paste()
-        if (success) {
-            Log.i(TAG, "Paste action successful")
-            DebugLog.i("BubbleService: Paste successful")
-            Toast.makeText(this, "Pasted!", Toast.LENGTH_SHORT).show()
-            // Clear buffer and reset to copy mode after successful paste
-            textBuffer.clear()
-            isPasteMode = false
-            updatePasteButtonIcon()
-        } else {
-            Log.w(TAG, "Paste action failed")
-            DebugLog.w("BubbleService: Paste failed - accessibility service may not be running")
-            Toast.makeText(this, "Paste failed - focus a text field first", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    /**
-     * Updates the paste button icon based on current mode.
-     * - Paste mode: green checkmark (ready to paste)
-     * - Default: clipboard icon (tap to copy)
-     */
-    private fun updatePasteButtonIcon() {
-        val pasteButton = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
-        if (isPasteMode) {
-            pasteButton?.text = "✓"  // Checkmark = ready to paste
-            pasteButton?.setTextColor(android.graphics.Color.parseColor("#4CAF50"))  // Green
-        } else {
-            pasteButton?.text = "📋"  // Clipboard = tap to copy
-            pasteButton?.setTextColor(android.graphics.Color.WHITE)
-        }
-    }
-
-    /**
      * Appends transcribed text to the buffer.
-     * Resets paste mode since we have new content.
      */
     fun appendToBuffer(text: String) {
         if (text.isNotBlank()) {
@@ -854,25 +595,18 @@ class BubbleService : LifecycleService() {
             }
             textBuffer.append(text)
             Log.d(TAG, "Buffer now: ${textBuffer.length} chars")
-            // Reset to copy mode when new text arrives
-            if (isPasteMode) {
-                isPasteMode = false
-                updatePasteButtonIcon()
-            }
         }
     }
 
     /**
-     * Clears the text buffer and resets paste mode.
+     * Clears the text buffer.
      */
     fun clearBuffer() {
         textBuffer.clear()
-        isPasteMode = false
-        updatePasteButtonIcon()
     }
 
     /**
-     * Updates visibility of optional bubbles based on settings.
+     * Updates visibility of optional buttons based on settings.
      * Called both at creation and when settings change.
      */
     fun updateBubbleVisibility() {
@@ -884,27 +618,21 @@ class BubbleService : LifecycleService() {
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         val hideBubbles = prefs.getBoolean("hide_bubbles", false)
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
-        val showPaste = prefs.getBoolean("show_paste_bubble", true)
-        val showNote = prefs.getBoolean("show_note_bubble", false)
-        val showKeyboard = prefs.getBoolean("show_keyboard_bubble", false)
+        val showKeyboard = prefs.getBoolean("show_keyboard_bubble", true)
 
-        Log.i(TAG, "updateBubbleVisibility: hideBubbles=$hideBubbles, isKeyboardVisible=$isKeyboardVisible, showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote, showKeyboard=$showKeyboard")
-        DebugLog.i("BubbleService: Updating visibility - hide=$hideBubbles, keyboard=$isKeyboardVisible, lang=$showLanguage, paste=$showPaste, note=$showNote")
+        Log.i(TAG, "updateBubbleVisibility: hideBubbles=$hideBubbles, isKeyboardVisible=$isKeyboardVisible, showLanguage=$showLanguage, showKeyboard=$showKeyboard")
+        DebugLog.i("BubbleService: Updating visibility - hide=$hideBubbles, keyboard=$isKeyboardVisible, lang=$showLanguage, kbd=$showKeyboard")
 
-        // Hide entire bubble if setting enabled or keyboard is visible
+        // Hide entire floating bar if setting enabled or keyboard is visible
         bubbleView?.visibility = if (hideBubbles || isKeyboardVisible) View.GONE else View.VISIBLE
 
-        val langView = bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)
-        val pasteView = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
-        val noteView = bubbleView?.findViewById<FrameLayout>(R.id.noteButtonContainer)
-        val keyboardView = bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
+        val langContainer = bubbleView?.findViewById<FrameLayout>(R.id.languageButtonContainer)
+        val keyboardContainer = bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
 
-        langView?.visibility = if (showLanguage) View.VISIBLE else View.GONE
-        pasteView?.visibility = if (showPaste) View.VISIBLE else View.GONE
-        noteView?.visibility = if (showNote) View.VISIBLE else View.GONE
-        keyboardView?.visibility = if (showKeyboard) View.VISIBLE else View.GONE
+        langContainer?.visibility = if (showLanguage) View.VISIBLE else View.GONE
+        keyboardContainer?.visibility = if (showKeyboard) View.VISIBLE else View.GONE
 
-        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}, noteView=${noteView != null}, keyboardView=${keyboardView != null}")
+        Log.i(TAG, "updateBubbleVisibility: langContainer=${langContainer != null}, keyboardContainer=${keyboardContainer != null}")
     }
 
     /**
@@ -1074,10 +802,8 @@ class BubbleService : LifecycleService() {
 
         bubbleView?.let { view ->
             val bubbleContainer = view.findViewById<FrameLayout>(R.id.bubbleContainer)
-            val languageToggle = view.findViewById<TextView>(R.id.tvLanguageToggle)
-            val pasteButton = view.findViewById<TextView>(R.id.tvPasteButton)
-            val noteButton = view.findViewById<FrameLayout>(R.id.noteButtonContainer)
-            val keyboardButton = view.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
+            val languageContainer = view.findViewById<FrameLayout>(R.id.languageButtonContainer)
+            val keyboardContainer = view.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
 
             if (isCompactMode) {
                 // Compact mode: smaller, more translucent, hide extra buttons
@@ -1092,10 +818,8 @@ class BubbleService : LifecycleService() {
                     icon.layoutParams.height = (12 * resources.displayMetrics.density).toInt()
                     icon.requestLayout()
                 }
-                languageToggle?.visibility = View.GONE
-                pasteButton?.visibility = View.GONE
-                noteButton?.visibility = View.GONE
-                keyboardButton?.visibility = View.GONE
+                languageContainer?.visibility = View.GONE
+                keyboardContainer?.visibility = View.GONE
             } else {
                 // Normal mode: restore size and default opacity
                 view.alpha = DEFAULT_OPACITY

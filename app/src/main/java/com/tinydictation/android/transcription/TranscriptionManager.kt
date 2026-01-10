@@ -12,6 +12,7 @@ import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.transcription.engines.DeepgramEngine
 import com.tinydictation.android.transcription.engines.SherpaOnnxEngine
 import com.tinydictation.android.transcription.engines.VoskEngine
+import com.tinydictation.android.util.AudioFocusManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +52,7 @@ class TranscriptionManager(
 
     private val audioRecorder = AudioRecorder()
     private val preferenceManager = context?.let { PreferenceManager(it) }
+    private val audioFocusManager = context?.let { AudioFocusManager(it) }
     private var currentEngine: TranscriptionEngine? = null
     private var scope: CoroutineScope? = null
     private var isListening = false
@@ -96,6 +98,20 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Starting listening")
         isListening = true
         audioChunkCount = 0
+
+        // Request audio focus to pause other media apps (if enabled)
+        if (preferenceManager?.getPauseMediaDuringDictation() == true) {
+            val musicWasActive = audioFocusManager?.isMusicActive() == true
+            if (musicWasActive) {
+                DebugLog.i("TranscriptionManager: Media was playing, requesting audio focus to pause it")
+            }
+            val focusGranted = audioFocusManager?.requestAudioFocus(duck = false) == true
+            if (focusGranted) {
+                Log.i(TAG, "Audio focus granted - other media should pause")
+            } else {
+                Log.w(TAG, "Audio focus not granted - other media may continue playing")
+            }
+        }
 
         scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
@@ -192,6 +208,9 @@ class TranscriptionManager(
 
         audioRecorder.stopRecording()
         currentEngine?.endSession()
+
+        // Abandon audio focus to allow other media apps to resume
+        audioFocusManager?.abandonAudioFocus()
 
         scope?.cancel()
         scope = null
@@ -367,5 +386,6 @@ class TranscriptionManager(
         stopListening()
         engines.values.forEach { it.release() }
         engines.clear()
+        audioFocusManager?.release()
     }
 }

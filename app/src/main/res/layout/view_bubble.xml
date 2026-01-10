@@ -1,109 +1,80 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Floating dictation bar - vertical sidebar matching keyboard bar styling.
+     Contains: Mic (toggle recording), Language (EN/DE), Keyboard (switch to keyboard).
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    android:padding="4dp">
+    android:layout_height="wrap_content">
 
-    <!-- Vertical stack of bubbles (top to bottom: Language, Clipboard, Mic) -->
+    <!-- Vertical bar container -->
     <LinearLayout
-        android:layout_width="wrap_content"
+        android:id="@+id/floatingBarContainer"
+        android:layout_width="48dp"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:gravity="center_horizontal">
+        android:gravity="center_horizontal"
+        android:background="@drawable/floating_bar_background"
+        android:paddingVertical="8dp"
+        android:paddingHorizontal="4dp"
+        android:elevation="8dp">
 
-        <!-- Language Toggle Button -->
-        <TextView
-            android:id="@+id/tvLanguageToggle"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:gravity="center"
-            android:text="EN"
-            android:textColor="@color/bubble_text"
-            android:textSize="14sp"
-            android:textStyle="bold"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <!-- Paste/Clipboard Button -->
-        <TextView
-            android:id="@+id/tvPasteButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:gravity="center"
-            android:text="📋"
-            android:textSize="18sp"
-            android:visibility="gone"
-            tools:visibility="visible" />
-
-        <!-- Note Button -->
-        <FrameLayout
-            android:id="@+id/noteButtonContainer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <ImageView
-                android:id="@+id/ivNoteButton"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_note"
-                app:tint="@color/bubble_text"
-                android:contentDescription="Send to note app" />
-
-        </FrameLayout>
-
-        <!-- Keyboard Switch Button -->
-        <FrameLayout
-            android:id="@+id/keyboardButtonContainer"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <ImageView
-                android:id="@+id/ivKeyboardButton"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
-                android:layout_gravity="center"
-                android:src="@drawable/ic_keyboard_switch"
-                app:tint="@color/bubble_text"
-                android:contentDescription="@string/keyboard_switch_hint" />
-
-        </FrameLayout>
-
-        <!-- Main Mic Bubble (at bottom) -->
+        <!-- Mic button - toggle dictation (main function) -->
         <FrameLayout
             android:id="@+id/bubbleContainer"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:layout_marginTop="4dp"
-            android:background="@drawable/bubble_background"
-            android:elevation="6dp">
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="@string/app_name">
 
             <ImageView
                 android:id="@+id/ivMicrophone"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:layout_gravity="center"
                 android:src="@drawable/ic_mic"
-                app:tint="@color/bubble_text"
-                android:contentDescription="@string/app_name" />
+                app:tint="@color/on_surface" />
+        </FrameLayout>
 
+        <!-- Language toggle button (EN/DE) -->
+        <FrameLayout
+            android:id="@+id/languageButtonContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="Switch language"
+            android:visibility="visible">
+
+            <TextView
+                android:id="@+id/tvLanguageToggle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="EN"
+                android:textSize="14sp"
+                android:textColor="@color/on_surface"
+                android:textStyle="bold" />
+        </FrameLayout>
+
+        <!-- Keyboard switch button -->
+        <FrameLayout
+            android:id="@+id/keyboardButtonContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="@string/keyboard_switch_hint"
+            android:visibility="visible">
+
+            <ImageView
+                android:id="@+id/ivKeyboardButton"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_keyboard_switch"
+                app:tint="@color/on_surface" />
         </FrameLayout>
 
     </LinearLayout>

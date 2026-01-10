@@ -33,6 +33,7 @@ import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
+import com.tinydictation.android.service.KeyboardCompanionService
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
@@ -53,6 +54,33 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.2:
+            • NEW: Pause media during dictation - automatically pauses YouTube, music, etc.
+            • When enabled, requests audio focus which pauses other audio apps
+            • Toggle on/off in Voice Settings
+            • Media playback resumes when dictation stops
+
+            v1.10.1:
+            • Fixed: Dictation modes are now mutually exclusive
+            • Only ONE UI appears based on selected mode (Bubble, Companion, or Keyboard)
+            • No more floating bubbles appearing in Companion or Keyboard modes
+
+            v1.10.0:
+            • NEW: Keyboard Companion Mode - horizontal bar above your keyboard
+            • Works with Gboard, SwiftKey, or any keyboard
+            • Automatically appears when keyboard is visible
+            • Quick access to Mic, Language, and Expand buttons
+            • Choose mode in Settings: Bubble, Companion, or Full Keyboard
+
+            v1.9.26:
+            • Fixed chevron icon color to match other keyboard icons consistently
+
+            v1.9.25:
+            • Redesigned floating bubble as vertical bar matching keyboard styling
+            • Unified look with keyboard bar (same colors, buttons, icons)
+            • Simplified to 3 core buttons: Mic, Language, Keyboard switch
+            • Removed paste/note buttons for cleaner interface
+
             v1.9.24:
             • Backspace now supports hold-to-delete like SwiftKey
             • Hold down backspace to continuously delete characters
@@ -362,6 +390,7 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var headphoneMicSwitch: MaterialSwitch
     private lateinit var simulateTypingSwitch: MaterialSwitch
+    private lateinit var pauseMediaSwitch: MaterialSwitch
     private lateinit var languageBubbleSwitch: MaterialSwitch
     private lateinit var pasteBubbleSwitch: MaterialSwitch
     private lateinit var noteBubbleSwitch: MaterialSwitch
@@ -383,6 +412,9 @@ class SettingsActivity : AppCompatActivity() {
     // Engine selection
     private lateinit var engineDropdown: AutoCompleteTextView
     private lateinit var autoFallbackSwitch: MaterialSwitch
+
+    // Dictation mode selection
+    private lateinit var dictationModeDropdown: AutoCompleteTextView
 
     // Model downloads - Vosk
     private lateinit var tvVoskEnStatus: TextView
@@ -442,7 +474,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun autoStartDictationIfReady() {
         // Only auto-start if not already running
-        if (BubbleService.isRunning()) {
+        if (isDictationRunning()) {
             return
         }
 
@@ -495,7 +527,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     private fun updateStartButton() {
-        updateStartButtonState(BubbleService.isRunning())
+        updateStartButtonState(isDictationRunning())
     }
 
     private fun updateStartButtonState(isRunning: Boolean) {
@@ -532,7 +564,7 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /**
-     * Starts dictation by launching the BubbleService.
+     * Starts dictation by launching the appropriate service based on mode.
      * TranscriptionManager is now owned by BubbleService to survive activity lifecycle
      * and properly handle lock screen events.
      */
@@ -556,17 +588,46 @@ class SettingsActivity : AppCompatActivity() {
             return
         }
 
-        // Start the bubble service - it now owns the TranscriptionManager
-        BubbleService.start(this)
-        Log.i(TAG, "BubbleService started - TranscriptionManager is now managed by service")
+        // Start the appropriate service based on mode
+        when (preferenceManager.getDictationMode()) {
+            PreferenceManager.MODE_BUBBLE -> {
+                BubbleService.start(this)
+                Log.i(TAG, "BubbleService started")
+            }
+            PreferenceManager.MODE_COMPANION -> {
+                // Start BubbleService for transcription (without UI) and KeyboardCompanionService for UI
+                BubbleService.start(this)
+                KeyboardCompanionService.start(this)
+                Log.i(TAG, "KeyboardCompanionService started (BubbleService for transcription)")
+            }
+            PreferenceManager.MODE_KEYBOARD -> {
+                // For keyboard mode, DictationKeyboardService is activated by the system as IME
+                // We start BubbleService in background for transcription (without UI)
+                BubbleService.start(this)
+                Log.i(TAG, "Keyboard mode: BubbleService started for transcription (no UI)")
+            }
+        }
     }
 
     /**
-     * Stops dictation by stopping the BubbleService.
+     * Stops dictation by stopping the active services.
      */
     private fun stopDictation() {
         Log.i(TAG, "Stopping dictation service")
-        BubbleService.stop(this)
+        // Stop both services to be safe
+        if (BubbleService.isRunning()) {
+            BubbleService.stop(this)
+        }
+        if (KeyboardCompanionService.isRunning()) {
+            KeyboardCompanionService.stop(this)
+        }
+    }
+
+    /**
+     * Checks if any dictation service is running.
+     */
+    private fun isDictationRunning(): Boolean {
+        return BubbleService.isRunning() || KeyboardCompanionService.isRunning()
     }
 
     private fun initViews() {
@@ -596,6 +657,7 @@ class SettingsActivity : AppCompatActivity() {
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
         simulateTypingSwitch = findViewById(R.id.switchSimulateTyping)
+        pauseMediaSwitch = findViewById(R.id.switchPauseMedia)
         languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
         pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
         noteBubbleSwitch = findViewById(R.id.switchNoteBubble)
@@ -646,6 +708,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Setup engine dropdown
         setupEngineDropdown()
+
+        // Setup dictation mode dropdown
+        dictationModeDropdown = findViewById(R.id.actvDictationMode)
+        setupDictationModeDropdown()
 
         // Setup keyboard theme dropdown
         setupKeyboardThemeDropdown()
@@ -759,6 +825,82 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupDictationModeDropdown() {
+        // Mode options: display name to preference value
+        val modes = listOf(
+            "Floating Bubble" to PreferenceManager.MODE_BUBBLE,
+            "Keyboard Companion" to PreferenceManager.MODE_COMPANION,
+            "Full Keyboard (IME)" to PreferenceManager.MODE_KEYBOARD
+        )
+
+        val displayNames = modes.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        dictationModeDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentMode = preferenceManager.getDictationMode()
+        val currentIndex = modes.indexOfFirst { it.second == currentMode }
+        if (currentIndex >= 0) {
+            dictationModeDropdown.setText(displayNames[currentIndex], false)
+        } else {
+            // Default to Bubble mode
+            dictationModeDropdown.setText(displayNames[0], false)
+        }
+
+        // Handle selection changes - switch service immediately
+        dictationModeDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedValue = modes[position].second
+            val previousMode = preferenceManager.getDictationMode()
+            preferenceManager.setDictationMode(selectedValue)
+            DebugLog.i("Dictation mode changed from $previousMode to: $selectedValue")
+
+            // Stop current service and start appropriate one
+            switchDictationMode(previousMode, selectedValue)
+        }
+    }
+
+    /**
+     * Switches between dictation modes by stopping the old service and starting the new one.
+     */
+    private fun switchDictationMode(fromMode: String, toMode: String) {
+        Log.i(TAG, "Switching dictation mode from $fromMode to $toMode")
+
+        // Stop all services first to ensure clean slate
+        if (BubbleService.isRunning()) {
+            BubbleService.stop(this)
+        }
+        if (KeyboardCompanionService.isRunning()) {
+            KeyboardCompanionService.stop(this)
+        }
+
+        // Give a moment for the services to stop
+        android.os.Handler(mainLooper).postDelayed({
+            // Start the appropriate service(s) if permissions are granted
+            if (allPermissionsGranted() && preferenceManager.hasApiKey()) {
+                when (toMode) {
+                    PreferenceManager.MODE_BUBBLE -> {
+                        BubbleService.start(this)
+                        Toast.makeText(this, "Switched to floating bubble mode", Toast.LENGTH_SHORT).show()
+                    }
+                    PreferenceManager.MODE_COMPANION -> {
+                        // Start BubbleService for transcription (no UI) and KeyboardCompanionService for UI
+                        BubbleService.start(this)
+                        KeyboardCompanionService.start(this)
+                        Toast.makeText(this, "Switched to keyboard companion mode", Toast.LENGTH_SHORT).show()
+                    }
+                    PreferenceManager.MODE_KEYBOARD -> {
+                        // Start BubbleService for transcription (no UI), IME is activated by system
+                        BubbleService.start(this)
+                        // Open keyboard settings to help user enable the IME
+                        openKeyboardSettings()
+                        Toast.makeText(this, "Enable Tiny Dictation keyboard in settings", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
+            updateStartButton()
+        }, 300)
+    }
+
     private fun displayVersionInfo() {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -794,6 +936,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load simulate typing setting
         simulateTypingSwitch.isChecked = preferenceManager.getSimulateTyping()
+
+        // Load pause media during dictation setting
+        pauseMediaSwitch.isChecked = preferenceManager.getPauseMediaDuringDictation()
 
         // Load bubble settings
         val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
@@ -910,7 +1055,7 @@ class SettingsActivity : AppCompatActivity() {
                     return@setOnClickListener
                 }
 
-                val wasRunning = BubbleService.isRunning()
+                val wasRunning = isDictationRunning()
                 if (wasRunning) {
                     Log.i(TAG, "Stopping dictation")
                     stopDictation()
@@ -992,6 +1137,12 @@ class SettingsActivity : AppCompatActivity() {
         simulateTypingSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setSimulateTyping(isChecked)
             DebugLog.i("Simulate typing setting changed to: $isChecked")
+        }
+
+        // Pause media toggle applies immediately
+        pauseMediaSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setPauseMediaDuringDictation(isChecked)
+            DebugLog.i("Pause media during dictation setting changed to: $isChecked")
         }
 
         copyDebugLogButton.setOnClickListener {
@@ -1078,13 +1229,17 @@ class SettingsActivity : AppCompatActivity() {
     private fun saveSettings() {
         val apiKey = apiKeyInput.text?.toString()?.trim()
 
-        if (apiKey.isNullOrEmpty()) {
-            apiKeyInput.error = "API key is required"
+        // API key only required for Deepgram (cloud) engine
+        val engine = preferenceManager.getTranscriptionEngine()
+        if (engine == PreferenceManager.ENGINE_DEEPGRAM && apiKey.isNullOrEmpty()) {
+            apiKeyInput.error = "API key is required for Deepgram"
             return
         }
 
-        // Save API key
-        preferenceManager.setApiKey(apiKey)
+        // Save API key if provided
+        if (!apiKey.isNullOrEmpty()) {
+            preferenceManager.setApiKey(apiKey)
+        }
 
         // Save auto-punctuation
         preferenceManager.setAutoPunctuation(autoPunctuationSwitch.isChecked)
