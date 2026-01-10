@@ -54,6 +54,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.4:
+            • Fixed keyboard icon colors staying constant on press
+            • Icons no longer change color when buttons are pressed/active
+
+            v1.10.3:
+            • NEW: Bar orientation setting - choose Vertical or Horizontal
+            • Horizontal bar is perfect for use alongside keyboards
+            • Replaced unreliable Keyboard Companion mode with simpler horizontal bar
+            • Users who had Companion mode will be auto-migrated to horizontal bar
+
             v1.10.2:
             • NEW: Pause media during dictation - automatically pauses YouTube, music, etc.
             • When enabled, requests audio focus which pauses other audio apps
@@ -415,6 +425,7 @@ class SettingsActivity : AppCompatActivity() {
 
     // Dictation mode selection
     private lateinit var dictationModeDropdown: AutoCompleteTextView
+    private lateinit var barOrientationDropdown: AutoCompleteTextView
 
     // Model downloads - Vosk
     private lateinit var tvVoskEnStatus: TextView
@@ -589,16 +600,20 @@ class SettingsActivity : AppCompatActivity() {
         }
 
         // Start the appropriate service based on mode
-        when (preferenceManager.getDictationMode()) {
+        var mode = preferenceManager.getDictationMode()
+
+        // Migrate companion mode users to bubble mode with horizontal orientation
+        if (mode == PreferenceManager.MODE_COMPANION) {
+            Log.i(TAG, "Migrating companion mode to bubble mode with horizontal orientation")
+            preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
+            preferenceManager.setBarOrientation(PreferenceManager.ORIENTATION_HORIZONTAL)
+            mode = PreferenceManager.MODE_BUBBLE
+        }
+
+        when (mode) {
             PreferenceManager.MODE_BUBBLE -> {
                 BubbleService.start(this)
                 Log.i(TAG, "BubbleService started")
-            }
-            PreferenceManager.MODE_COMPANION -> {
-                // Start BubbleService for transcription (without UI) and KeyboardCompanionService for UI
-                BubbleService.start(this)
-                KeyboardCompanionService.start(this)
-                Log.i(TAG, "KeyboardCompanionService started (BubbleService for transcription)")
             }
             PreferenceManager.MODE_KEYBOARD -> {
                 // For keyboard mode, DictationKeyboardService is activated by the system as IME
@@ -712,6 +727,10 @@ class SettingsActivity : AppCompatActivity() {
         // Setup dictation mode dropdown
         dictationModeDropdown = findViewById(R.id.actvDictationMode)
         setupDictationModeDropdown()
+
+        // Setup bar orientation dropdown
+        barOrientationDropdown = findViewById(R.id.actvBarOrientation)
+        setupBarOrientationDropdown()
 
         // Setup keyboard theme dropdown
         setupKeyboardThemeDropdown()
@@ -827,9 +846,9 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun setupDictationModeDropdown() {
         // Mode options: display name to preference value
+        // Note: Keyboard Companion mode has been removed in favor of horizontal bar orientation
         val modes = listOf(
             "Floating Bubble" to PreferenceManager.MODE_BUBBLE,
-            "Keyboard Companion" to PreferenceManager.MODE_COMPANION,
             "Full Keyboard (IME)" to PreferenceManager.MODE_KEYBOARD
         )
 
@@ -859,6 +878,38 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupBarOrientationDropdown() {
+        // Orientation options: display name to preference value
+        val orientations = listOf(
+            "Vertical (Side bar)" to PreferenceManager.ORIENTATION_VERTICAL,
+            "Horizontal (Bottom bar)" to PreferenceManager.ORIENTATION_HORIZONTAL
+        )
+
+        val displayNames = orientations.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        barOrientationDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentOrientation = preferenceManager.getBarOrientation()
+        val currentIndex = orientations.indexOfFirst { it.second == currentOrientation }
+        if (currentIndex >= 0) {
+            barOrientationDropdown.setText(displayNames[currentIndex], false)
+        } else {
+            // Default to Vertical
+            barOrientationDropdown.setText(displayNames[0], false)
+        }
+
+        // Handle selection changes - apply immediately
+        barOrientationDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedValue = orientations[position].second
+            preferenceManager.setBarOrientation(selectedValue)
+            DebugLog.i("Bar orientation changed to: $selectedValue")
+
+            // Refresh the bubble service orientation
+            BubbleService.refreshBarOrientation()
+        }
+    }
+
     /**
      * Switches between dictation modes by stopping the old service and starting the new one.
      */
@@ -882,18 +933,23 @@ class SettingsActivity : AppCompatActivity() {
                         BubbleService.start(this)
                         Toast.makeText(this, "Switched to floating bubble mode", Toast.LENGTH_SHORT).show()
                     }
-                    PreferenceManager.MODE_COMPANION -> {
-                        // Start BubbleService for transcription (no UI) and KeyboardCompanionService for UI
-                        BubbleService.start(this)
-                        KeyboardCompanionService.start(this)
-                        Toast.makeText(this, "Switched to keyboard companion mode", Toast.LENGTH_SHORT).show()
-                    }
                     PreferenceManager.MODE_KEYBOARD -> {
                         // Start BubbleService for transcription (no UI), IME is activated by system
                         BubbleService.start(this)
                         // Open keyboard settings to help user enable the IME
                         openKeyboardSettings()
                         Toast.makeText(this, "Enable Tiny Dictation keyboard in settings", Toast.LENGTH_LONG).show()
+                    }
+                    PreferenceManager.MODE_COMPANION -> {
+                        // Legacy: migrate companion mode users to bubble mode with horizontal orientation
+                        Log.i(TAG, "Migrating from companion mode to bubble mode with horizontal orientation")
+                        preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
+                        preferenceManager.setBarOrientation(PreferenceManager.ORIENTATION_HORIZONTAL)
+                        BubbleService.start(this)
+                        Toast.makeText(this, "Companion mode replaced by horizontal bubble bar", Toast.LENGTH_LONG).show()
+                        // Refresh the dropdown to show bubble mode
+                        setupDictationModeDropdown()
+                        setupBarOrientationDropdown()
                     }
                 }
             }

@@ -19,6 +19,7 @@ import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
@@ -102,7 +103,7 @@ class BubbleService : LifecycleService() {
         windowManager = getSystemService(Context.WINDOW_SERVICE) as WindowManager
         preferenceManager = PreferenceManager(this)
 
-        // Register preference listener for bubble visibility changes
+        // Register preference listener for bubble visibility and orientation changes
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "show_language_bubble" || key == "show_keyboard_bubble") {
@@ -466,10 +467,72 @@ class BubbleService : LifecycleService() {
             updateBubbleUI()
             updateLanguageUI()
             updateBubbleVisibility()
+            applyBarOrientation()
             Log.i(TAG, "Bubble created successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create bubble", e)
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * Applies the bar orientation (vertical or horizontal) based on settings.
+     */
+    private fun applyBarOrientation() {
+        val orientation = preferenceManager.getBarOrientation()
+        val isHorizontal = orientation == PreferenceManager.ORIENTATION_HORIZONTAL
+
+        Log.i(TAG, "Applying bar orientation: $orientation")
+        DebugLog.i("BubbleService: Bar orientation = $orientation")
+
+        bubbleView?.let { view ->
+            val container = view.findViewById<LinearLayout>(R.id.floatingBarContainer)
+            container?.orientation = if (isHorizontal) {
+                LinearLayout.HORIZONTAL
+            } else {
+                LinearLayout.VERTICAL
+            }
+
+            // Update window position based on orientation
+            updateBubblePosition(isHorizontal)
+        }
+    }
+
+    /**
+     * Updates bubble position based on orientation.
+     * Horizontal bar should be positioned at bottom center.
+     * Vertical bar should be positioned on the right side.
+     */
+    private fun updateBubblePosition(isHorizontal: Boolean) {
+        bubbleParams?.let { params ->
+            val displayMetrics = resources.displayMetrics
+            val screenWidth = displayMetrics.widthPixels
+            val screenHeight = displayMetrics.heightPixels
+
+            if (isHorizontal) {
+                // Horizontal: center at bottom, above navigation area
+                params.x = (screenWidth - 200) / 2  // Approximate center
+                params.y = screenHeight - 200  // Above navigation bar
+            } else {
+                // Vertical: right side, upper portion
+                params.x = screenWidth - 150
+                params.y = 300
+            }
+
+            try {
+                windowManager.updateViewLayout(bubbleView, params)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to update bubble position", e)
+            }
+        }
+    }
+
+    /**
+     * Refreshes the bar orientation. Call after orientation setting changes.
+     */
+    fun refreshOrientation() {
+        android.os.Handler(mainLooper).post {
+            applyBarOrientation()
         }
     }
 
@@ -1219,6 +1282,14 @@ class BubbleService : LifecycleService() {
          */
         fun refreshVisibility() {
             instance?.updateBubbleVisibility()
+        }
+
+        /**
+         * Refreshes bar orientation based on current settings.
+         * Call this when orientation setting is changed in SettingsActivity.
+         */
+        fun refreshBarOrientation() {
+            instance?.refreshOrientation()
         }
 
         /**

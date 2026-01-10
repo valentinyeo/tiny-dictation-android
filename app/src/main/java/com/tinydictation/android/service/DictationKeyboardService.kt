@@ -196,11 +196,13 @@ class DictationKeyboardService : InputMethodService() {
         )
         button.background = rippleDrawable
 
-        // Apply icon tint to ImageView children
+        // Apply icon tint to ImageView children using a non-stateful ColorStateList
+        // This ensures the icon color doesn't change on press/active states
+        val iconColorStateList = android.content.res.ColorStateList.valueOf(iconColor)
         for (i in 0 until button.childCount) {
             val child = button.getChildAt(i)
             if (child is ImageView) {
-                child.setColorFilter(iconColor)
+                child.imageTintList = iconColorStateList
             }
         }
     }
@@ -318,7 +320,8 @@ class DictationKeyboardService : InputMethodService() {
             // Use themed icon color when not recording
             getThemedIconColor()
         }
-        micIcon?.setColorFilter(color)
+        // Use imageTintList with a non-stateful ColorStateList to prevent color changes on press
+        micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
     /**

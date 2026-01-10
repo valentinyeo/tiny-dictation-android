@@ -36,6 +36,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_KEYBOARD_THEME = "keyboard_theme"
         private const val KEY_DICTATION_MODE = "dictation_mode"
         private const val KEY_PAUSE_MEDIA_DURING_DICTATION = "pause_media_during_dictation"
+        private const val KEY_BAR_ORIENTATION = "bar_orientation"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -63,8 +64,12 @@ class PreferenceManager(context: Context) {
 
         // Dictation mode constants
         const val MODE_BUBBLE = "bubble"              // Floating bubble (default)
-        const val MODE_COMPANION = "companion"        // Keyboard companion bar
+        const val MODE_COMPANION = "companion"        // Keyboard companion bar (deprecated)
         const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard
+
+        // Bar orientation constants
+        const val ORIENTATION_VERTICAL = "vertical"
+        const val ORIENTATION_HORIZONTAL = "horizontal"
     }
 
     private val prefs: SharedPreferences
@@ -495,5 +500,23 @@ class PreferenceManager(context: Context) {
      */
     fun setPauseMediaDuringDictation(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PAUSE_MEDIA_DURING_DICTATION, enabled).apply()
+    }
+
+    // ========== Bar Orientation ==========
+
+    /**
+     * Gets the floating bar orientation setting.
+     * @return Orientation ID ("vertical" or "horizontal")
+     */
+    fun getBarOrientation(): String {
+        return prefs.getString(KEY_BAR_ORIENTATION, ORIENTATION_VERTICAL) ?: ORIENTATION_VERTICAL
+    }
+
+    /**
+     * Sets the floating bar orientation.
+     * @param orientation Orientation ID (vertical or horizontal)
+     */
+    fun setBarOrientation(orientation: String) {
+        prefs.edit().putString(KEY_BAR_ORIENTATION, orientation).apply()
     }
 }
