@@ -632,7 +632,8 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Switches back to the previously used keyboard.
-     * Uses switchToLastInputMethod() which is available from API 11+.
+     * Uses switchToNextInputMethod() which cycles through available keyboards.
+     * Falls back to showing the keyboard picker if that fails.
      */
     private fun switchToPreviousKeyboard() {
         Log.i(TAG, "DictationKeyboardService: Switching to previous keyboard")
@@ -642,18 +643,30 @@ class DictationKeyboardService : InputMethodService() {
             val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             val token = window?.window?.attributes?.token
 
+            DebugLog.d("DictationKeyboardService: Window token present: ${token != null}")
+
             if (token != null) {
-                // API 11+ - Direct switch to previous keyboard
-                val switched = imm.switchToLastInputMethod(token)
+                // Try switchToLastInputMethod first (switches to previously used keyboard)
+                var switched = imm.switchToLastInputMethod(token)
+                DebugLog.d("DictationKeyboardService: switchToLastInputMethod result: $switched")
+
+                if (!switched) {
+                    // If no "last" keyboard, try switching to the next available keyboard
+                    switched = imm.switchToNextInputMethod(token, false)
+                    DebugLog.d("DictationKeyboardService: switchToNextInputMethod result: $switched")
+                }
+
                 if (switched) {
-                    Log.i(TAG, "Successfully switched to previous keyboard")
-                    DebugLog.i("DictationKeyboardService: Switched to previous keyboard")
+                    Log.i(TAG, "Successfully switched keyboard")
+                    DebugLog.i("DictationKeyboardService: Switched to another keyboard")
                 } else {
-                    Log.w(TAG, "switchToLastInputMethod returned false, showing picker")
+                    Log.w(TAG, "Both switch methods returned false, showing picker")
+                    DebugLog.w("DictationKeyboardService: Switch failed, showing picker")
                     showInputMethodPicker()
                 }
             } else {
                 Log.w(TAG, "No window token, showing picker")
+                DebugLog.w("DictationKeyboardService: No window token, showing picker")
                 showInputMethodPicker()
             }
         } catch (e: Exception) {
@@ -720,37 +733,14 @@ class DictationKeyboardService : InputMethodService() {
      * Computes the insets that the keyboard occupies.
      * This tells apps how much space the keyboard takes so they can resize content.
      *
-     * Critical for PWA compatibility: Apps use these insets to know how much to
-     * resize their content area when the keyboard is visible. Without proper insets,
-     * PWA content gets hidden behind the keyboard instead of being pushed up.
+     * We use the default implementation which properly calculates insets based on
+     * the keyboard view's height. The system handles this correctly for both
+     * regular apps and PWAs.
      */
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
-
-        val view = keyboardView ?: return
-
-        // Wait for the view to be laid out and have a valid height
-        if (view.height <= 0) {
-            DebugLog.d("DictationKeyboardService: onComputeInsets - view height is 0, waiting for layout")
-            return
-        }
-
-        // Get the location of the keyboard view on screen
-        val location = IntArray(2)
-        view.getLocationOnScreen(location)
-        val keyboardTop = location[1]
-
-        // The visible top inset is where the keyboard starts (from top of screen)
-        // This tells apps that content above this point is visible
-        outInsets.visibleTopInsets = keyboardTop
-
-        // Content top insets - same as visible, apps should resize content to this point
-        outInsets.contentTopInsets = keyboardTop
-
-        // Set touchable region to content area - the keyboard handles its own touch events
-        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
-
-        DebugLog.d("DictationKeyboardService: onComputeInsets - keyboardTop=$keyboardTop, viewHeight=${view.height}, visibleTopInsets=${outInsets.visibleTopInsets}, contentTopInsets=${outInsets.contentTopInsets}")
+        // Let the system handle inset calculation based on view height
+        // Don't override with custom values - that breaks regular apps
     }
 
     private fun commitTextInternal(text: String): Boolean {

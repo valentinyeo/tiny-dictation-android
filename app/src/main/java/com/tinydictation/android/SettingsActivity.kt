@@ -56,6 +56,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.28:
+            • Fixed keyboard overlaying regular apps (WhatsApp, chat apps)
+            • Reverted problematic PWA inset fix that broke normal apps
+            • Fixed chevron button not switching to other keyboard
+            • Added fallback to switchToNextInputMethod if last method fails
+
             v1.10.27:
             • Fixed clipboard not updating after transcription
             • Each transcription now copies the full session text to clipboard
