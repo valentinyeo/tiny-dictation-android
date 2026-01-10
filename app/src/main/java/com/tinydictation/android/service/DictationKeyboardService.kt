@@ -1,5 +1,6 @@
 package com.tinydictation.android.service
 
+import android.animation.ObjectAnimator
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
@@ -64,6 +65,9 @@ class DictationKeyboardService : InputMethodService() {
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
 
+    // Pulse animation for transcribing state
+    private var pulseAnimator: ObjectAnimator? = null
+
     // Long press handling for mic button
     private var longPressHandler: Handler? = null
     private var longPressRunnable: Runnable? = null
@@ -126,6 +130,8 @@ class DictationKeyboardService : InputMethodService() {
         longPressHandler?.removeCallbacksAndMessages(null)
         isBackspaceHeld = false
         backspaceHandler.removeCallbacksAndMessages(null)
+        pulseAnimator?.cancel()
+        pulseAnimator = null
         super.onDestroy()
     }
 
@@ -379,8 +385,11 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     private fun updateMicButton() {
-        val isRecording = BubbleService.getInstance()?.isCurrentlyRecording() ?: false
-        val color = if (isRecording) {
+        val bubbleService = BubbleService.getInstance()
+        val isRecording = bubbleService?.isCurrentlyRecording() ?: false
+        val isProcessing = bubbleService?.isProcessing() ?: false
+
+        val color = if (isRecording || isProcessing) {
             ContextCompat.getColor(this, R.color.bubble_recording)
         } else {
             // Use themed icon color when not recording
@@ -388,6 +397,37 @@ class DictationKeyboardService : InputMethodService() {
         }
         // Use imageTintList with a non-stateful ColorStateList to prevent color changes on press
         micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
+
+        // Handle pulse animation for processing state
+        if (isProcessing) {
+            startPulseAnimation(micIcon)
+        } else {
+            stopPulseAnimation(micIcon)
+        }
+    }
+
+    /**
+     * Starts a pulsing alpha animation on the mic icon to indicate transcription processing.
+     */
+    private fun startPulseAnimation(view: ImageView?) {
+        view ?: return
+        if (pulseAnimator?.isRunning == true) return // Already running
+        pulseAnimator?.cancel()
+        pulseAnimator = ObjectAnimator.ofFloat(view, "alpha", 1f, 0.4f).apply {
+            duration = 500
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    /**
+     * Stops the pulsing animation and resets the view to full opacity.
+     */
+    private fun stopPulseAnimation(view: ImageView?) {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        view?.alpha = 1f
     }
 
     /**

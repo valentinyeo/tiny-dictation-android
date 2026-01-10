@@ -1,5 +1,6 @@
 package com.tinydictation.android.service
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
@@ -66,6 +67,9 @@ class KeyboardCompanionService : LifecycleService() {
     private var languageText: TextView? = null
     private var floatingBarButton: FrameLayout? = null
     private var expandButton: FrameLayout? = null
+
+    // Pulse animation for transcribing state
+    private var pulseAnimator: ObjectAnimator? = null
 
     // Keyboard visibility tracking
     private var isKeyboardVisible = false
@@ -153,6 +157,10 @@ class KeyboardCompanionService : LifecycleService() {
         super.onDestroy()
         Log.i(TAG, "KeyboardCompanionService onDestroy")
         DebugLog.i("KeyboardCompanionService: Service destroyed")
+
+        // Stop pulse animation
+        pulseAnimator?.cancel()
+        pulseAnimator = null
 
         // Unregister keyboard visibility listener
         DictationAccessibilityService.onKeyboardVisibilityChanged = null
@@ -479,14 +487,17 @@ class KeyboardCompanionService : LifecycleService() {
     }
 
     /**
-     * Switches to floating bubble mode.
+     * Switches to floating bubble mode (vertical bar).
      * Changes preference to bubble mode, stops companion service, and starts BubbleService with UI.
      */
     private fun switchToFloatingBubbleMode() {
-        Log.i(TAG, "KeyboardCompanionService: Switching to floating bubble mode")
+        Log.i(TAG, "KeyboardCompanionService: Switching to floating bubble mode (vertical bar)")
         DebugLog.i("KeyboardCompanionService: Switching to bubble mode")
 
         vibrateForFeedback()
+
+        // Show toast for feedback
+        Toast.makeText(this, "Switching to vertical bar...", Toast.LENGTH_SHORT).show()
 
         // Change preference to bubble mode
         preferenceManager.setDictationMode(PreferenceManager.MODE_BUBBLE)
@@ -595,13 +606,47 @@ class KeyboardCompanionService : LifecycleService() {
      * Updates the mic button appearance based on recording state.
      */
     private fun updateMicButton() {
-        val isRecording = BubbleService.getInstance()?.isCurrentlyRecording() ?: false
-        val color = if (isRecording) {
+        val bubbleService = BubbleService.getInstance()
+        val isRecording = bubbleService?.isCurrentlyRecording() ?: false
+        val isProcessing = bubbleService?.isProcessing() ?: false
+
+        val color = if (isRecording || isProcessing) {
             ContextCompat.getColor(this, R.color.bubble_recording)
         } else {
             getThemedIconColor()
         }
         micIcon?.setColorFilter(color)
+
+        // Handle pulse animation for processing state
+        if (isProcessing) {
+            startPulseAnimation(micIcon)
+        } else {
+            stopPulseAnimation(micIcon)
+        }
+    }
+
+    /**
+     * Starts a pulsing alpha animation on the mic icon to indicate transcription processing.
+     */
+    private fun startPulseAnimation(view: ImageView?) {
+        view ?: return
+        if (pulseAnimator?.isRunning == true) return // Already running
+        pulseAnimator?.cancel()
+        pulseAnimator = ObjectAnimator.ofFloat(view, "alpha", 1f, 0.4f).apply {
+            duration = 500
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    /**
+     * Stops the pulsing animation and resets the view to full opacity.
+     */
+    private fun stopPulseAnimation(view: ImageView?) {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        view?.alpha = 1f
     }
 
     /**

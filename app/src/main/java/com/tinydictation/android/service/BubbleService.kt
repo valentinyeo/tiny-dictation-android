@@ -1,5 +1,6 @@
 package com.tinydictation.android.service
 
+import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
@@ -16,7 +17,6 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
-import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
@@ -94,6 +94,9 @@ class BubbleService : LifecycleService() {
     // Screen lock state tracking
     private var wasListeningBeforeLock = false
     private var screenLockReceiver: BroadcastReceiver? = null
+
+    // Pulse animation for transcribing state
+    private var pulseAnimator: ObjectAnimator? = null
 
     override fun onCreate() {
         super.onCreate()
@@ -197,7 +200,25 @@ class BubbleService : LifecycleService() {
             Log.d(TAG, "Bubble listening stopped callback")
             DebugLog.d("BubbleService: Stopping transcription from bubble tap")
             try {
+                // Check if there's pending audio that still needs to be transcribed
+                val hasPending = transcriptionManager?.hasPendingAudio() == true
+                if (hasPending) {
+                    Log.i(TAG, "Pending audio detected - entering PROCESSING state")
+                    DebugLog.i("BubbleService: Entering processing state (pending audio)")
+                    updateState(BubbleState.PROCESSING)
+                }
                 transcriptionManager?.stopListening()
+                // After stopping, if we were processing, go back to IDLE
+                if (hasPending) {
+                    // Give a short delay for final transcripts to arrive
+                    android.os.Handler(mainLooper).postDelayed({
+                        if (currentState == BubbleState.PROCESSING) {
+                            Log.d(TAG, "Processing complete - returning to IDLE")
+                            DebugLog.d("BubbleService: Processing complete, back to IDLE")
+                            updateState(BubbleState.IDLE)
+                        }
+                    }, 2000) // 2 second timeout for final transcript
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Error stopping listening", e)
                 DebugLog.e("BubbleService: Error stopping listening - ${e.message}")
@@ -365,6 +386,10 @@ class BubbleService : LifecycleService() {
         Log.i(TAG, "BubbleService onDestroy")
         DebugLog.i("BubbleService: Service destroyed")
 
+        // Stop pulse animation
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+
         // Unregister screen lock receiver
         screenLockReceiver?.let { receiver ->
             try {
@@ -455,9 +480,9 @@ class BubbleService : LifecycleService() {
             toggleLanguage()
         }
 
-        // Keyboard switch button click handler - switches to Tiny Dictation keyboard
-        bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)?.setOnClickListener {
-            handleKeyboardButtonClick()
+        // Horizontal bar switch button click handler - switches to horizontal floating bar (companion mode)
+        bubbleView?.findViewById<FrameLayout>(R.id.horizontalBarButtonContainer)?.setOnClickListener {
+            switchToCompanionBarMode()
         }
 
         try {
@@ -556,97 +581,29 @@ class BubbleService : LifecycleService() {
     }
 
     /**
-     * Handles keyboard button click - switches directly to Tiny Dictation keyboard.
-     * If WRITE_SECURE_SETTINGS permission is granted, switches directly.
-     * Otherwise falls back to showing the keyboard picker.
+     * Switches to companion bar mode (horizontal floating bar).
+     * Changes preference to companion mode, removes bubble UI, and starts KeyboardCompanionService.
      */
-    private fun handleKeyboardButtonClick() {
-        Log.i(TAG, "Keyboard button clicked - switching to Tiny Dictation keyboard")
-        DebugLog.i("BubbleService: Switching to Tiny Dictation keyboard")
+    private fun switchToCompanionBarMode() {
+        Log.i(TAG, "Switching to companion bar mode (horizontal floating bar)")
+        DebugLog.i("BubbleService: Switching to companion mode")
 
         vibrateForFeedback()
 
-        // Show toast for feedback so user knows button was pressed
-        Toast.makeText(this, "Switching keyboard...", Toast.LENGTH_SHORT).show()
+        // Show toast for feedback
+        Toast.makeText(this, "Switching to horizontal bar...", Toast.LENGTH_SHORT).show()
 
-        // Try direct switch if we have the permission
-        if (switchToTinyDictationKeyboard()) {
-            Log.i(TAG, "Successfully switched to Tiny Dictation keyboard")
-            DebugLog.i("BubbleService: Direct switch successful")
-        } else {
-            // Fall back to keyboard picker
-            Log.i(TAG, "Direct switch not available, showing picker")
-            DebugLog.i("BubbleService: Showing keyboard picker (no permission)")
-            showInputMethodPickerWithFallback()
-        }
-    }
+        // Change preference to companion mode
+        preferenceManager.setDictationMode(PreferenceManager.MODE_COMPANION)
+        Log.d(TAG, "Preference changed to MODE_COMPANION")
 
-    /**
-     * Attempts to switch directly to Tiny Dictation keyboard.
-     * Requires WRITE_SECURE_SETTINGS permission (granted via ADB).
-     * @return true if successful, false if permission not granted
-     */
-    private fun switchToTinyDictationKeyboard(): Boolean {
-        val imeId = "$packageName/.service.DictationKeyboardService"
-        Log.d(TAG, "Attempting to switch to IME: $imeId")
-        DebugLog.d("BubbleService: IME ID = $imeId")
+        // Remove the bubble UI (but keep service running for transcription)
+        removeBubble()
 
-        return try {
-            // This requires WRITE_SECURE_SETTINGS permission
-            val success = android.provider.Settings.Secure.putString(
-                contentResolver,
-                android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
-                imeId
-            )
-            Log.d(TAG, "Direct switch result: $success")
-            DebugLog.d("BubbleService: Direct switch result=$success")
-            if (success) {
-                Log.i(TAG, "Set default IME to: $imeId")
-            }
-            success
-        } catch (e: SecurityException) {
-            // Permission not granted - this is expected for most users
-            Log.d(TAG, "WRITE_SECURE_SETTINGS not granted, will use picker")
-            DebugLog.d("BubbleService: No WRITE_SECURE_SETTINGS permission")
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "Error switching keyboard", e)
-            DebugLog.e("BubbleService: Switch error - ${e.message}")
-            false
-        }
-    }
-
-    /**
-     * Shows the input method picker with multiple fallback approaches.
-     * Some Android versions/devices have issues with showInputMethodPicker() from services.
-     */
-    private fun showInputMethodPickerWithFallback() {
-        try {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            Log.d(TAG, "InputMethodManager obtained: $imm")
-
-            // Try the standard approach first
-            imm.showInputMethodPicker()
-            Log.i(TAG, "showInputMethodPicker() called successfully")
-            DebugLog.i("BubbleService: Picker shown via IMM")
-        } catch (e: Exception) {
-            Log.e(TAG, "Error showing keyboard picker via IMM", e)
-            DebugLog.e("BubbleService: IMM picker error - ${e.message}")
-
-            // Fallback: Try opening keyboard settings directly
-            try {
-                val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS).apply {
-                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
-                }
-                startActivity(intent)
-                Toast.makeText(this, "Select Tiny Dictation keyboard", Toast.LENGTH_LONG).show()
-                DebugLog.i("BubbleService: Opened keyboard settings as fallback")
-            } catch (e2: Exception) {
-                Log.e(TAG, "Error opening keyboard settings", e2)
-                DebugLog.e("BubbleService: Settings fallback error - ${e2.message}")
-                Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
-            }
-        }
+        // Start KeyboardCompanionService for horizontal bar UI
+        KeyboardCompanionService.start(this)
+        Log.i(TAG, "KeyboardCompanionService started")
+        DebugLog.i("BubbleService: Switched to companion mode, KeyboardCompanionService started")
     }
 
     /**
@@ -721,7 +678,7 @@ class BubbleService : LifecycleService() {
         bubbleView?.visibility = if (hideBubbles || isKeyboardVisible) View.GONE else View.VISIBLE
 
         val langContainer = bubbleView?.findViewById<FrameLayout>(R.id.languageButtonContainer)
-        val keyboardContainer = bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
+        val keyboardContainer = bubbleView?.findViewById<FrameLayout>(R.id.horizontalBarButtonContainer)
 
         langContainer?.visibility = if (showLanguage) View.VISIBLE else View.GONE
         keyboardContainer?.visibility = if (showKeyboard) View.VISIBLE else View.GONE
@@ -897,7 +854,7 @@ class BubbleService : LifecycleService() {
         bubbleView?.let { view ->
             val bubbleContainer = view.findViewById<FrameLayout>(R.id.bubbleContainer)
             val languageContainer = view.findViewById<FrameLayout>(R.id.languageButtonContainer)
-            val keyboardContainer = view.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
+            val keyboardContainer = view.findViewById<FrameLayout>(R.id.horizontalBarButtonContainer)
 
             if (isCompactMode) {
                 // Compact mode: smaller, more translucent, hide extra buttons
@@ -1018,6 +975,18 @@ class BubbleService : LifecycleService() {
     }
 
     /**
+     * Checks if currently processing transcription (recording stopped, waiting for final result).
+     */
+    fun isProcessing(): Boolean {
+        return currentState == BubbleState.PROCESSING
+    }
+
+    /**
+     * Gets the current bubble state.
+     */
+    fun getCurrentState(): BubbleState = currentState
+
+    /**
      * Sets keyboard visibility state. When keyboard is visible, bubbles are hidden.
      */
     fun setKeyboardVisible(visible: Boolean) {
@@ -1037,27 +1006,54 @@ class BubbleService : LifecycleService() {
 
             when (currentState) {
                 BubbleState.IDLE -> {
+                    stopPulseAnimation(iconView)
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.clearColorFilter()
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.LISTENING -> {
+                    stopPulseAnimation(iconView)
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.clearColorFilter()
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.RECORDING -> {
+                    stopPulseAnimation(iconView)
                     iconView?.setImageResource(R.drawable.ic_mic)
                     iconView?.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
                 }
                 BubbleState.PROCESSING -> {
                     iconView?.setImageResource(R.drawable.ic_mic)
-                    iconView?.setColorFilter(ContextCompat.getColor(this, R.color.bubble_processing))
+                    iconView?.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
                     bubbleContainer?.setBackgroundResource(R.drawable.bubble_background)
+                    startPulseAnimation(iconView)
                 }
             }
         }
+    }
+
+    /**
+     * Starts a pulsing alpha animation on the mic icon to indicate transcription processing.
+     */
+    private fun startPulseAnimation(view: ImageView?) {
+        view ?: return
+        pulseAnimator?.cancel()
+        pulseAnimator = ObjectAnimator.ofFloat(view, "alpha", 1f, 0.4f).apply {
+            duration = 500
+            repeatCount = ObjectAnimator.INFINITE
+            repeatMode = ObjectAnimator.REVERSE
+            start()
+        }
+    }
+
+    /**
+     * Stops the pulsing animation and resets the view to full opacity.
+     */
+    private fun stopPulseAnimation(view: ImageView?) {
+        pulseAnimator?.cancel()
+        pulseAnimator = null
+        view?.alpha = 1f
     }
 
     /**

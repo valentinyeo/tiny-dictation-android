@@ -54,6 +54,19 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.18:
+            • Seamless switching between Vertical and Horizontal floating bar modes
+            • Vertical bar: tap horizontal bar icon to switch to horizontal mode
+            • Horizontal bar: tap vertical bar icon to switch to vertical mode
+            • Instant mode switching without restarting dictation
+            • New icons for horizontal/vertical bar switch buttons
+
+            v1.10.17:
+            • NEW: Pulsing mic icon animation while processing transcription
+            • After stopping dictation, mic icon pulses red while awaiting final transcript
+            • Visual feedback shows when audio is being transcribed (not just recording)
+            • Pulse animation appears in floating bar, keyboard, and companion bar
+
             v1.10.16:
             • Fixed keyboard switch button not working on floating bar and companion bar
             • Added toast feedback when button is pressed ("Switching keyboard...")

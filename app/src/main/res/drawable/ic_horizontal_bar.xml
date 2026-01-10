@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Lucide-style horizontal bar icon - represents a horizontal floating bar -->
+    <!-- Outer rectangle representing the phone/app area -->
+    <path
+        android:fillColor="@android:color/transparent"
+        android:strokeColor="#49454F"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M3,4 L21,4 L21,20 L3,20 Z" />
+    <!-- Horizontal bar at the bottom representing the floating bar -->
+    <path
+        android:fillColor="#49454F"
+        android:pathData="M5,16 L19,16 L19,18 L5,18 Z" />
+    <!-- Three dots in the bar representing buttons -->
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M8,17 m-0.8,0 a0.8,0.8 0,1 1,1.6 0 a0.8,0.8 0,1 1,-1.6 0" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M12,17 m-0.8,0 a0.8,0.8 0,1 1,1.6 0 a0.8,0.8 0,1 1,-1.6 0" />
+    <path
+        android:fillColor="@android:color/white"
+        android:pathData="M16,17 m-0.8,0 a0.8,0.8 0,1 1,1.6 0 a0.8,0.8 0,1 1,-1.6 0" />
+</vector>
