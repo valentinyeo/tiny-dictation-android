@@ -64,6 +64,28 @@
 
         </FrameLayout>
 
+        <!-- Keyboard Switch Button -->
+        <FrameLayout
+            android:id="@+id/keyboardButtonContainer"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bubble_background"
+            android:elevation="6dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <ImageView
+                android:id="@+id/ivKeyboardButton"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_keyboard_switch"
+                app:tint="@color/bubble_text"
+                android:contentDescription="@string/keyboard_switch_hint" />
+
+        </FrameLayout>
+
         <!-- Main Mic Bubble (at bottom) -->
         <FrameLayout
             android:id="@+id/bubbleContainer"

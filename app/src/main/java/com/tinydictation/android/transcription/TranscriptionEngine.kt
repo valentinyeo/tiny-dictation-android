@@ -102,4 +102,12 @@ interface TranscriptionEngine {
      * @return true if flush completed successfully, false if timed out
      */
     suspend fun flushPendingAudio(timeoutMs: Long = 10000): Boolean = true
+
+    /**
+     * Clear any buffered audio without processing it.
+     * Call this when starting a fresh dictation session to discard old audio.
+     * This is separate from startSession() to allow early audio to be captured
+     * during the engine startup process.
+     */
+    fun clearAudioBuffer() { /* Default no-op for engines without buffering */ }
 }

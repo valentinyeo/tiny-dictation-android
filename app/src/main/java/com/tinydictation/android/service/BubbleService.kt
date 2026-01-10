@@ -19,6 +19,7 @@ import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -109,7 +110,7 @@ class BubbleService : LifecycleService() {
         // Register preference listener for bubble visibility changes
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
         prefsListener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "show_language_bubble" || key == "show_paste_bubble" || key == "show_note_bubble") {
+            if (key == "show_language_bubble" || key == "show_paste_bubble" || key == "show_note_bubble" || key == "show_keyboard_bubble") {
                 Log.i(TAG, "Preference changed: $key")
                 DebugLog.i("BubbleService: Preference changed: $key")
                 updateBubbleVisibility()
@@ -143,8 +144,8 @@ class BubbleService : LifecycleService() {
             onTranscript = { text, isFinal ->
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 if (isFinal && text.isNotBlank()) {
-                    // Inject via accessibility service
-                    DictationAccessibilityService.inject(text + " ")
+                    // Try to inject text using the best available method
+                    injectText(text + " ")
                     // Also add to paste buffer for manual paste option
                     appendToBuffer(text)
                     // Note: History is saved when user taps clipboard, not on every transcript
@@ -176,6 +177,8 @@ class BubbleService : LifecycleService() {
             Log.d(TAG, "Bubble listening started callback")
             DebugLog.d("BubbleService: Starting transcription from bubble tap")
             try {
+                // Note: TranscriptionManager.startListening() will clear the audio buffer
+                // before starting the engine session, so no explicit clear needed here
                 transcriptionManager?.startListening()
             } catch (e: SecurityException) {
                 Log.e(TAG, "Security exception starting listening", e)
@@ -466,6 +469,11 @@ class BubbleService : LifecycleService() {
             handleNoteButtonClick()
         }
 
+        // Keyboard switch button click handler - opens system keyboard picker
+        bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)?.setOnClickListener {
+            handleKeyboardButtonClick()
+        }
+
         try {
             windowManager.addView(bubbleView, bubbleParams)
             // Set default opacity to ~65% for less intrusive appearance
@@ -512,6 +520,55 @@ class BubbleService : LifecycleService() {
             // Copy buffer to clipboard
             copyBufferToClipboard()
         }
+    }
+
+    /**
+     * Handles keyboard button click - opens the system keyboard picker.
+     * This allows users to switch to Tiny Dictation keyboard or back to another keyboard.
+     */
+    private fun handleKeyboardButtonClick() {
+        Log.i(TAG, "Keyboard button clicked - showing keyboard picker")
+        DebugLog.i("BubbleService: Opening keyboard picker")
+
+        try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showInputMethodPicker()
+            vibrateForFeedback()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing keyboard picker", e)
+            DebugLog.e("BubbleService: Error showing keyboard picker - ${e.message}")
+            Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    /**
+     * Injects text using the best available method.
+     * Priority:
+     * 1. DictationKeyboardService (if active and has input connection)
+     * 2. DictationAccessibilityService (fallback)
+     *
+     * @param text The text to inject
+     * @return true if text was successfully injected
+     */
+    private fun injectText(text: String): Boolean {
+        // First, try the keyboard service if it's available and has an active input
+        if (DictationKeyboardService.isServiceRunning() && DictationKeyboardService.canCommitText()) {
+            Log.d(TAG, "Injecting via keyboard service")
+            DebugLog.d("BubbleService: Using keyboard service for text injection")
+            val success = DictationKeyboardService.commitText(text)
+            if (success) {
+                // Also notify the keyboard service to update its status
+                DictationKeyboardService.getInstance()?.refreshStatus()
+                return true
+            }
+            // Fall through to accessibility if keyboard commit failed
+            Log.w(TAG, "Keyboard commit failed, falling back to accessibility")
+            DebugLog.w("BubbleService: Keyboard commit failed, trying accessibility")
+        }
+
+        // Fallback to accessibility service
+        Log.d(TAG, "Injecting via accessibility service")
+        return DictationAccessibilityService.inject(text)
     }
 
     /**
@@ -781,19 +838,22 @@ class BubbleService : LifecycleService() {
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
         val showPaste = prefs.getBoolean("show_paste_bubble", true)
         val showNote = prefs.getBoolean("show_note_bubble", false)
+        val showKeyboard = prefs.getBoolean("show_keyboard_bubble", false)
 
-        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote")
-        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste, note=$showNote")
+        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote, showKeyboard=$showKeyboard")
+        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste, note=$showNote, keyboard=$showKeyboard")
 
         val langView = bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)
         val pasteView = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
         val noteView = bubbleView?.findViewById<FrameLayout>(R.id.noteButtonContainer)
+        val keyboardView = bubbleView?.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
 
         langView?.visibility = if (showLanguage) View.VISIBLE else View.GONE
         pasteView?.visibility = if (showPaste) View.VISIBLE else View.GONE
         noteView?.visibility = if (showNote) View.VISIBLE else View.GONE
+        keyboardView?.visibility = if (showKeyboard) View.VISIBLE else View.GONE
 
-        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}, noteView=${noteView != null}")
+        Log.i(TAG, "updateBubbleVisibility: langView=${langView != null}, pasteView=${pasteView != null}, noteView=${noteView != null}, keyboardView=${keyboardView != null}")
     }
 
     /**
@@ -966,6 +1026,7 @@ class BubbleService : LifecycleService() {
             val languageToggle = view.findViewById<TextView>(R.id.tvLanguageToggle)
             val pasteButton = view.findViewById<TextView>(R.id.tvPasteButton)
             val noteButton = view.findViewById<FrameLayout>(R.id.noteButtonContainer)
+            val keyboardButton = view.findViewById<FrameLayout>(R.id.keyboardButtonContainer)
 
             if (isCompactMode) {
                 // Compact mode: smaller, more translucent, hide extra buttons
@@ -983,6 +1044,7 @@ class BubbleService : LifecycleService() {
                 languageToggle?.visibility = View.GONE
                 pasteButton?.visibility = View.GONE
                 noteButton?.visibility = View.GONE
+                keyboardButton?.visibility = View.GONE
             } else {
                 // Normal mode: restore size and default opacity
                 view.alpha = DEFAULT_OPACITY

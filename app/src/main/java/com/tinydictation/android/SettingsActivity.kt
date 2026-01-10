@@ -53,6 +53,16 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.13:
+            • Added keyboard input method for direct text entry
+            • Fixed all mipmap icons to use new adaptive icon design
+            • Keyboard works in apps where accessibility paste fails
+
+            v1.9.12:
+            • Fixed first part of sentence sometimes going missing
+            • Audio buffer no longer cleared during session startup race condition
+            • Added explicit audio buffer clearing when starting new dictation session
+
             v1.9.11:
             • Redesigned app icons with modern Lucide-inspired stroke style
             • New professional launcher icon with microphone and audio waves
@@ -307,6 +317,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var noteAppContainer: LinearLayout
     private lateinit var tvSelectedNoteApp: TextView
     private lateinit var btnSelectNoteApp: MaterialButton
+    private lateinit var keyboardBubbleSwitch: MaterialSwitch
+    private lateinit var btnSetupKeyboard: MaterialButton
     private lateinit var copyDebugLogButton: MaterialButton
     private lateinit var shareDebugLogButton: MaterialButton
     private lateinit var saveButton: MaterialButton
@@ -538,6 +550,8 @@ class SettingsActivity : AppCompatActivity() {
         noteAppContainer = findViewById(R.id.noteAppContainer)
         tvSelectedNoteApp = findViewById(R.id.tvSelectedNoteApp)
         btnSelectNoteApp = findViewById(R.id.btnSelectNoteApp)
+        keyboardBubbleSwitch = findViewById(R.id.switchKeyboardBubble)
+        btnSetupKeyboard = findViewById(R.id.btnSetupKeyboard)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
         shareDebugLogButton = findViewById(R.id.btnShareDebugLog)
         saveButton = findViewById(R.id.btnSave)
@@ -705,6 +719,10 @@ class SettingsActivity : AppCompatActivity() {
         updateNoteAppContainerVisibility()
         updateSelectedNoteAppDisplay()
 
+        // Load keyboard bubble setting
+        keyboardBubbleSwitch.isChecked = prefs.getBoolean("show_keyboard_bubble", false)
+        updateKeyboardSetupButtonVisibility()
+
         // Load auto-fallback setting
         autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
 
@@ -861,6 +879,21 @@ class SettingsActivity : AppCompatActivity() {
         // Note app selection button
         btnSelectNoteApp.setOnClickListener {
             showNoteAppPicker()
+        }
+
+        // Keyboard bubble toggle - applies immediately
+        keyboardBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
+            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
+                .edit()
+                .putBoolean("show_keyboard_bubble", isChecked)
+                .commit()
+            updateKeyboardSetupButtonVisibility()
+            DebugLog.i("Keyboard bubble setting changed to: $isChecked")
+        }
+
+        // Setup keyboard button - opens system keyboard settings
+        btnSetupKeyboard.setOnClickListener {
+            openKeyboardSettings()
         }
 
         // Headphone mic toggle applies immediately
@@ -1116,6 +1149,27 @@ class SettingsActivity : AppCompatActivity() {
      */
     private fun updateNoteAppContainerVisibility() {
         noteAppContainer.visibility = if (noteBubbleSwitch.isChecked) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Updates visibility of the keyboard setup button based on keyboard bubble toggle.
+     */
+    private fun updateKeyboardSetupButtonVisibility() {
+        btnSetupKeyboard.visibility = if (keyboardBubbleSwitch.isChecked) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Opens the system keyboard settings so user can enable Tiny Dictation keyboard.
+     */
+    private fun openKeyboardSettings() {
+        try {
+            val intent = Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS)
+            startActivity(intent)
+            Toast.makeText(this, "Enable 'Tiny Dictation' in the keyboard list", Toast.LENGTH_LONG).show()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error opening keyboard settings", e)
+            Toast.makeText(this, "Could not open keyboard settings", Toast.LENGTH_SHORT).show()
+        }
     }
 
     /**

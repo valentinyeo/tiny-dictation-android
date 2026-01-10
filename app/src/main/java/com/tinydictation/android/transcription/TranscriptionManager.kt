@@ -137,6 +137,9 @@ class TranscriptionManager(
                 updateState(TranscriptionState.TRANSCRIBING)
             }
 
+            // Clear any stale audio from previous sessions before starting
+            engine.clearAudioBuffer()
+
             engine.startSession(
                 onTranscript = { text, isFinal ->
                     currentScope.launch(Dispatchers.Main) {
@@ -345,6 +348,16 @@ class TranscriptionManager(
         Log.i(TAG, "TranscriptionManager: Flushing pending transcription")
         DebugLog.i("TranscriptionManager: Flushing pending transcription")
         return engine.flushPendingAudio(timeoutMs)
+    }
+
+    /**
+     * Clears any buffered audio in the current engine.
+     * Call this when starting a fresh dictation session.
+     */
+    fun clearEngineAudioBuffer() {
+        Log.d(TAG, "TranscriptionManager: Clearing engine audio buffer")
+        DebugLog.d("TranscriptionManager: Clearing engine audio buffer")
+        currentEngine?.clearAudioBuffer()
     }
 
     /**

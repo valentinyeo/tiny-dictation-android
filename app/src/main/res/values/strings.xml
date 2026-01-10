@@ -41,6 +41,18 @@
     <!-- Accessibility -->
     <string name="accessibility_service_description">Tiny Dictation uses accessibility to insert transcribed text directly into any text field you\'re focused on.</string>
 
+    <!-- Keyboard -->
+    <string name="keyboard_name">Tiny Dictation</string>
+    <string name="keyboard_subtype_english">English (Dictation)</string>
+    <string name="keyboard_subtype_german">German (Dictation)</string>
+    <string name="keyboard_switch_hint">Switch keyboard</string>
+    <string name="keyboard_status_idle">Tap bubble to start dictation</string>
+    <string name="keyboard_status_active">Dictation active - speak now</string>
+    <string name="keyboard_enable_title">Keyboard Input</string>
+    <string name="keyboard_enable_desc">Enable keyboard for direct text input (works better in terminal apps)</string>
+    <string name="keyboard_bubble_title">Show Keyboard Bubble</string>
+    <string name="keyboard_bubble_desc">Show button to switch keyboards</string>
+
     <!-- Debug -->
     <string name="debug_title">Debug</string>
     <string name="copy_debug_log">Copy Debug Log</string>

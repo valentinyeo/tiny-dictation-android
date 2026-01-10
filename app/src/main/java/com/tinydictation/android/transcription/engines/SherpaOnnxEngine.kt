@@ -245,7 +245,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
         onTranscriptCallback = onTranscript
         onErrorCallback = onError
         isSessionActive = true
-        audioBuffer.clear()
+        // NOTE: Don't clear audioBuffer here! Early audio that arrives before the session
+        // is fully started should be preserved. The buffer is cleared by BubbleService when
+        // starting a new dictation session (via clearBuffer()), not here.
+        // This fixes the issue where the first part of a sentence goes missing.
+        consecutiveSilentChunks = 0
+        hasDetectedSpeech = false
     }
 
     // Track silence for smarter processing
@@ -502,6 +507,19 @@ class SherpaOnnxEngine : TranscriptionEngine {
     override fun getSupportedLanguages(): List<String> {
         // Whisper supports many languages
         return listOf("en", "de", "es", "fr", "it", "pt", "nl", "pl", "ru", "zh", "ja", "ko")
+    }
+
+    /**
+     * Clear the audio buffer without processing it.
+     * Call this when starting a fresh dictation session.
+     */
+    override fun clearAudioBuffer() {
+        Log.d(TAG, "SherpaOnnxEngine: Clearing audio buffer")
+        synchronized(audioBuffer) {
+            audioBuffer.clear()
+        }
+        consecutiveSilentChunks = 0
+        hasDetectedSpeech = false
     }
 
     /**
