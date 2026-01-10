@@ -64,6 +64,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.13:
+            • FIX: Bluetooth headset microphone now works!
+            • Added Bluetooth SCO support for wireless headsets
+            • OnePlus Buds, AirPods, and other Bluetooth earbuds can now record audio
+
             v1.11.12:
             • NEW: Filter Whisper hallucinations - removes (clicking), [door closing], etc.
             • Filters out sound descriptions, repeated words, and spam phrases

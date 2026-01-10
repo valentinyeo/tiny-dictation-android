@@ -9,12 +9,14 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
 import android.media.audiofx.NoiseSuppressor
+import android.os.Build
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -52,6 +54,11 @@ class AudioRecorder {
     // Audio effects to filter out speaker audio
     private var echoCanceler: AcousticEchoCanceler? = null
     private var noiseSuppressor: NoiseSuppressor? = null
+
+    // Bluetooth SCO state
+    private var audioManager: AudioManager? = null
+    private var bluetoothScoStarted = false
+    private var previousAudioMode = AudioManager.MODE_NORMAL
 
     /**
      * Enables audio effects to improve voice recording quality.
@@ -117,6 +124,94 @@ class AudioRecorder {
     }
 
     /**
+     * Checks if the given audio device is a Bluetooth device that requires SCO.
+     */
+    private fun isBluetoothDevice(device: AudioDeviceInfo?): Boolean {
+        if (device == null) return false
+        return device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
+               device.type == AudioDeviceInfo.TYPE_BLE_HEADSET
+    }
+
+    /**
+     * Starts Bluetooth SCO (Synchronous Connection-Oriented) mode.
+     * This is required for recording audio from Bluetooth headsets.
+     * Without SCO, Bluetooth headsets only work for audio output.
+     */
+    @Suppress("DEPRECATION")
+    private suspend fun startBluetoothSco(context: Context): Boolean {
+        val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioManager = am
+
+        if (am.isBluetoothScoOn) {
+            Log.i(TAG, "AudioRecorder: Bluetooth SCO already on")
+            DebugLog.i("AudioRecorder: Bluetooth SCO already active")
+            return true
+        }
+
+        // Save current audio mode to restore later
+        previousAudioMode = am.mode
+
+        try {
+            // Start Bluetooth SCO
+            Log.i(TAG, "AudioRecorder: Starting Bluetooth SCO...")
+            DebugLog.i("AudioRecorder: Starting Bluetooth SCO for headset mic")
+            am.startBluetoothSco()
+            bluetoothScoStarted = true
+
+            // Set audio mode to communication for SCO
+            am.mode = AudioManager.MODE_IN_COMMUNICATION
+
+            // Wait for SCO to connect (up to 2 seconds)
+            var attempts = 0
+            while (!am.isBluetoothScoOn && attempts < 20) {
+                delay(100)
+                attempts++
+            }
+
+            if (am.isBluetoothScoOn) {
+                Log.i(TAG, "AudioRecorder: Bluetooth SCO connected successfully")
+                DebugLog.i("AudioRecorder: Bluetooth SCO connected")
+                return true
+            } else {
+                Log.w(TAG, "AudioRecorder: Bluetooth SCO failed to connect after ${attempts * 100}ms")
+                DebugLog.w("AudioRecorder: Bluetooth SCO connection timeout")
+                stopBluetoothSco()
+                return false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "AudioRecorder: Error starting Bluetooth SCO", e)
+            DebugLog.e("AudioRecorder: Bluetooth SCO error - ${e.message}")
+            stopBluetoothSco()
+            return false
+        }
+    }
+
+    /**
+     * Stops Bluetooth SCO mode and restores previous audio state.
+     */
+    @Suppress("DEPRECATION")
+    private fun stopBluetoothSco() {
+        if (!bluetoothScoStarted) return
+
+        try {
+            audioManager?.let { am ->
+                if (am.isBluetoothScoOn) {
+                    am.stopBluetoothSco()
+                    Log.i(TAG, "AudioRecorder: Bluetooth SCO stopped")
+                    DebugLog.i("AudioRecorder: Bluetooth SCO stopped")
+                }
+                // Restore previous audio mode
+                am.mode = previousAudioMode
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "AudioRecorder: Error stopping Bluetooth SCO", e)
+        }
+
+        bluetoothScoStarted = false
+        audioManager = null
+    }
+
+    /**
      * Calculates the minimum buffer size required for AudioRecord.
      * Returns the larger of the minimum required size or our chunk size.
      */
@@ -153,10 +248,6 @@ class AudioRecorder {
             return
         }
 
-        // Always use VOICE_RECOGNITION as the base audio source for better quality
-        // We'll override the device explicitly with setPreferredDevice() if needed
-        val audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION
-
         Log.i(TAG, "Starting audio recording at $SAMPLE_RATE Hz")
         DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz, useHeadphoneMic=$useHeadphoneMic")
         val bufferSize = getMinBufferSize()
@@ -164,59 +255,82 @@ class AudioRecorder {
 
         // Find headset mic if user wants to use it
         val headsetMic = if (useHeadphoneMic) findHeadsetMic(context) else null
-
-        try {
-            audioRecord = AudioRecord(
-                audioSource,
-                SAMPLE_RATE,
-                CHANNEL_CONFIG,
-                AUDIO_FORMAT,
-                bufferSize
-            ).also { record ->
-                if (record.state != AudioRecord.STATE_INITIALIZED) {
-                    record.release()
-                    Log.e(TAG, "Failed to initialize AudioRecord - state: ${record.state}")
-                    throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
-                }
-
-                // Explicitly set the preferred input device if headset mic is requested and available
-                if (useHeadphoneMic && headsetMic != null) {
-                    val success = record.setPreferredDevice(headsetMic)
-                    val deviceName = headsetMic.productName?.toString() ?: getDeviceTypeName(headsetMic.type)
-                    if (success) {
-                        Log.i(TAG, "AudioRecorder: Set preferred device to headset mic: $deviceName")
-                        DebugLog.i("AudioRecorder: Using headset mic: $deviceName")
-                    } else {
-                        Log.w(TAG, "AudioRecorder: Failed to set preferred device to headset mic")
-                        DebugLog.w("AudioRecorder: Failed to set headset mic, using default")
-                    }
-                } else if (useHeadphoneMic) {
-                    Log.w(TAG, "AudioRecorder: Headset mic requested but no headset connected")
-                    DebugLog.w("AudioRecorder: No headset mic found, using built-in mic")
-                } else {
-                    Log.i(TAG, "AudioRecorder: Using built-in microphone")
-                    DebugLog.i("AudioRecorder: Using built-in microphone")
-                }
-
-                // Enable Acoustic Echo Cancellation to filter out speaker audio
-                // This prevents transcribing audio playing from WhatsApp voice messages, etc.
-                enableAudioEffects(record.audioSessionId)
-            }
-        } catch (e: SecurityException) {
-            Log.e(TAG, "Permission denied for audio recording", e)
-            throw SecurityException("Microphone permission not granted", e)
-        } catch (e: IllegalArgumentException) {
-            Log.e(TAG, "Invalid audio configuration", e)
-            throw IllegalStateException("Invalid audio recording configuration", e)
-        } catch (e: Exception) {
-            Log.e(TAG, "Unexpected error initializing AudioRecord", e)
-            throw IllegalStateException("Failed to initialize audio recording: ${e.message}", e)
-        }
+        val needsBluetoothSco = useHeadphoneMic && isBluetoothDevice(headsetMic)
 
         isRecording = true
         chunksDelivered = 0
 
         recordingJob = scope.launch {
+            // Start Bluetooth SCO if needed (must be done in coroutine for delay)
+            if (needsBluetoothSco) {
+                val scoStarted = startBluetoothSco(context)
+                if (!scoStarted) {
+                    Log.w(TAG, "AudioRecorder: Bluetooth SCO failed, falling back to default mic")
+                    DebugLog.w("AudioRecorder: Bluetooth SCO failed, using default mic")
+                }
+            }
+
+            // Choose audio source - use DEFAULT for Bluetooth SCO, VOICE_RECOGNITION otherwise
+            val audioSource = if (needsBluetoothSco && bluetoothScoStarted) {
+                MediaRecorder.AudioSource.DEFAULT
+            } else {
+                MediaRecorder.AudioSource.VOICE_RECOGNITION
+            }
+
+            try {
+                audioRecord = AudioRecord(
+                    audioSource,
+                    SAMPLE_RATE,
+                    CHANNEL_CONFIG,
+                    AUDIO_FORMAT,
+                    bufferSize
+                ).also { record ->
+                    if (record.state != AudioRecord.STATE_INITIALIZED) {
+                        record.release()
+                        Log.e(TAG, "Failed to initialize AudioRecord - state: ${record.state}")
+                        throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
+                    }
+
+                    // Explicitly set the preferred input device if headset mic is requested and available
+                    if (useHeadphoneMic && headsetMic != null) {
+                        val success = record.setPreferredDevice(headsetMic)
+                        val deviceName = headsetMic.productName?.toString() ?: getDeviceTypeName(headsetMic.type)
+                        if (success) {
+                            Log.i(TAG, "AudioRecorder: Set preferred device to headset mic: $deviceName")
+                            DebugLog.i("AudioRecorder: Using headset mic: $deviceName")
+                        } else {
+                            Log.w(TAG, "AudioRecorder: Failed to set preferred device to headset mic")
+                            DebugLog.w("AudioRecorder: Failed to set headset mic, using default")
+                        }
+                    } else if (useHeadphoneMic) {
+                        Log.w(TAG, "AudioRecorder: Headset mic requested but no headset connected")
+                        DebugLog.w("AudioRecorder: No headset mic found, using built-in mic")
+                    } else {
+                        Log.i(TAG, "AudioRecorder: Using built-in microphone")
+                        DebugLog.i("AudioRecorder: Using built-in microphone")
+                    }
+
+                    // Enable Acoustic Echo Cancellation to filter out speaker audio
+                    // This prevents transcribing audio playing from WhatsApp voice messages, etc.
+                    enableAudioEffects(record.audioSessionId)
+                }
+            } catch (e: SecurityException) {
+                Log.e(TAG, "Permission denied for audio recording", e)
+                stopBluetoothSco()
+                isRecording = false
+                throw SecurityException("Microphone permission not granted", e)
+            } catch (e: IllegalArgumentException) {
+                Log.e(TAG, "Invalid audio configuration", e)
+                stopBluetoothSco()
+                isRecording = false
+                throw IllegalStateException("Invalid audio recording configuration", e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Unexpected error initializing AudioRecord", e)
+                stopBluetoothSco()
+                isRecording = false
+                throw IllegalStateException("Failed to initialize audio recording: ${e.message}", e)
+            }
+
             withContext(Dispatchers.IO) {
                 try {
                     val record = audioRecord
@@ -321,6 +435,9 @@ class AudioRecorder {
             record.release()
         }
         audioRecord = null
+
+        // Stop Bluetooth SCO if it was started
+        stopBluetoothSco()
     }
 
     /**
