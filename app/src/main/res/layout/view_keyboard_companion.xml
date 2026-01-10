@@ -19,6 +19,23 @@
         android:paddingHorizontal="8dp"
         android:elevation="4dp">
 
+        <!-- Close button - dismiss the companion bar -->
+        <FrameLayout
+            android:id="@+id/btnCompanionClose"
+            android:layout_width="36dp"
+            android:layout_height="32dp"
+            android:background="@drawable/keyboard_button_background"
+            android:contentDescription="Close companion bar">
+
+            <ImageView
+                android:id="@+id/ivCompanionClose"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_close"
+                app:tint="@color/on_surface" />
+        </FrameLayout>
+
         <!-- Spacer pushes buttons to the right -->
         <View
             android:layout_width="0dp"

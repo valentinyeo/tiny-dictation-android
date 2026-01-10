@@ -56,6 +56,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.23:
+            • Removed redundant Start/Stop Dictation button from Settings
+            • Users now control dictation from the floating bar or keyboard
+            • Floating bar has drag-to-close, companion bar will have close button
+            • Cleaner Settings screen focused on configuration
+
             v1.10.22:
             • Fixed keyboard overlaying PWA content instead of pushing it up
             • Properly reports keyboard insets so apps can resize content
@@ -497,7 +503,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var microphoneButton: MaterialButton
     private lateinit var overlayButton: MaterialButton
     private lateinit var accessibilityButton: MaterialButton
-    private lateinit var startButton: MaterialButton
     private lateinit var historyButton: MaterialButton
 
     private lateinit var toolbar: MaterialToolbar
@@ -586,7 +591,6 @@ class SettingsActivity : AppCompatActivity() {
         super.onResume()
         Log.d(TAG, "SettingsActivity onResume")
         updatePermissionStatus()
-        updateStartButton()
 
         // Auto-start dictation if all permissions granted and API key configured
         autoStartDictationIfReady()
@@ -611,7 +615,6 @@ class SettingsActivity : AppCompatActivity() {
 
         Log.i(TAG, "Auto-starting dictation")
         startDictation()
-        updateStartButton()
     }
 
     private fun updatePermissionStatus() {
@@ -644,22 +647,6 @@ class SettingsActivity : AppCompatActivity() {
             icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
             button.visibility = View.VISIBLE
         }
-    }
-
-    private fun updateStartButton() {
-        updateStartButtonState(isDictationRunning())
-    }
-
-    private fun updateStartButtonState(isRunning: Boolean) {
-        if (isRunning) {
-            startButton.text = getString(R.string.stop_dictation)
-            startButton.setBackgroundColor(ContextCompat.getColor(this, R.color.bubble_recording))
-        } else {
-            startButton.text = getString(R.string.start_dictation)
-            startButton.setBackgroundColor(ContextCompat.getColor(this, R.color.primary))
-        }
-
-        startButton.isEnabled = allPermissionsGranted()
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -733,20 +720,6 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /**
-     * Stops dictation by stopping the active services.
-     */
-    private fun stopDictation() {
-        Log.i(TAG, "Stopping dictation service")
-        // Stop both services to be safe
-        if (BubbleService.isRunning()) {
-            BubbleService.stop(this)
-        }
-        if (KeyboardCompanionService.isRunning()) {
-            KeyboardCompanionService.stop(this)
-        }
-    }
-
-    /**
      * Checks if any dictation service is running.
      */
     private fun isDictationRunning(): Boolean {
@@ -771,8 +744,7 @@ class SettingsActivity : AppCompatActivity() {
         overlayButton = findViewById(R.id.btnEnableOverlay)
         accessibilityButton = findViewById(R.id.btnEnableAccessibility)
 
-        // Action buttons
-        startButton = findViewById(R.id.btnStartDictation)
+        // History button
         historyButton = findViewById(R.id.btnHistory)
 
         // Settings views
@@ -1084,7 +1056,6 @@ class SettingsActivity : AppCompatActivity() {
                     }
                 }
             }
-            updateStartButton()
         }, 300)
     }
 
@@ -1230,36 +1201,6 @@ class SettingsActivity : AppCompatActivity() {
                 "Find 'Tiny Dictation' and enable it",
                 Toast.LENGTH_LONG
             ).show()
-        }
-
-        // Start/Stop dictation button
-        startButton.setOnClickListener {
-            Log.d(TAG, "Start/Stop button clicked")
-            if (allPermissionsGranted()) {
-                if (!preferenceManager.hasApiKey()) {
-                    Log.e(TAG, "No API key configured")
-                    Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
-                    return@setOnClickListener
-                }
-
-                val wasRunning = isDictationRunning()
-                if (wasRunning) {
-                    Log.i(TAG, "Stopping dictation")
-                    stopDictation()
-                } else {
-                    Log.i(TAG, "Starting dictation")
-                    startDictation()
-                }
-                // Update button immediately with expected state (opposite of previous)
-                updateStartButtonState(!wasRunning)
-                // Also update after delay to sync with actual service state
-                android.os.Handler(mainLooper).postDelayed({
-                    updateStartButton()
-                }, 500)
-            } else {
-                Log.e(TAG, "Cannot start - missing permissions")
-                Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
-            }
         }
 
         // History button

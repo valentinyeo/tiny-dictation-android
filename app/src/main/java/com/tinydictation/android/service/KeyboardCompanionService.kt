@@ -61,6 +61,7 @@ class KeyboardCompanionService : LifecycleService() {
     private var companionParams: WindowManager.LayoutParams? = null
 
     // UI elements
+    private var closeButton: FrameLayout? = null
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageButton: FrameLayout? = null
@@ -270,6 +271,7 @@ class KeyboardCompanionService : LifecycleService() {
         }
 
         // Get UI elements
+        closeButton = companionView?.findViewById(R.id.btnCompanionClose)
         micButton = companionView?.findViewById(R.id.btnCompanionMic)
         micIcon = companionView?.findViewById(R.id.ivCompanionMic)
         languageButton = companionView?.findViewById(R.id.btnCompanionLanguage)
@@ -328,6 +330,7 @@ class KeyboardCompanionService : LifecycleService() {
             }
         }
         companionView = null
+        closeButton = null
         micButton = null
         micIcon = null
         languageButton = null
@@ -347,6 +350,14 @@ class KeyboardCompanionService : LifecycleService() {
      * Sets up button click handlers.
      */
     private fun setupButtonHandlers() {
+        // Close button - dismiss the companion bar and stop service
+        closeButton?.setOnClickListener {
+            Log.i(TAG, "KeyboardCompanionService: Close button pressed")
+            DebugLog.i("KeyboardCompanionService: Closing companion bar")
+            vibrateForFeedback()
+            stopSelf()
+        }
+
         // Mic button - toggle dictation
         micButton?.setOnClickListener {
             toggleDictation()
@@ -403,6 +414,7 @@ class KeyboardCompanionService : LifecycleService() {
         companionView?.findViewById<LinearLayout>(R.id.companionBarContainer)?.setBackgroundColor(backgroundColor)
 
         // Apply button and icon colors
+        applyButtonTheme(closeButton, buttonColor, iconColor)
         applyButtonTheme(micButton, buttonColor, iconColor)
         applyButtonTheme(languageButton, buttonColor, iconColor)
         applyButtonTheme(floatingBarButton, buttonColor, iconColor)
