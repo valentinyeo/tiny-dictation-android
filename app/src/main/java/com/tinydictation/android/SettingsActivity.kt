@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.10:
+            • Fixed Keyboard Companion bar overlaying keyboard suggestions
+            • Raised bar position to sit above SwiftKey/Gboard suggestion row
+            • Right-aligned buttons for easier right-thumb access
+            • Added debug logging to keyboard switch button
+
             v1.10.9:
             • Reordered keyboard buttons for better ergonomics
             • New order: Chevron | Language, Mic, Enter, Backspace, Paste, All

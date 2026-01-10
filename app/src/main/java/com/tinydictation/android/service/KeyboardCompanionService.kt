@@ -69,9 +69,9 @@ class KeyboardCompanionService : LifecycleService() {
     // Keyboard visibility tracking
     private var isKeyboardVisible = false
 
-    // Default keyboard height estimate (280dp is typical keyboard height)
+    // Default keyboard height estimate (340dp accounts for keyboard + suggestions row)
     private val defaultKeyboardHeight: Int
-        get() = (280 * resources.displayMetrics.density).toInt()
+        get() = (340 * resources.displayMetrics.density).toInt()
 
     // Handler for UI updates
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -480,28 +480,41 @@ class KeyboardCompanionService : LifecycleService() {
 
         // Try direct switch if we have permission
         val imeId = "$packageName/.service.DictationKeyboardService"
+        Log.d(TAG, "Attempting to switch to IME: $imeId")
+        DebugLog.d("KeyboardCompanionService: IME ID = $imeId")
 
         val switched = try {
-            android.provider.Settings.Secure.putString(
+            val result = android.provider.Settings.Secure.putString(
                 contentResolver,
                 android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
                 imeId
             )
+            Log.d(TAG, "Direct switch result: $result")
+            DebugLog.d("KeyboardCompanionService: Direct switch result=$result")
+            result
         } catch (e: SecurityException) {
-            Log.d(TAG, "WRITE_SECURE_SETTINGS not granted, showing picker")
+            Log.d(TAG, "WRITE_SECURE_SETTINGS not granted, will show picker")
+            DebugLog.d("KeyboardCompanionService: No WRITE_SECURE_SETTINGS permission")
             false
         } catch (e: Exception) {
             Log.e(TAG, "Error switching keyboard", e)
+            DebugLog.e("KeyboardCompanionService: Switch error - ${e.message}")
             false
         }
 
         if (!switched) {
             // Fall back to keyboard picker
+            Log.i(TAG, "Showing keyboard picker as fallback")
+            DebugLog.i("KeyboardCompanionService: Showing keyboard picker")
             try {
                 val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                Log.d(TAG, "InputMethodManager obtained: $imm")
                 imm.showInputMethodPicker()
+                Log.i(TAG, "showInputMethodPicker() called successfully")
+                DebugLog.i("KeyboardCompanionService: Picker shown")
             } catch (e: Exception) {
                 Log.e(TAG, "Error showing keyboard picker", e)
+                DebugLog.e("KeyboardCompanionService: Picker error - ${e.message}")
                 Toast.makeText(this, "Could not open keyboard picker", Toast.LENGTH_SHORT).show()
             }
         }
