@@ -57,6 +57,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.8:
+            • FIX: Reverted keyboard to pre-emoji-picker state
+            • Removed emoji picker feature temporarily to restore keyboard functionality
+            • Emoji picker will be re-added properly in a future update
+
             v1.11.7:
             • FIX: Keyboard bar visibility - ensure bar shows on startup
             • Added explicit visibility control and error protection for emoji picker
