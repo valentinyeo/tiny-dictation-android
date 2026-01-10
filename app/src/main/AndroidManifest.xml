@@ -47,18 +47,6 @@
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
-        <!-- Floating Bubble Service -->
-        <service
-            android:name=".service.BubbleService"
-            android:foregroundServiceType="microphone"
-            android:exported="false" />
-
-        <!-- Keyboard Companion Service -->
-        <service
-            android:name=".service.KeyboardCompanionService"
-            android:foregroundServiceType="microphone"
-            android:exported="false" />
-
         <!-- Accessibility Service for Text Injection -->
         <service
             android:name=".service.DictationAccessibilityService"

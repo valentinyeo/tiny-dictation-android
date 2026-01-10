@@ -63,13 +63,17 @@ class PreferenceManager(context: Context) {
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
 
-        // Dictation mode constants
-        const val MODE_BUBBLE = "bubble"              // Floating bubble (default)
-        const val MODE_COMPANION = "companion"        // Keyboard companion bar (above system keyboard)
-        const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard
+        // Dictation mode constants (keyboard mode only - bubble and companion archived)
+        const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard (only supported mode)
+        @Deprecated("Archived - use MODE_KEYBOARD")
+        const val MODE_BUBBLE = "bubble"              // Floating bubble (archived)
+        @Deprecated("Archived - use MODE_KEYBOARD")
+        const val MODE_COMPANION = "companion"        // Keyboard companion bar (archived)
 
-        // Bar orientation constants
+        // Bar orientation constants (archived with floating bar)
+        @Deprecated("Archived with floating bar feature")
         const val ORIENTATION_VERTICAL = "vertical"
+        @Deprecated("Archived with floating bar feature")
         const val ORIENTATION_HORIZONTAL = "horizontal"
 
         // Cloud provider constants
@@ -522,18 +526,22 @@ class PreferenceManager(context: Context) {
 
     /**
      * Gets the dictation mode setting.
-     * @return Mode ID ("bubble", "companion", or "keyboard")
+     * Note: Only keyboard mode is supported. Bubble and companion modes are archived.
+     * @return Mode ID (always "keyboard")
      */
     fun getDictationMode(): String {
-        return prefs.getString(KEY_DICTATION_MODE, MODE_BUBBLE) ?: MODE_BUBBLE
+        // Always return keyboard mode - other modes are archived
+        return MODE_KEYBOARD
     }
 
     /**
-     * Sets the dictation mode.
-     * @param mode Mode ID (bubble, companion, keyboard)
+     * Sets the dictation mode (deprecated - only keyboard mode supported).
+     * @param mode Mode ID (only keyboard is supported)
      */
+    @Deprecated("Only keyboard mode is supported")
     fun setDictationMode(mode: String) {
-        prefs.edit().putString(KEY_DICTATION_MODE, mode).apply()
+        // Only keyboard mode is supported
+        prefs.edit().putString(KEY_DICTATION_MODE, MODE_KEYBOARD).apply()
     }
 
     // ========== Pause Media During Dictation ==========
@@ -555,12 +563,14 @@ class PreferenceManager(context: Context) {
         prefs.edit().putBoolean(KEY_PAUSE_MEDIA_DURING_DICTATION, enabled).apply()
     }
 
-    // ========== Bar Orientation ==========
+    // ========== Bar Orientation (Archived) ==========
 
     /**
      * Gets the floating bar orientation setting.
      * @return Orientation ID ("vertical" or "horizontal")
+     * @deprecated Floating bar feature is archived
      */
+    @Deprecated("Floating bar feature is archived")
     fun getBarOrientation(): String {
         return prefs.getString(KEY_BAR_ORIENTATION, ORIENTATION_VERTICAL) ?: ORIENTATION_VERTICAL
     }
@@ -568,18 +578,22 @@ class PreferenceManager(context: Context) {
     /**
      * Sets the floating bar orientation.
      * @param orientation Orientation ID (vertical or horizontal)
+     * @deprecated Floating bar feature is archived
      */
+    @Deprecated("Floating bar feature is archived")
     fun setBarOrientation(orientation: String) {
         prefs.edit().putString(KEY_BAR_ORIENTATION, orientation).apply()
     }
 
-    // ========== Bar Transparency ==========
+    // ========== Bar Transparency (Archived) ==========
 
     /**
      * Gets the floating bar transparency setting (0-50).
      * 0 means fully opaque, 50 means 50% transparent.
      * @return Transparency percentage (0-50)
+     * @deprecated Floating bar feature is archived
      */
+    @Deprecated("Floating bar feature is archived")
     fun getBarTransparency(): Float {
         return prefs.getFloat(KEY_BAR_TRANSPARENCY, 0f)
     }
@@ -587,7 +601,9 @@ class PreferenceManager(context: Context) {
     /**
      * Sets the floating bar transparency.
      * @param value Transparency percentage (0-50)
+     * @deprecated Floating bar feature is archived
      */
+    @Deprecated("Floating bar feature is archived")
     fun setBarTransparency(value: Float) {
         prefs.edit().putFloat(KEY_BAR_TRANSPARENCY, value.coerceIn(0f, 50f)).apply()
     }

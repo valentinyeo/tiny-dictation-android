@@ -33,25 +33,20 @@ This ensures every APK has a unique version and users can see what changed.
 - **Minor (1.x.0)**: New features, significant changes
 - **Major (x.0.0)**: Breaking changes, major rewrites
 
-## Dictation Modes
+## Dictation Mode
 
-The app has three mutually exclusive dictation modes:
+The app uses keyboard-based dictation only:
 
-1. **Vertical Floating Bar** (`BubbleService.kt`)
-   - Draggable sidebar overlay with mic, language, and mode buttons
-   - Can be dragged to dismiss (drag to X)
-   - Transparency adjustable via settings
+**Full Keyboard (IME)** (`DictationKeyboardService.kt`)
+- Complete replacement keyboard with dictation and action buttons
+- Button order: Chevron | Language | Mic | Enter | Backspace | Paste | SelectAll
+- Chevron switches back to previous keyboard
+- Long-press mic opens Settings, long-press paste opens History
 
-2. **Horizontal Companion Bar** (`KeyboardCompanionService.kt`)
-   - Bar that appears above the user's existing keyboard
-   - Uses AccessibilityService to detect when keyboards are visible
-   - Positioned 340dp from bottom to clear keyboard + suggestions
-
-3. **Full Keyboard (IME)** (`DictationKeyboardService.kt`)
-   - Complete replacement keyboard with dictation and action buttons
-   - Button order: Chevron | Language | Mic | Enter | Backspace | Paste | SelectAll
-   - Chevron switches back to previous keyboard
-   - Long-press mic opens Settings, long-press paste opens History
+### Archived Modes (in `archived/` directory)
+The following experimental modes have been archived but preserved for reference:
+- **Vertical Floating Bar** (`archived/java/service/BubbleService.kt`) - Draggable overlay
+- **Horizontal Companion Bar** (`archived/java/service/KeyboardCompanionService.kt`) - Bar above keyboard
 
 ## Transcription Engines
 
@@ -71,10 +66,8 @@ Model management: `ModelManager.kt` handles downloading/storing offline models
 
 ## Key Files
 
-- `MainActivity.kt` - Main entry point, permission handling, dictation control
-- `BubbleService.kt` - Floating bar overlay service
-- `KeyboardCompanionService.kt` - Companion bar above other keyboards
-- `DictationKeyboardService.kt` - Full IME keyboard replacement
+- `MainActivity.kt` - Main entry point, permission handling
+- `DictationKeyboardService.kt` - Full IME keyboard replacement (main dictation interface)
 - `TranscriptionManager.kt` - Orchestrates audio recording, VAD, and transcription
 - `AudioRecorder.kt` - Audio capture (uses VOICE_RECOGNITION source for phone mic)
 - `VoiceActivityDetector.kt` - Simple RMS-based VAD (thresholds: speech=100, silence=50)

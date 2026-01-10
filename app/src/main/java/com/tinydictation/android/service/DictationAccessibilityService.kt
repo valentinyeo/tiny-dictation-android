@@ -25,7 +25,7 @@ import kotlinx.coroutines.launch
  * AccessibilityService for injecting transcribed text into any focused text field.
  * This service allows Tiny Dictation to work with any app on the device.
  *
- * Also provides keyboard visibility detection for KeyboardCompanionService.
+ * Also provides keyboard visibility detection.
  */
 class DictationAccessibilityService : AccessibilityService() {
 
@@ -37,7 +37,6 @@ class DictationAccessibilityService : AccessibilityService() {
 
         /**
          * Callback for keyboard visibility changes.
-         * KeyboardCompanionService registers this to receive updates.
          */
         var onKeyboardVisibilityChanged: ((Boolean) -> Unit)? = null
 

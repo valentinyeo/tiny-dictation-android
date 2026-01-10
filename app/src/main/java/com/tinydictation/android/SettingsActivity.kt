@@ -7,7 +7,6 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ResolveInfo
 import android.media.AudioDeviceCallback
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
@@ -37,13 +36,10 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
-import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
 import com.tinydictation.android.service.DictationKeyboardService
-import com.tinydictation.android.service.KeyboardCompanionService
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
@@ -64,6 +60,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.15:
+            • SIMPLIFY: Removed floating bubble and companion bar modes
+            • App now focuses exclusively on keyboard-based dictation
+            • Cleaner settings UI with unnecessary options removed
+            • Archived floating bar code preserved for future reference
+
             v1.11.14:
             • FIX: Transcription history now saves properly!
             • Transcriptions are saved after each final segment
@@ -640,13 +642,6 @@ class SettingsActivity : AppCompatActivity() {
             mainHandler.post { updateMicSourceStatus() }
         }
     }
-    private lateinit var languageBubbleSwitch: MaterialSwitch
-    private lateinit var pasteBubbleSwitch: MaterialSwitch
-    private lateinit var noteBubbleSwitch: MaterialSwitch
-    private lateinit var noteAppContainer: LinearLayout
-    private lateinit var tvSelectedNoteApp: TextView
-    private lateinit var btnSelectNoteApp: MaterialButton
-    private lateinit var keyboardBubbleSwitch: MaterialSwitch
     private lateinit var btnSetupKeyboard: MaterialButton
     private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var copyDebugLogButton: MaterialButton
@@ -679,13 +674,6 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var spinnerFallbackModel: Spinner
     private lateinit var tvFallbackModelNote: TextView
 
-    // Dictation mode selection
-    private lateinit var dictationModeDropdown: AutoCompleteTextView
-    private lateinit var barOrientationDropdown: AutoCompleteTextView
-
-    // Transparency slider
-    private lateinit var transparencySlider: Slider
-    private lateinit var transparencyValueText: TextView
 
     // Model downloads - Vosk
     private lateinit var tvVoskEnStatus: TextView
@@ -742,36 +730,12 @@ class SettingsActivity : AppCompatActivity() {
         // Register audio device callback to detect headset connect/disconnect
         audioManager.registerAudioDeviceCallback(audioDeviceCallback, mainHandler)
         updateMicSourceStatus()
-
-        // Auto-start dictation if all permissions granted and API key configured
-        autoStartDictationIfReady()
     }
 
     override fun onPause() {
         super.onPause()
         // Unregister audio device callback
         audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
-    }
-
-    private fun autoStartDictationIfReady() {
-        // Only auto-start if not already running
-        if (isDictationRunning()) {
-            return
-        }
-
-        // Check all conditions
-        if (!allPermissionsGranted()) {
-            Log.d(TAG, "Auto-start skipped: missing permissions")
-            return
-        }
-
-        if (!preferenceManager.hasApiKey()) {
-            Log.d(TAG, "Auto-start skipped: no API key")
-            return
-        }
-
-        Log.i(TAG, "Auto-starting dictation")
-        startDictation()
     }
 
     private fun updatePermissionStatus() {
@@ -896,62 +860,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Starts dictation by launching the appropriate service based on mode.
-     * TranscriptionManager is now owned by BubbleService to survive activity lifecycle
-     * and properly handle lock screen events.
-     */
-    private fun startDictation() {
-        Log.i(TAG, "Starting dictation service")
-
-        // Verify microphone permission before starting
-        if (ContextCompat.checkSelfPermission(
-                this, Manifest.permission.RECORD_AUDIO
-            ) != PackageManager.PERMISSION_GRANTED
-        ) {
-            Log.e(TAG, "Microphone permission not granted")
-            Toast.makeText(this, R.string.error_no_permission, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Verify API key before starting
-        if (!preferenceManager.hasApiKey()) {
-            Log.e(TAG, "API key is null")
-            Toast.makeText(this, R.string.error_no_api_key, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        // Start the appropriate service based on mode
-        val mode = preferenceManager.getDictationMode()
-
-        when (mode) {
-            PreferenceManager.MODE_BUBBLE -> {
-                BubbleService.start(this)
-                Log.i(TAG, "BubbleService started")
-            }
-            PreferenceManager.MODE_COMPANION -> {
-                // Start KeyboardCompanionService which shows bar above keyboard
-                KeyboardCompanionService.start(this)
-                // Also start BubbleService for transcription (without UI)
-                BubbleService.start(this)
-                Log.i(TAG, "KeyboardCompanionService started")
-            }
-            PreferenceManager.MODE_KEYBOARD -> {
-                // For keyboard mode, DictationKeyboardService is activated by the system as IME
-                // We start BubbleService in background for transcription (without UI)
-                BubbleService.start(this)
-                Log.i(TAG, "Keyboard mode: BubbleService started for transcription (no UI)")
-            }
-        }
-    }
-
-    /**
-     * Checks if any dictation service is running.
-     */
-    private fun isDictationRunning(): Boolean {
-        return BubbleService.isRunning() || KeyboardCompanionService.isRunning()
-    }
-
     private fun initViews() {
         toolbar = findViewById(R.id.toolbar)
 
@@ -980,13 +888,6 @@ class SettingsActivity : AppCompatActivity() {
         tvMicSourceStatus = findViewById(R.id.tvMicSourceStatus)
         simulateTypingSwitch = findViewById(R.id.switchSimulateTyping)
         pauseMediaSwitch = findViewById(R.id.switchPauseMedia)
-        languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
-        pasteBubbleSwitch = findViewById(R.id.switchPasteBubble)
-        noteBubbleSwitch = findViewById(R.id.switchNoteBubble)
-        noteAppContainer = findViewById(R.id.noteAppContainer)
-        tvSelectedNoteApp = findViewById(R.id.tvSelectedNoteApp)
-        btnSelectNoteApp = findViewById(R.id.btnSelectNoteApp)
-        keyboardBubbleSwitch = findViewById(R.id.switchKeyboardBubble)
         btnSetupKeyboard = findViewById(R.id.btnSetupKeyboard)
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
@@ -1048,21 +949,8 @@ class SettingsActivity : AppCompatActivity() {
         // Setup unified provider dropdown (combines cloud and offline providers)
         setupUnifiedProviderDropdown()
 
-        // Setup dictation mode dropdown
-        dictationModeDropdown = findViewById(R.id.actvDictationMode)
-        setupDictationModeDropdown()
-
-        // Setup bar orientation dropdown
-        barOrientationDropdown = findViewById(R.id.actvBarOrientation)
-        setupBarOrientationDropdown()
-
         // Setup keyboard theme dropdown
         setupKeyboardThemeDropdown()
-
-        // Setup transparency slider
-        transparencySlider = findViewById(R.id.sliderTransparency)
-        transparencyValueText = findViewById(R.id.tvTransparencyValue)
-        setupTransparencySlider()
     }
 
     private fun toggleChangelog() {
@@ -1521,133 +1409,6 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupTransparencySlider() {
-        // Load current transparency value
-        val currentTransparency = preferenceManager.getBarTransparency()
-        transparencySlider.value = currentTransparency
-        transparencyValueText.text = "${currentTransparency.toInt()}%"
-
-        // Handle slider changes - apply immediately
-        transparencySlider.addOnChangeListener { _, value, fromUser ->
-            if (fromUser) {
-                transparencyValueText.text = "${value.toInt()}%"
-                preferenceManager.setBarTransparency(value)
-                DebugLog.i("Bar transparency changed to: ${value.toInt()}%")
-
-                // Notify BubbleService to apply new transparency
-                BubbleService.refreshTransparency()
-            }
-        }
-    }
-
-    private fun setupDictationModeDropdown() {
-        // Mode options: display name to preference value
-        val modes = listOf(
-            "Vertical Floating Bar" to PreferenceManager.MODE_BUBBLE,
-            "Horizontal Floating Bar" to PreferenceManager.MODE_COMPANION,
-            "Full Keyboard (IME)" to PreferenceManager.MODE_KEYBOARD
-        )
-
-        val displayNames = modes.map { it.first }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        dictationModeDropdown.setAdapter(adapter)
-
-        // Set current selection
-        val currentMode = preferenceManager.getDictationMode()
-        val currentIndex = modes.indexOfFirst { it.second == currentMode }
-        if (currentIndex >= 0) {
-            dictationModeDropdown.setText(displayNames[currentIndex], false)
-        } else {
-            // Default to Bubble mode
-            dictationModeDropdown.setText(displayNames[0], false)
-        }
-
-        // Handle selection changes - switch service immediately
-        dictationModeDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedValue = modes[position].second
-            val previousMode = preferenceManager.getDictationMode()
-            preferenceManager.setDictationMode(selectedValue)
-            DebugLog.i("Dictation mode changed from $previousMode to: $selectedValue")
-
-            // Stop current service and start appropriate one
-            switchDictationMode(previousMode, selectedValue)
-        }
-    }
-
-    private fun setupBarOrientationDropdown() {
-        // Orientation options: display name to preference value
-        val orientations = listOf(
-            "Vertical (Side bar)" to PreferenceManager.ORIENTATION_VERTICAL,
-            "Horizontal (Bottom bar)" to PreferenceManager.ORIENTATION_HORIZONTAL
-        )
-
-        val displayNames = orientations.map { it.first }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        barOrientationDropdown.setAdapter(adapter)
-
-        // Set current selection
-        val currentOrientation = preferenceManager.getBarOrientation()
-        val currentIndex = orientations.indexOfFirst { it.second == currentOrientation }
-        if (currentIndex >= 0) {
-            barOrientationDropdown.setText(displayNames[currentIndex], false)
-        } else {
-            // Default to Vertical
-            barOrientationDropdown.setText(displayNames[0], false)
-        }
-
-        // Handle selection changes - apply immediately
-        barOrientationDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selectedValue = orientations[position].second
-            preferenceManager.setBarOrientation(selectedValue)
-            DebugLog.i("Bar orientation changed to: $selectedValue")
-
-            // Refresh the bubble service orientation
-            BubbleService.refreshBarOrientation()
-        }
-    }
-
-    /**
-     * Switches between dictation modes by stopping the old service and starting the new one.
-     */
-    private fun switchDictationMode(fromMode: String, toMode: String) {
-        Log.i(TAG, "Switching dictation mode from $fromMode to $toMode")
-
-        // Stop all services first to ensure clean slate
-        if (BubbleService.isRunning()) {
-            BubbleService.stop(this)
-        }
-        if (KeyboardCompanionService.isRunning()) {
-            KeyboardCompanionService.stop(this)
-        }
-
-        // Give a moment for the services to stop
-        android.os.Handler(mainLooper).postDelayed({
-            // Start the appropriate service(s) if permissions are granted
-            if (allPermissionsGranted() && preferenceManager.hasApiKey()) {
-                when (toMode) {
-                    PreferenceManager.MODE_BUBBLE -> {
-                        BubbleService.start(this)
-                        Toast.makeText(this, "Switched to vertical floating bar mode", Toast.LENGTH_SHORT).show()
-                    }
-                    PreferenceManager.MODE_KEYBOARD -> {
-                        // Start BubbleService for transcription (no UI), IME is activated by system
-                        BubbleService.start(this)
-                        // Open keyboard settings to help user enable the IME
-                        openKeyboardSettings()
-                        Toast.makeText(this, "Enable Tiny Dictation keyboard in settings", Toast.LENGTH_LONG).show()
-                    }
-                    PreferenceManager.MODE_COMPANION -> {
-                        // Start KeyboardCompanionService for companion mode
-                        KeyboardCompanionService.start(this)
-                        // Also start BubbleService in background for transcription (without UI)
-                        BubbleService.start(this)
-                        Toast.makeText(this, "Horizontal floating bar mode active - bar appears with keyboard", Toast.LENGTH_LONG).show()
-                    }
-                }
-            }
-        }, 300)
-    }
-
     private fun displayVersionInfo() {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1686,20 +1447,6 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load pause media during dictation setting
         pauseMediaSwitch.isChecked = preferenceManager.getPauseMediaDuringDictation()
-
-        // Load bubble settings
-        val prefs = getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-        languageBubbleSwitch.isChecked = prefs.getBoolean("show_language_bubble", true)
-        pasteBubbleSwitch.isChecked = prefs.getBoolean("show_paste_bubble", true)
-
-        // Load note bubble settings
-        noteBubbleSwitch.isChecked = preferenceManager.getShowNoteBubble()
-        updateNoteAppContainerVisibility()
-        updateSelectedNoteAppDisplay()
-
-        // Load keyboard bubble setting
-        keyboardBubbleSwitch.isChecked = prefs.getBoolean("show_keyboard_bubble", false)
-        updateKeyboardSetupButtonVisibility()
 
         // Update model status
         updateModelStatus()
@@ -1793,47 +1540,6 @@ class SettingsActivity : AppCompatActivity() {
         historyButton.setOnClickListener {
             Log.d(TAG, "History button clicked")
             startActivity(Intent(this, HistoryActivity::class.java))
-        }
-
-        // Bubble toggles apply immediately - no save needed
-        languageBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-                .edit()
-                .putBoolean("show_language_bubble", isChecked)
-                .commit()
-        }
-
-        pasteBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-                .edit()
-                .putBoolean("show_paste_bubble", isChecked)
-                .commit()
-        }
-
-        // Note bubble toggle - applies immediately
-        noteBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setShowNoteBubble(isChecked)
-            updateNoteAppContainerVisibility()
-            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-                .edit()
-                .putBoolean("show_note_bubble", isChecked)
-                .commit()
-            DebugLog.i("Note bubble setting changed to: $isChecked")
-        }
-
-        // Note app selection button
-        btnSelectNoteApp.setOnClickListener {
-            showNoteAppPicker()
-        }
-
-        // Keyboard bubble toggle - applies immediately
-        keyboardBubbleSwitch.setOnCheckedChangeListener { _, isChecked ->
-            getSharedPreferences("tiny_dictation_prefs", MODE_PRIVATE)
-                .edit()
-                .putBoolean("show_keyboard_bubble", isChecked)
-                .commit()
-            updateKeyboardSetupButtonVisibility()
-            DebugLog.i("Keyboard bubble setting changed to: $isChecked")
         }
 
         // Setup keyboard button - opens system keyboard settings
@@ -2152,20 +1858,6 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /**
-     * Updates the visibility of the note app selection container.
-     */
-    private fun updateNoteAppContainerVisibility() {
-        noteAppContainer.visibility = if (noteBubbleSwitch.isChecked) View.VISIBLE else View.GONE
-    }
-
-    /**
-     * Updates visibility of the keyboard setup button based on keyboard bubble toggle.
-     */
-    private fun updateKeyboardSetupButtonVisibility() {
-        btnSetupKeyboard.visibility = if (keyboardBubbleSwitch.isChecked) View.VISIBLE else View.GONE
-    }
-
-    /**
      * Opens the system keyboard settings so user can enable Tiny Dictation keyboard.
      */
     private fun openKeyboardSettings() {
@@ -2179,126 +1871,4 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
-    /**
-     * Updates the displayed name of the selected note app.
-     */
-    private fun updateSelectedNoteAppDisplay() {
-        val packageName = preferenceManager.getNoteAppPackage()
-        if (packageName != null) {
-            try {
-                val appInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    packageManager.getApplicationInfo(packageName, PackageManager.ApplicationInfoFlags.of(0))
-                } else {
-                    @Suppress("DEPRECATION")
-                    packageManager.getApplicationInfo(packageName, 0)
-                }
-                val appName = packageManager.getApplicationLabel(appInfo).toString()
-                tvSelectedNoteApp.text = appName
-            } catch (e: PackageManager.NameNotFoundException) {
-                tvSelectedNoteApp.text = packageName
-            }
-        } else {
-            tvSelectedNoteApp.text = "Tap to select app"
-        }
-    }
-
-    /**
-     * Shows a dialog to pick a note-taking app from installed apps that can receive text.
-     */
-    private fun showNoteAppPicker() {
-        // Find apps that can handle ACTION_SEND with text - use 0 flags to get ALL apps, not just default
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = "text/plain"
-        }
-
-        val resolveInfoList: List<ResolveInfo> = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.queryIntentActivities(sendIntent, PackageManager.ResolveInfoFlags.of(0))
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.queryIntentActivities(sendIntent, 0)
-        }
-
-        // Known note app packages (prioritized in list)
-        val noteAppPackages = listOf(
-            "com.google.android.keep",           // Google Keep
-            "com.samsung.android.app.notes",     // Samsung Notes
-            "com.microsoft.office.onenote",      // OneNote
-            "com.evernote",                      // Evernote
-            "md.obsidian",                       // Obsidian
-            "net.gsantner.markor",               // Markor
-            "com.simplemobiletools.notes.pro",   // Simple Notes Pro
-            "org.standardnotes",                 // Standard Notes
-            "com.automattic.simplenote",         // Simplenote
-            "com.orgzly",                        // Orgzly
-            "com.notion.id",                     // Notion
-            "it.feio.android.omninotes",         // Omni Notes
-            "com.workflowy.android"              // WorkFlowy
-        )
-
-        // Build list of available apps (note apps first, then others)
-        data class AppInfo(val name: String, val packageName: String, val isNoteApp: Boolean)
-
-        val apps = resolveInfoList.map { resolveInfo ->
-            val packageName = resolveInfo.activityInfo.packageName
-            val appName = resolveInfo.loadLabel(packageManager).toString()
-            val isNoteApp = noteAppPackages.contains(packageName)
-            AppInfo(appName, packageName, isNoteApp)
-        }
-            .distinctBy { it.packageName }
-            .sortedWith(compareByDescending<AppInfo> { it.isNoteApp }.thenBy { it.name })
-
-        // Build dialog options: apps + "Enter package name manually"
-        val displayNames = apps.map { it.name }.toMutableList()
-        displayNames.add("📝 Enter package name manually...")
-
-        AlertDialog.Builder(this)
-            .setTitle("Select Note App")
-            .setItems(displayNames.toTypedArray()) { _, which ->
-                if (which == apps.size) {
-                    // "Enter package name manually" selected
-                    showPackageNameInputDialog()
-                } else {
-                    val selected = apps[which]
-                    preferenceManager.setNoteAppPackage(selected.packageName)
-                    updateSelectedNoteAppDisplay()
-                    DebugLog.i("Note app selected: ${selected.name} (${selected.packageName})")
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    /**
-     * Shows a dialog to manually enter a package name for the note app.
-     */
-    private fun showPackageNameInputDialog() {
-        val inputField = TextInputEditText(this).apply {
-            hint = "com.example.noteapp"
-            setSingleLine(true)
-            // Pre-fill with current value if set
-            preferenceManager.getNoteAppPackage()?.let { setText(it) }
-        }
-
-        val container = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(48, 32, 48, 0)
-            addView(inputField)
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Enter Package Name")
-            .setMessage("Enter the package name of your note app (e.g., com.google.android.keep)")
-            .setView(container)
-            .setPositiveButton("Save") { _, _ ->
-                val packageName = inputField.text?.toString()?.trim()
-                if (!packageName.isNullOrBlank()) {
-                    preferenceManager.setNoteAppPackage(packageName)
-                    updateSelectedNoteAppDisplay()
-                    DebugLog.i("Note app package manually set: $packageName")
-                    Toast.makeText(this, "Package saved: $packageName", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
 }

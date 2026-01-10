@@ -30,9 +30,12 @@ import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import android.widget.Toast
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
+import com.tinydictation.android.history.TranscriptionHistoryManager
+import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
@@ -87,6 +90,11 @@ class DictationKeyboardService : InputMethodService() {
 
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
+
+    // Transcription management - keyboard owns its own TranscriptionManager
+    private var transcriptionManager: TranscriptionManager? = null
+    private var isRecording = false
+    private var isProcessing = false
 
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
@@ -169,11 +177,86 @@ class DictationKeyboardService : InputMethodService() {
         // Register broadcast receiver for paste requests from HistoryActivity
         val filter = IntentFilter(ACTION_PASTE_TEXT)
         LocalBroadcastManager.getInstance(this).registerReceiver(pasteTextReceiver, filter)
+
+        // Initialize TranscriptionManager
+        initializeTranscriptionManager()
+    }
+
+    /**
+     * Initializes the TranscriptionManager with callbacks.
+     */
+    private fun initializeTranscriptionManager() {
+        val prefs = PreferenceManager(this)
+        val apiKey = prefs.getApiKey()
+        if (apiKey.isNullOrBlank()) {
+            Log.w(TAG, "No API key configured, TranscriptionManager not initialized")
+            DebugLog.w("DictationKeyboardService: No API key, skipping TranscriptionManager init")
+            return
+        }
+
+        Log.i(TAG, "Initializing TranscriptionManager")
+        DebugLog.i("DictationKeyboardService: Initializing TranscriptionManager")
+
+        transcriptionManager = TranscriptionManager(
+            apiKey = apiKey,
+            onTranscript = { text, isFinal ->
+                Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
+                if (isFinal && text.isNotBlank()) {
+                    // Commit text to the current input field
+                    Handler(Looper.getMainLooper()).post {
+                        commitTextInternal(text + " ")
+                    }
+                    // Save to transcription history
+                    val language = prefs.getLanguage()
+                    TranscriptionHistoryManager.getInstance(this).save(text, language)
+                    DebugLog.i("DictationKeyboardService: Saved transcription to history")
+                }
+            },
+            onError = { error ->
+                Log.e(TAG, "Transcription error: $error")
+                DebugLog.e("DictationKeyboardService: Transcription error - $error")
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                    isRecording = false
+                    isProcessing = false
+                    updateMicButton()
+                }
+            },
+            onStateChange = { state ->
+                Log.d(TAG, "Transcription state changed: $state")
+                Handler(Looper.getMainLooper()).post {
+                    when (state) {
+                        TranscriptionManager.TranscriptionState.IDLE -> {
+                            isRecording = false
+                            isProcessing = false
+                        }
+                        TranscriptionManager.TranscriptionState.LISTENING -> {
+                            isRecording = true
+                            isProcessing = false
+                        }
+                        TranscriptionManager.TranscriptionState.TRANSCRIBING -> {
+                            isRecording = true
+                            isProcessing = true
+                        }
+                        TranscriptionManager.TranscriptionState.ERROR -> {
+                            isRecording = false
+                            isProcessing = false
+                        }
+                    }
+                    updateMicButton()
+                }
+            },
+            context = this
+        )
     }
 
     override fun onDestroy() {
         Log.i(TAG, "DictationKeyboardService onDestroy")
         DebugLog.i("DictationKeyboardService: Service destroyed")
+
+        // Stop transcription if running
+        transcriptionManager?.stopListening()
+        transcriptionManager = null
 
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
@@ -190,15 +273,6 @@ class DictationKeyboardService : InputMethodService() {
     override fun onCreateInputView(): View {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
-
-        // Stop companion service entirely when our keyboard is active
-        // Just hiding the bar doesn't work because the service's keyboard visibility
-        // listener will show it again. We need to stop the service completely.
-        if (KeyboardCompanionService.isRunning()) {
-            Log.i(TAG, "DictationKeyboardService: Stopping KeyboardCompanionService from onCreateInputView")
-            DebugLog.i("DictationKeyboardService: Stopping companion service on create")
-            KeyboardCompanionService.stop(this)
-        }
 
         return try {
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
@@ -409,13 +483,34 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService: Toggle dictation")
         DebugLog.i("DictationKeyboardService: Toggling dictation")
 
-        BubbleService.getInstance()?.let { service ->
-            service.toggleRecording()
+        // Initialize TranscriptionManager if not already done
+        if (transcriptionManager == null) {
+            initializeTranscriptionManager()
+        }
+
+        transcriptionManager?.let { manager ->
+            if (isRecording) {
+                Log.i(TAG, "Stopping dictation")
+                manager.stopListening()
+            } else {
+                Log.i(TAG, "Starting dictation")
+                try {
+                    manager.startListening()
+                } catch (e: SecurityException) {
+                    Log.e(TAG, "Security exception starting listening", e)
+                    DebugLog.e("DictationKeyboardService: Security exception - ${e.message}")
+                    Toast.makeText(this, "Microphone permission denied", Toast.LENGTH_SHORT).show()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting listening", e)
+                    DebugLog.e("DictationKeyboardService: Error starting listening - ${e.message}")
+                    Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
             updateMicButton()
         } ?: run {
-            Log.w(TAG, "BubbleService not running - starting it")
-            DebugLog.w("DictationKeyboardService: Starting BubbleService")
-            BubbleService.start(this)
+            Log.w(TAG, "TranscriptionManager not initialized")
+            DebugLog.w("DictationKeyboardService: TranscriptionManager not initialized - check API key")
+            Toast.makeText(this, "Please configure an API key in Settings", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -430,18 +525,11 @@ class DictationKeyboardService : InputMethodService() {
         val newLang = if (currentLang == "en") "de" else "en"
         prefs.setLanguage(newLang)
 
-        // Notify BubbleService of language change
-        BubbleService.onLanguageChanged?.invoke(newLang)
-
         updateLanguageButton()
         Log.i(TAG, "Language changed to: $newLang")
     }
 
     private fun updateMicButton() {
-        val bubbleService = BubbleService.getInstance()
-        val isRecording = bubbleService?.isCurrentlyRecording() ?: false
-        val isProcessing = bubbleService?.isProcessing() ?: false
-
         val color = if (isRecording || isProcessing) {
             ContextCompat.getColor(this, R.color.bubble_recording)
         } else {
@@ -743,27 +831,6 @@ class DictationKeyboardService : InputMethodService() {
 
         updateMicButton()
         updateLanguageButton()
-
-        // Auto-hide bubbles when keyboard is visible
-        BubbleService.getInstance()?.setKeyboardVisible(true)
-
-        // Stop companion service entirely when our keyboard is active
-        // Just hiding the bar doesn't work because the service's keyboard visibility
-        // listener will show it again. We need to stop the service completely.
-        if (KeyboardCompanionService.isRunning()) {
-            Log.i(TAG, "DictationKeyboardService: Stopping KeyboardCompanionService")
-            DebugLog.i("DictationKeyboardService: Stopping companion service - keyboard is active")
-            KeyboardCompanionService.stop(this)
-        }
-
-        // Update dictation mode preference to keyboard mode
-        // This ensures the preference reflects the actual active mode
-        val prefs = PreferenceManager(this)
-        if (prefs.getDictationMode() != PreferenceManager.MODE_KEYBOARD) {
-            Log.i(TAG, "DictationKeyboardService: Updating dictation mode to MODE_KEYBOARD")
-            DebugLog.i("DictationKeyboardService: Setting mode to keyboard")
-            prefs.setDictationMode(PreferenceManager.MODE_KEYBOARD)
-        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
@@ -775,9 +842,6 @@ class DictationKeyboardService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
-
-        // Show bubbles again when keyboard is hidden
-        BubbleService.getInstance()?.setKeyboardVisible(false)
     }
 
     /**

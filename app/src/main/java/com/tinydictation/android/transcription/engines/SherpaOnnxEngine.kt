@@ -246,8 +246,8 @@ class SherpaOnnxEngine : TranscriptionEngine {
         onErrorCallback = onError
         isSessionActive = true
         // NOTE: Don't clear audioBuffer here! Early audio that arrives before the session
-        // is fully started should be preserved. The buffer is cleared by BubbleService when
-        // starting a new dictation session (via clearBuffer()), not here.
+        // is fully started should be preserved. The buffer is cleared by TranscriptionManager
+        // when starting a new dictation session (via clearBuffer()), not here.
         // This fixes the issue where the first part of a sentence goes missing.
         consecutiveSilentChunks = 0
         hasDetectedSpeech = false
@@ -378,7 +378,7 @@ class SherpaOnnxEngine : TranscriptionEngine {
                 Log.d(TAG, "SherpaOnnxEngine: Transcribed: $text")
                 DebugLog.d("SherpaOnnxEngine: Result: $text")
 
-                // Send just the new text - BubbleService handles accumulation
+                // Send the transcribed text to the callback handler
                 onTranscriptCallback?.invoke(text, true)
             }
         } catch (e: Exception) {
