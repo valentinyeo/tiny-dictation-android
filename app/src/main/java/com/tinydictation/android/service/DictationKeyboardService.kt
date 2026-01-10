@@ -89,18 +89,28 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
-        // Inflate our minimal keyboard layout
-        keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
+        return try {
+            // Inflate our minimal keyboard layout
+            keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
-        // Set up the keyboard switch button
-        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchKeyboard)?.setOnClickListener {
-            showKeyboardSwitcher()
+            // Set up the keyboard switch button
+            keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchKeyboard)?.setOnClickListener {
+                showKeyboardSwitcher()
+            }
+
+            // Set up status text to indicate dictation mode
+            updateStatusText()
+
+            keyboardView!!
+        } catch (e: Exception) {
+            Log.e(TAG, "Error creating keyboard view", e)
+            DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}")
+            // Return a simple fallback view
+            TextView(this).apply {
+                text = "Tiny Dictation Keyboard"
+                setPadding(16, 8, 16, 8)
+            }
         }
-
-        // Set up status text to indicate dictation mode
-        updateStatusText()
-
-        return keyboardView!!
     }
 
     /**

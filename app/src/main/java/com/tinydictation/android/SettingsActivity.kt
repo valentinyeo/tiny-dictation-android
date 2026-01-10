@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.14:
+            • Added error handling to keyboard service to prevent crashes
+            • Better logging for keyboard initialization issues
+
             v1.9.13:
             • Added keyboard input method for direct text entry
             • Fixed all mipmap icons to use new adaptive icon design
