@@ -106,6 +106,14 @@ class PreferenceManager(context: Context) {
         private const val KEY_OPENAI_MODEL = "openai_model"
         private const val KEY_AUTO_DETECT_LANGUAGE = "auto_detect_language"
         private const val KEY_UNIFIED_PROVIDER = "unified_provider"  // Combined cloud/offline selection
+        private const val KEY_FALLBACK_MODEL = "fallback_model"  // Which offline model to use as fallback
+
+        // Fallback model IDs (used when cloud provider fails)
+        const val FALLBACK_VOSK_EN = "vosk:en"
+        const val FALLBACK_VOSK_DE = "vosk:de"
+        const val FALLBACK_WHISPER_TINY = "whisper:tiny"
+        const val FALLBACK_WHISPER_BASE = "whisper:base"
+        const val FALLBACK_WHISPER_SMALL = "whisper:small"
 
         // Unified provider IDs (combines cloud providers and offline engines)
         const val UNIFIED_DEEPGRAM = "cloud:deepgram"
@@ -778,13 +786,31 @@ class PreferenceManager(context: Context) {
     fun currentProviderSupportsAutoDetect(): Boolean {
         val unified = getUnifiedProvider()
         return when {
-            unified.startsWith("offline:") -> false  // Offline providers don't support auto-detect
+            unified == UNIFIED_VOSK -> false  // Vosk needs specific language models
+            unified == UNIFIED_WHISPER -> true  // Whisper auto-detects language
             unified == UNIFIED_GROQ -> true  // All Whisper models support auto-detect
             unified == UNIFIED_OPENAI -> true  // All OpenAI models support auto-detect
             unified == UNIFIED_ASSEMBLYAI -> true  // AssemblyAI auto-detects by default
             unified == UNIFIED_GEMINI -> true  // Gemini auto-detects by default
             unified == UNIFIED_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
             else -> false
+        }
+    }
+
+    /**
+     * Checks if the current provider needs a manual language selection.
+     * Vosk needs language selection (different models per language).
+     * Whisper and cloud providers auto-detect or have it built-in.
+     * @return true if manual language selection should be shown
+     */
+    fun currentProviderNeedsLanguageToggle(): Boolean {
+        val unified = getUnifiedProvider()
+        return when {
+            unified == UNIFIED_VOSK -> true  // Vosk needs language-specific models
+            unified == UNIFIED_WHISPER -> false  // Whisper auto-detects, no toggle needed
+            // For cloud providers, show toggle only if auto-detect is disabled
+            unified.startsWith("cloud:") -> !getAutoDetectLanguage() && !currentProviderSupportsAutoDetect()
+            else -> true
         }
     }
 
@@ -853,13 +879,30 @@ class PreferenceManager(context: Context) {
     }
 
     /**
-     * Gets the best available offline model for fallback.
-     * @return Display name of the fallback model, or null if none available
+     * Gets the selected fallback model for offline use when cloud fails.
+     * @return Fallback model ID (e.g., "vosk:en", "whisper:tiny")
      */
-    fun getFallbackModelName(): String? {
-        // Check Vosk models first (faster startup)
-        // Note: This would need ModelManager, so we return a static fallback for now
-        // The SettingsActivity will determine the actual available model
-        return null  // Let SettingsActivity handle this with ModelManager
+    fun getFallbackModel(): String? {
+        return prefs.getString(KEY_FALLBACK_MODEL, null)
+    }
+
+    /**
+     * Sets the fallback model for offline use.
+     * @param model Fallback model ID
+     */
+    fun setFallbackModel(model: String?) {
+        if (model == null) {
+            prefs.edit().remove(KEY_FALLBACK_MODEL).apply()
+        } else {
+            prefs.edit().putString(KEY_FALLBACK_MODEL, model).apply()
+        }
+    }
+
+    /**
+     * Checks if a fallback model is configured.
+     * @return true if a fallback model is set
+     */
+    fun hasFallbackModel(): Boolean {
+        return !getFallbackModel().isNullOrBlank()
     }
 }

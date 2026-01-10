@@ -20,10 +20,12 @@ import android.provider.Settings
 import android.util.Log
 import android.view.View
 import android.view.accessibility.AccessibilityManager
+import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
@@ -62,6 +64,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.11:
+            • NEW: Fallback model dropdown - choose which offline model to use
+            • Whisper offline now correctly identified as auto-detecting language
+            • Language toggle hidden for Whisper (it auto-detects)
+            • Fallback options only shown when using cloud provider
+
             v1.11.10:
             • FIX: Headphone mic now actually works!
             • Uses setPreferredDevice() to explicitly route audio to headset mic
@@ -651,7 +659,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var autoDetectSwitch: MaterialSwitch
     private lateinit var layoutAutoFallback: LinearLayout
     private lateinit var autoFallbackSwitch: MaterialSwitch
-    private lateinit var tvFallbackModel: TextView
+    private lateinit var layoutFallbackModel: LinearLayout
+    private lateinit var spinnerFallbackModel: Spinner
+    private lateinit var tvFallbackModelNote: TextView
 
     // Dictation mode selection
     private lateinit var dictationModeDropdown: AutoCompleteTextView
@@ -1001,7 +1011,9 @@ class SettingsActivity : AppCompatActivity() {
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
         layoutAutoFallback = findViewById(R.id.layoutAutoFallback)
         autoFallbackSwitch = findViewById(R.id.switchAutoFallback)
-        tvFallbackModel = findViewById(R.id.tvFallbackModel)
+        layoutFallbackModel = findViewById(R.id.layoutFallbackModel)
+        spinnerFallbackModel = findViewById(R.id.spinnerFallbackModel)
+        tvFallbackModelNote = findViewById(R.id.tvFallbackModelNote)
 
         // Model download views
         tvVoskEnStatus = findViewById(R.id.tvVoskEnStatus)
@@ -1352,30 +1364,111 @@ class SettingsActivity : AppCompatActivity() {
     }
 
     /**
-     * Updates the fallback model indicator text.
+     * Data class for fallback model dropdown items.
+     */
+    private data class FallbackModelItem(
+        val id: String,
+        val displayName: String,
+        val isWhisper: Boolean
+    )
+
+    /**
+     * Updates the fallback model dropdown with available offline models.
      */
     private fun updateFallbackModelText() {
         if (!autoFallbackSwitch.isChecked) {
-            tvFallbackModel.visibility = View.GONE
+            layoutFallbackModel.visibility = View.GONE
             return
         }
 
-        // Find the best available offline model
-        val fallbackName = when {
-            modelManager.isModelAvailable("vosk", "en") -> "Vosk English"
-            modelManager.isModelAvailable("vosk", "de") -> "Vosk German"
-            modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny") -> "Whisper Tiny"
-            modelManager.isModelAvailable("sherpa-onnx", "whisper-base") -> "Whisper Base"
-            modelManager.isModelAvailable("sherpa-onnx", "whisper-small") -> "Whisper Small"
-            else -> null
+        // Build list of available offline models
+        val availableModels = mutableListOf<FallbackModelItem>()
+
+        // Check Vosk models
+        if (modelManager.isModelAvailable("vosk", "en")) {
+            availableModels.add(FallbackModelItem(
+                PreferenceManager.FALLBACK_VOSK_EN,
+                "Vosk English",
+                isWhisper = false
+            ))
+        }
+        if (modelManager.isModelAvailable("vosk", "de")) {
+            availableModels.add(FallbackModelItem(
+                PreferenceManager.FALLBACK_VOSK_DE,
+                "Vosk German",
+                isWhisper = false
+            ))
         }
 
-        if (fallbackName != null) {
-            tvFallbackModel.text = "Using: $fallbackName"
-            tvFallbackModel.visibility = View.VISIBLE
+        // Check Whisper models
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")) {
+            availableModels.add(FallbackModelItem(
+                PreferenceManager.FALLBACK_WHISPER_TINY,
+                "Whisper Tiny (multilingual)",
+                isWhisper = true
+            ))
+        }
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-base")) {
+            availableModels.add(FallbackModelItem(
+                PreferenceManager.FALLBACK_WHISPER_BASE,
+                "Whisper Base (multilingual)",
+                isWhisper = true
+            ))
+        }
+        if (modelManager.isModelAvailable("sherpa-onnx", "whisper-small")) {
+            availableModels.add(FallbackModelItem(
+                PreferenceManager.FALLBACK_WHISPER_SMALL,
+                "Whisper Small (multilingual)",
+                isWhisper = true
+            ))
+        }
+
+        if (availableModels.isEmpty()) {
+            // No models available - hide dropdown, show message
+            layoutFallbackModel.visibility = View.VISIBLE
+            spinnerFallbackModel.visibility = View.GONE
+            tvFallbackModelNote.text = "No offline models downloaded"
+            tvFallbackModelNote.visibility = View.VISIBLE
+            return
+        }
+
+        layoutFallbackModel.visibility = View.VISIBLE
+        spinnerFallbackModel.visibility = View.VISIBLE
+
+        // Set up spinner adapter
+        val adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            availableModels.map { it.displayName }
+        )
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+        spinnerFallbackModel.adapter = adapter
+
+        // Select current fallback model or first available
+        val currentFallback = preferenceManager.getFallbackModel()
+        val currentIndex = availableModels.indexOfFirst { it.id == currentFallback }
+        if (currentIndex >= 0) {
+            spinnerFallbackModel.setSelection(currentIndex)
         } else {
-            tvFallbackModel.text = "No offline model available"
-            tvFallbackModel.visibility = View.VISIBLE
+            // Default to first available and save it
+            spinnerFallbackModel.setSelection(0)
+            preferenceManager.setFallbackModel(availableModels[0].id)
+        }
+
+        // Update note visibility based on current selection
+        val selectedModel = if (currentIndex >= 0) availableModels[currentIndex] else availableModels[0]
+        tvFallbackModelNote.visibility = if (selectedModel.isWhisper) View.VISIBLE else View.GONE
+
+        // Handle selection changes
+        spinnerFallbackModel.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val selected = availableModels[position]
+                preferenceManager.setFallbackModel(selected.id)
+                tvFallbackModelNote.visibility = if (selected.isWhisper) View.VISIBLE else View.GONE
+                DebugLog.i("Fallback model changed to: ${selected.displayName}")
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
     }
 

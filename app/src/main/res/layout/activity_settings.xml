@@ -482,16 +482,41 @@
 
                         </LinearLayout>
 
-                        <!-- Fallback model indicator -->
-                        <TextView
-                            android:id="@+id/tvFallbackModel"
-                            android:layout_width="wrap_content"
+                        <!-- Fallback model dropdown -->
+                        <LinearLayout
+                            android:id="@+id/layoutFallbackModel"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="4dp"
-                            android:text="Using: Vosk Small"
-                            android:textAppearance="?attr/textAppearanceBodySmall"
-                            android:textColor="?attr/colorPrimary"
-                            android:visibility="gone" />
+                            android:orientation="vertical"
+                            android:layout_marginTop="12dp"
+                            android:visibility="gone">
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Fallback model"
+                                android:textAppearance="?attr/textAppearanceBodyMedium"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
+
+                            <Spinner
+                                android:id="@+id/spinnerFallbackModel"
+                                android:layout_width="match_parent"
+                                android:layout_height="48dp"
+                                android:layout_marginTop="4dp"
+                                android:background="@drawable/spinner_background"
+                                android:popupBackground="?attr/colorSurface" />
+
+                            <TextView
+                                android:id="@+id/tvFallbackModelNote"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="4dp"
+                                android:text="Whisper models auto-detect language"
+                                android:textAppearance="?attr/textAppearanceBodySmall"
+                                android:textColor="?attr/colorOnSurfaceVariant"
+                                android:visibility="gone" />
+
+                        </LinearLayout>
 
                     </LinearLayout>
 

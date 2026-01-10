@@ -714,9 +714,14 @@ class BubbleService : LifecycleService() {
             return
         }
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
+        val prefManager = PreferenceManager(this)
         val hideBubbles = prefs.getBoolean("hide_bubbles", false)
-        val showLanguage = prefs.getBoolean("show_language_bubble", true)
+        val showLanguagePref = prefs.getBoolean("show_language_bubble", true)
         val showKeyboard = prefs.getBoolean("show_keyboard_bubble", true)
+
+        // Only show language button if: user pref is enabled AND provider needs language toggle
+        // Hide for Whisper (auto-detects) and cloud providers with auto-detect enabled
+        val showLanguage = showLanguagePref && prefManager.currentProviderNeedsLanguageToggle()
 
         Log.i(TAG, "updateBubbleVisibility: hideBubbles=$hideBubbles, isKeyboardVisible=$isKeyboardVisible, showLanguage=$showLanguage, showKeyboard=$showKeyboard")
         DebugLog.i("BubbleService: Updating visibility - hide=$hideBubbles, keyboard=$isKeyboardVisible, lang=$showLanguage, kbd=$showKeyboard")

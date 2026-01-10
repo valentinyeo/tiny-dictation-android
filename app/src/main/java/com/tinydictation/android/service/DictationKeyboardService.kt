@@ -510,11 +510,12 @@ class DictationKeyboardService : InputMethodService() {
         val prefs = PreferenceManager(this)
         val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
 
-        // Hide language button if auto-detect is enabled and the provider supports it
-        val autoDetectEnabled = prefs.getAutoDetectLanguage() && prefs.currentProviderSupportsAutoDetect()
-        if (autoDetectEnabled) {
+        // Hide language button if provider doesn't need manual language selection
+        // This includes: Whisper (auto-detects), cloud providers with auto-detect enabled
+        val needsLanguageToggle = prefs.currentProviderNeedsLanguageToggle()
+        if (!needsLanguageToggle) {
             languageButton?.visibility = View.GONE
-            DebugLog.d("DictationKeyboardService: Language button hidden (auto-detect enabled)")
+            DebugLog.d("DictationKeyboardService: Language button hidden (provider auto-detects)")
         } else {
             languageButton?.visibility = View.VISIBLE
             val lang = prefs.getLanguage().uppercase()
