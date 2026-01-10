@@ -68,6 +68,12 @@ class DictationKeyboardService : InputMethodService() {
     private var longPressRunnable: Runnable? = null
     private var isLongPressTriggered = false
 
+    // Backspace repeat handling
+    private var backspaceHandler: Handler? = null
+    private var backspaceRunnable: Runnable? = null
+    private val BACKSPACE_INITIAL_DELAY = 400L  // Delay before repeat starts
+    private val BACKSPACE_REPEAT_DELAY = 50L    // Delay between repeats
+
     override fun onCreate() {
         super.onCreate()
         Log.i(TAG, "DictationKeyboardService onCreate")
@@ -80,6 +86,7 @@ class DictationKeyboardService : InputMethodService() {
         DebugLog.i("DictationKeyboardService: Service destroyed")
         instance = null
         longPressHandler?.removeCallbacksAndMessages(null)
+        backspaceHandler?.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
@@ -209,9 +216,9 @@ class DictationKeyboardService : InputMethodService() {
             toggleLanguage()
         }
 
-        // Backspace button
-        keyboardView?.findViewById<FrameLayout>(R.id.btnBackspace)?.setOnClickListener {
-            sendBackspace()
+        // Backspace button - with hold-to-repeat
+        keyboardView?.findViewById<FrameLayout>(R.id.btnBackspace)?.setOnTouchListener { _, event ->
+            handleBackspaceTouch(event)
         }
 
         // Select All button
@@ -341,6 +348,38 @@ class DictationKeyboardService : InputMethodService() {
         val prefs = PreferenceManager(this)
         val lang = prefs.getLanguage().uppercase()
         languageText?.text = lang
+    }
+
+    /**
+     * Handles touch events for backspace button with hold-to-repeat.
+     */
+    private fun handleBackspaceTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Send first backspace immediately
+                sendBackspace()
+
+                // Set up repeating backspace
+                backspaceHandler = Handler(Looper.getMainLooper())
+                backspaceRunnable = object : Runnable {
+                    override fun run() {
+                        sendBackspace()
+                        backspaceHandler?.postDelayed(this, BACKSPACE_REPEAT_DELAY)
+                    }
+                }
+                // Start repeating after initial delay
+                backspaceHandler?.postDelayed(backspaceRunnable!!, BACKSPACE_INITIAL_DELAY)
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                // Stop repeating
+                backspaceRunnable?.let { backspaceHandler?.removeCallbacks(it) }
+                backspaceHandler = null
+                backspaceRunnable = null
+                return true
+            }
+        }
+        return false
     }
 
     private fun sendBackspace() {

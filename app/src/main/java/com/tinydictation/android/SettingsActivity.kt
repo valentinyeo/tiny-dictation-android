@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.24:
+            • Backspace now supports hold-to-delete like SwiftKey
+            • Hold down backspace to continuously delete characters
+
             v1.9.23:
             • Moved switch-back button to left side with small chevron icon
             • New button order: Chevron, Mic, Lang | Backspace, Enter, Paste, All
