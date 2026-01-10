@@ -1,11 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Keyboard bar layout for Tiny Dictation IME.
-     Contains action buttons for common operations:
-     - Mic: Toggle dictation
-     - Select All: Select all text
-     - Paste: Paste from clipboard
-     - Enter: Send enter key
-     - Switch: Change to another keyboard
+     Buttons: Mic, Language, Backspace, Select All, Paste, Enter
 -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
@@ -13,26 +8,46 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:gravity="center_vertical"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="12dp"
+    android:paddingHorizontal="8dp"
+    android:paddingVertical="10dp"
     android:background="@color/surface_variant"
-    android:minHeight="80dp">
+    android:minHeight="64dp">
 
-    <!-- Mic button - toggle dictation -->
+    <!-- Mic button - toggle dictation (long press = settings) -->
     <FrameLayout
         android:id="@+id/btnKeyboardMic"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
         android:background="@drawable/keyboard_button_background"
         android:contentDescription="Toggle dictation">
 
         <ImageView
             android:id="@+id/ivKeyboardMic"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_mic"
             app:tint="@color/primary" />
+    </FrameLayout>
+
+    <!-- Language switch button -->
+    <FrameLayout
+        android:id="@+id/btnLanguage"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Switch language">
+
+        <TextView
+            android:id="@+id/tvLanguage"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="EN"
+            android:textSize="14sp"
+            android:textColor="@color/on_surface"
+            android:textStyle="bold" />
     </FrameLayout>
 
     <!-- Spacer -->
@@ -41,12 +56,29 @@
         android:layout_height="1dp"
         android:layout_weight="1" />
 
+    <!-- Backspace button -->
+    <FrameLayout
+        android:id="@+id/btnBackspace"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Backspace">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_backspace"
+            app:tint="@color/on_surface" />
+    </FrameLayout>
+
     <!-- Select All button -->
     <FrameLayout
         android:id="@+id/btnSelectAll"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
         android:contentDescription="Select all">
 
@@ -55,61 +87,43 @@
             android:layout_height="wrap_content"
             android:layout_gravity="center"
             android:text="All"
-            android:textSize="14sp"
-            android:textColor="@color/text_secondary"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface"
             android:textStyle="bold" />
     </FrameLayout>
 
     <!-- Paste button -->
     <FrameLayout
         android:id="@+id/btnPaste"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
         android:contentDescription="Paste">
 
         <ImageView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_paste"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/on_surface" />
     </FrameLayout>
 
     <!-- Enter button -->
     <FrameLayout
         android:id="@+id/btnEnter"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="8dp"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
         android:contentDescription="Enter">
 
         <ImageView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_enter"
-            app:tint="@color/text_secondary" />
-    </FrameLayout>
-
-    <!-- Keyboard switch button -->
-    <FrameLayout
-        android:id="@+id/btnSwitchKeyboard"
-        android:layout_width="56dp"
-        android:layout_height="56dp"
-        android:layout_marginStart="8dp"
-        android:background="@drawable/keyboard_button_background"
-        android:contentDescription="@string/keyboard_switch_hint">
-
-        <ImageView
-            android:id="@+id/ivSwitchKeyboard"
-            android:layout_width="28dp"
-            android:layout_height="28dp"
-            android:layout_gravity="center"
-            android:src="@drawable/ic_keyboard_switch"
-            app:tint="@color/text_secondary" />
+            app:tint="@color/on_surface" />
     </FrameLayout>
 
 </LinearLayout>

@@ -53,6 +53,14 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.16:
+            • Added language switch button to keyboard bar
+            • Added backspace button to keyboard bar
+            • Long-press mic button opens settings
+            • Bubbles auto-hide when keyboard is visible
+            • Fixed dark mode icons (now visible on dark backgrounds)
+            • Removed redundant keyboard switch button
+
             v1.9.15:
             • Added keyboard action buttons: Enter, Select All, Paste, Switch Keyboard
             • Larger keyboard bar with 56dp buttons for easier tapping

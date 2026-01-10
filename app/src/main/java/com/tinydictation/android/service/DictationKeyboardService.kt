@@ -2,60 +2,43 @@ package com.tinydictation.android.service
 
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.Intent
 import android.inputmethodservice.InputMethodService
-import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
-import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.R
+import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
 
 /**
  * Input Method Service (IME) for Tiny Dictation.
  *
  * This provides a keyboard bar with action buttons for dictation and text manipulation.
- * Benefits over accessibility-based text injection:
- * 1. Works in apps where accessibility paste doesn't work (e.g., terminal/CLI apps)
- * 2. Fewer button presses to transmit dictated text
- * 3. More reliable text insertion
- *
- * Buttons:
- * - Mic: Toggle dictation on/off
- * - Select All: Select all text in the field
- * - Paste: Paste from clipboard
- * - Enter: Send enter/return key
- * - Switch: Change to another keyboard
+ * Buttons: Mic, Language, Backspace, Select All, Paste, Enter
  */
 class DictationKeyboardService : InputMethodService() {
 
     companion object {
         private const val TAG = "TinyDictation"
+        private const val LONG_PRESS_THRESHOLD = 500L
 
         @Volatile
         private var instance: DictationKeyboardService? = null
 
-        /**
-         * Gets the current service instance, if available.
-         */
         fun getInstance(): DictationKeyboardService? = instance
 
-        /**
-         * Checks if the keyboard service is currently running and connected.
-         * @return true if the service is active
-         */
         fun isServiceRunning(): Boolean = instance != null
 
-        /**
-         * Commits text to the currently focused input field via InputConnection.
-         * @param text The text to commit
-         * @return true if successful, false if service unavailable or commit failed
-         */
         fun commitText(text: String): Boolean {
             Log.d(TAG, "commitText requested: $text")
             return instance?.commitTextInternal(text) ?: run {
@@ -64,10 +47,6 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
 
-        /**
-         * Checks if text can be committed (i.e., there's an active input connection).
-         * @return true if text can be committed
-         */
         fun canCommitText(): Boolean {
             return instance?.currentInputConnection != null
         }
@@ -76,6 +55,12 @@ class DictationKeyboardService : InputMethodService() {
     private var keyboardView: View? = null
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
+    private var languageText: TextView? = null
+
+    // Long press handling for mic button
+    private var longPressHandler: Handler? = null
+    private var longPressRunnable: Runnable? = null
+    private var isLongPressTriggered = false
 
     override fun onCreate() {
         super.onCreate()
@@ -88,35 +73,29 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService onDestroy")
         DebugLog.i("DictationKeyboardService: Service destroyed")
         instance = null
+        longPressHandler?.removeCallbacksAndMessages(null)
         super.onDestroy()
     }
 
-    /**
-     * Creates the input view (keyboard view).
-     */
     override fun onCreateInputView(): View {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
         return try {
-            // Inflate our keyboard layout
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
-            // Get references to views
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
+            languageText = keyboardView?.findViewById(R.id.tvLanguage)
 
-            // Set up button click handlers
             setupButtonHandlers()
-
-            // Update mic button state
             updateMicButton()
+            updateLanguageButton()
 
             keyboardView!!
         } catch (e: Exception) {
             Log.e(TAG, "Error creating keyboard view", e)
             DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}")
-            // Return a simple fallback view
             TextView(this).apply {
                 text = "Tiny Dictation Keyboard"
                 setPadding(16, 16, 16, 16)
@@ -125,13 +104,20 @@ class DictationKeyboardService : InputMethodService() {
         }
     }
 
-    /**
-     * Sets up click handlers for all keyboard buttons.
-     */
     private fun setupButtonHandlers() {
-        // Mic button - toggle dictation
-        keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboardMic)?.setOnClickListener {
-            toggleDictation()
+        // Mic button - short press toggle, long press settings
+        micButton?.setOnTouchListener { _, event ->
+            handleMicTouch(event)
+        }
+
+        // Language button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)?.setOnClickListener {
+            toggleLanguage()
+        }
+
+        // Backspace button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnBackspace)?.setOnClickListener {
+            sendBackspace()
         }
 
         // Select All button
@@ -148,36 +134,76 @@ class DictationKeyboardService : InputMethodService() {
         keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
             sendEnterKey()
         }
-
-        // Keyboard switch button
-        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchKeyboard)?.setOnClickListener {
-            showKeyboardSwitcher()
-        }
     }
 
     /**
-     * Toggles dictation on/off via the BubbleService.
+     * Handles touch events for mic button with long-press detection.
      */
+    private fun handleMicTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isLongPressTriggered = false
+                longPressHandler = Handler(Looper.getMainLooper())
+                longPressRunnable = Runnable {
+                    isLongPressTriggered = true
+                    openSettings()
+                }
+                longPressHandler?.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD)
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
+                if (!isLongPressTriggered && event.action == MotionEvent.ACTION_UP) {
+                    toggleDictation()
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    private fun openSettings() {
+        Log.i(TAG, "DictationKeyboardService: Opening settings")
+        DebugLog.i("DictationKeyboardService: Long press - opening settings")
+
+        val intent = Intent(this, SettingsActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
     private fun toggleDictation() {
         Log.i(TAG, "DictationKeyboardService: Toggle dictation")
         DebugLog.i("DictationKeyboardService: Toggling dictation")
 
-        // Toggle via BubbleService
         BubbleService.getInstance()?.let { service ->
-            // This will trigger the bubble tap behavior
             service.toggleRecording()
             updateMicButton()
         } ?: run {
-            // If BubbleService isn't running, try to start it
             Log.w(TAG, "BubbleService not running - starting it")
             DebugLog.w("DictationKeyboardService: Starting BubbleService")
             BubbleService.start(this)
         }
     }
 
-    /**
-     * Updates the mic button appearance based on recording state.
-     */
+    private fun toggleLanguage() {
+        Log.i(TAG, "DictationKeyboardService: Toggle language")
+        DebugLog.i("DictationKeyboardService: Toggling language")
+
+        val prefs = PreferenceManager(this)
+        val currentLang = prefs.getLanguage()
+
+        // Toggle between en and de (or extend for more languages)
+        val newLang = if (currentLang == "en") "de" else "en"
+        prefs.setLanguage(newLang)
+
+        // Notify BubbleService of language change
+        BubbleService.onLanguageChanged?.invoke(newLang)
+
+        updateLanguageButton()
+        Log.i(TAG, "Language changed to: $newLang")
+    }
+
     private fun updateMicButton() {
         val isRecording = BubbleService.getInstance()?.isCurrentlyRecording() ?: false
         val color = if (isRecording) {
@@ -188,27 +214,34 @@ class DictationKeyboardService : InputMethodService() {
         micIcon?.setColorFilter(color)
     }
 
-    /**
-     * Selects all text in the current input field.
-     */
+    private fun updateLanguageButton() {
+        val prefs = PreferenceManager(this)
+        val lang = prefs.getLanguage().uppercase()
+        languageText?.text = lang
+    }
+
+    private fun sendBackspace() {
+        Log.i(TAG, "DictationKeyboardService: Backspace")
+        DebugLog.d("DictationKeyboardService: Sending backspace")
+
+        currentInputConnection?.let { ic ->
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
+            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
+        }
+    }
+
     private fun selectAll() {
         Log.i(TAG, "DictationKeyboardService: Select all")
         DebugLog.d("DictationKeyboardService: Selecting all text")
 
         currentInputConnection?.let { ic ->
-            // Get the full text
             val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
             val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
             val totalLength = before.length + after.length
-
-            // Select all by setting selection from 0 to end
             ic.setSelection(0, totalLength)
         }
     }
 
-    /**
-     * Pastes text from the system clipboard.
-     */
     private fun pasteFromClipboard() {
         Log.i(TAG, "DictationKeyboardService: Paste")
         DebugLog.d("DictationKeyboardService: Pasting from clipboard")
@@ -224,64 +257,42 @@ class DictationKeyboardService : InputMethodService() {
         }
     }
 
-    /**
-     * Sends an Enter/Return key event.
-     */
     private fun sendEnterKey() {
         Log.i(TAG, "DictationKeyboardService: Enter key")
         DebugLog.d("DictationKeyboardService: Sending enter key")
 
         currentInputConnection?.let { ic ->
-            // Send key down and up events for Enter
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
         }
     }
 
-    /**
-     * Called when the keyboard is shown for a new input field.
-     */
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
-        Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}, hint: ${info?.hintText}")
+        Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: Started input for field: ${info?.fieldName}")
 
         updateMicButton()
+        updateLanguageButton()
+
+        // Auto-hide bubbles when keyboard is visible
+        BubbleService.getInstance()?.setKeyboardVisible(true)
     }
 
-    /**
-     * Called when the input connection changes.
-     */
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
         Log.d(TAG, "DictationKeyboardService onStartInput - inputType: ${attribute?.inputType}")
     }
 
-    /**
-     * Called when the keyboard is hidden.
-     */
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
+
+        // Show bubbles again when keyboard is hidden
+        BubbleService.getInstance()?.setKeyboardVisible(false)
     }
 
-    /**
-     * Shows the system keyboard picker dialog.
-     */
-    private fun showKeyboardSwitcher() {
-        Log.i(TAG, "DictationKeyboardService: Showing keyboard switcher")
-        DebugLog.i("DictationKeyboardService: Opening keyboard picker")
-
-        val imm = getSystemService(INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.showInputMethodPicker()
-    }
-
-    /**
-     * Commits text to the currently focused input field.
-     * @param text The text to commit
-     * @return true if successful
-     */
     private fun commitTextInternal(text: String): Boolean {
         val ic = currentInputConnection
         if (ic == null) {
@@ -291,8 +302,6 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         return try {
-            // Commit the text at the current cursor position
-            // The second parameter (1) means move cursor to after the inserted text
             val result = ic.commitText(text, 1)
             if (result) {
                 Log.d(TAG, "Text committed successfully: ${text.take(50)}...")
@@ -309,10 +318,8 @@ class DictationKeyboardService : InputMethodService() {
         }
     }
 
-    /**
-     * Called by BubbleService to refresh the keyboard status display.
-     */
     fun refreshStatus() {
         updateMicButton()
+        updateLanguageButton()
     }
 }

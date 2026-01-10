@@ -32,6 +32,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_SHOW_NOTE_BUBBLE = "show_note_bubble"
         private const val KEY_NOTE_APP_PACKAGE = "note_app_package"
         private const val KEY_SIMULATE_TYPING = "simulate_typing"
+        private const val KEY_HIDE_BUBBLES = "hide_bubbles"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -407,5 +408,24 @@ class PreferenceManager(context: Context) {
      */
     fun setSimulateTyping(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SIMULATE_TYPING, enabled).apply()
+    }
+
+    // ========== Hide Bubbles ==========
+
+    /**
+     * Gets whether to hide the floating bubbles.
+     * Useful when using keyboard mode exclusively.
+     * @return true if bubbles should be hidden
+     */
+    fun getHideBubbles(): Boolean {
+        return prefs.getBoolean(KEY_HIDE_BUBBLES, false)
+    }
+
+    /**
+     * Sets whether to hide the floating bubbles.
+     * @param hidden true to hide bubbles
+     */
+    fun setHideBubbles(hidden: Boolean) {
+        prefs.edit().putBoolean(KEY_HIDE_BUBBLES, hidden).apply()
     }
 }

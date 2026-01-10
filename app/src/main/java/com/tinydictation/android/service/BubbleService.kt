@@ -67,6 +67,9 @@ class BubbleService : LifecycleService() {
     // Compact/translucent mode
     private var isCompactMode = false
 
+    // Keyboard visibility - hide bubbles when keyboard is shown
+    private var isKeyboardVisible = false
+
     // Touch handling variables
     private var initialX: Int = 0
     private var initialY: Int = 0
@@ -835,13 +838,17 @@ class BubbleService : LifecycleService() {
             return
         }
         val prefs = getSharedPreferences("tiny_dictation_prefs", Context.MODE_PRIVATE)
+        val hideBubbles = prefs.getBoolean("hide_bubbles", false)
         val showLanguage = prefs.getBoolean("show_language_bubble", true)
         val showPaste = prefs.getBoolean("show_paste_bubble", true)
         val showNote = prefs.getBoolean("show_note_bubble", false)
         val showKeyboard = prefs.getBoolean("show_keyboard_bubble", false)
 
-        Log.i(TAG, "updateBubbleVisibility: showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote, showKeyboard=$showKeyboard")
-        DebugLog.i("BubbleService: Updating visibility - lang=$showLanguage, paste=$showPaste, note=$showNote, keyboard=$showKeyboard")
+        Log.i(TAG, "updateBubbleVisibility: hideBubbles=$hideBubbles, isKeyboardVisible=$isKeyboardVisible, showLanguage=$showLanguage, showPaste=$showPaste, showNote=$showNote, showKeyboard=$showKeyboard")
+        DebugLog.i("BubbleService: Updating visibility - hide=$hideBubbles, keyboard=$isKeyboardVisible, lang=$showLanguage, paste=$showPaste, note=$showNote")
+
+        // Hide entire bubble if setting enabled or keyboard is visible
+        bubbleView?.visibility = if (hideBubbles || isKeyboardVisible) View.GONE else View.VISIBLE
 
         val langView = bubbleView?.findViewById<TextView>(R.id.tvLanguageToggle)
         val pasteView = bubbleView?.findViewById<TextView>(R.id.tvPasteButton)
@@ -1146,6 +1153,16 @@ class BubbleService : LifecycleService() {
      */
     fun isCurrentlyRecording(): Boolean {
         return currentState == BubbleState.LISTENING || currentState == BubbleState.RECORDING
+    }
+
+    /**
+     * Sets keyboard visibility state. When keyboard is visible, bubbles are hidden.
+     */
+    fun setKeyboardVisible(visible: Boolean) {
+        Log.d(TAG, "setKeyboardVisible: $visible")
+        DebugLog.d("BubbleService: Keyboard visible = $visible")
+        isKeyboardVisible = visible
+        bubbleView?.visibility = if (visible) View.GONE else View.VISIBLE
     }
 
     /**
