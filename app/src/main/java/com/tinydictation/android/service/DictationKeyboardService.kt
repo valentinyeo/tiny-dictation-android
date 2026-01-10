@@ -724,4 +724,12 @@ class DictationKeyboardService : InputMethodService() {
         updateMicButton()
         updateLanguageButton()
     }
+
+    /**
+     * Refreshes the theme immediately. Called when user changes theme in settings.
+     */
+    fun refreshTheme() {
+        DebugLog.i("DictationKeyboardService: Refreshing theme from settings change")
+        applyTheme()
+    }
 }

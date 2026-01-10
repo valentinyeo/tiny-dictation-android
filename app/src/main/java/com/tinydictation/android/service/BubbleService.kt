@@ -487,12 +487,11 @@ class BubbleService : LifecycleService() {
 
         try {
             windowManager.addView(bubbleView, bubbleParams)
-            // Set default opacity to ~65% for less intrusive appearance
-            bubbleView?.alpha = DEFAULT_OPACITY
             updateBubbleUI()
             updateLanguageUI()
             updateBubbleVisibility()
             applyBarOrientation()
+            applyTransparency()
             Log.i(TAG, "Bubble created successfully")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create bubble", e)
@@ -558,6 +557,27 @@ class BubbleService : LifecycleService() {
     fun refreshOrientation() {
         android.os.Handler(mainLooper).post {
             applyBarOrientation()
+        }
+    }
+
+    /**
+     * Applies transparency to the floating bar based on settings.
+     * Called when bubble is created and when transparency setting changes.
+     */
+    fun applyTransparency() {
+        android.os.Handler(mainLooper).post {
+            val transparency = preferenceManager.getBarTransparency()
+            // Convert transparency percentage (0-50) to alpha (1.0 - 0.5)
+            // 0% transparency = 1.0 alpha (fully opaque)
+            // 50% transparency = 0.5 alpha (50% transparent)
+            val alpha = 1f - (transparency / 100f)
+
+            bubbleView?.let { view ->
+                val floatingBarContainer = view.findViewById<LinearLayout>(R.id.floatingBarContainer)
+                floatingBarContainer?.alpha = alpha
+                Log.d(TAG, "Applied bar transparency: ${transparency.toInt()}% (alpha=$alpha)")
+                DebugLog.d("BubbleService: Transparency set to ${transparency.toInt()}%")
+            }
         }
     }
 
@@ -1317,6 +1337,14 @@ class BubbleService : LifecycleService() {
          */
         fun refreshBarOrientation() {
             instance?.refreshOrientation()
+        }
+
+        /**
+         * Refreshes bar transparency based on current settings.
+         * Call this when transparency setting is changed in SettingsActivity.
+         */
+        fun refreshTransparency() {
+            instance?.applyTransparency()
         }
 
         /**

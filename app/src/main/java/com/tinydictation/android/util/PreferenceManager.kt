@@ -37,6 +37,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_DICTATION_MODE = "dictation_mode"
         private const val KEY_PAUSE_MEDIA_DURING_DICTATION = "pause_media_during_dictation"
         private const val KEY_BAR_ORIENTATION = "bar_orientation"
+        private const val KEY_BAR_TRANSPARENCY = "bar_transparency"
 
         // Default values
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
@@ -518,5 +519,24 @@ class PreferenceManager(context: Context) {
      */
     fun setBarOrientation(orientation: String) {
         prefs.edit().putString(KEY_BAR_ORIENTATION, orientation).apply()
+    }
+
+    // ========== Bar Transparency ==========
+
+    /**
+     * Gets the floating bar transparency setting (0-50).
+     * 0 means fully opaque, 50 means 50% transparent.
+     * @return Transparency percentage (0-50)
+     */
+    fun getBarTransparency(): Float {
+        return prefs.getFloat(KEY_BAR_TRANSPARENCY, 0f)
+    }
+
+    /**
+     * Sets the floating bar transparency.
+     * @param value Transparency percentage (0-50)
+     */
+    fun setBarTransparency(value: Float) {
+        prefs.edit().putFloat(KEY_BAR_TRANSPARENCY, value.coerceIn(0f, 50f)).apply()
     }
 }

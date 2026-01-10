@@ -889,7 +889,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Bubble Settings Section -->
+            <!-- Floating Bar Settings Section -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -912,7 +912,7 @@
                         android:textAppearance="?attr/textAppearanceTitleMedium"
                         android:textColor="?attr/colorOnSurface" />
 
-                    <!-- Language Bubble Switch -->
+                    <!-- Language Toggle Switch -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -952,7 +952,7 @@
 
                     </LinearLayout>
 
-                    <!-- Paste Bubble Switch -->
+                    <!-- Clipboard Button Switch -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -992,7 +992,7 @@
 
                     </LinearLayout>
 
-                    <!-- Note Bubble Switch -->
+                    <!-- Note Button Switch -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -1076,7 +1076,7 @@
 
                     </LinearLayout>
 
-                    <!-- Keyboard Bubble Switch -->
+                    <!-- Keyboard Button Switch -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
@@ -1116,7 +1116,7 @@
 
                     </LinearLayout>
 
-                    <!-- Keyboard Setup Button (only visible when keyboard bubble enabled) -->
+                    <!-- Keyboard Setup Button (only visible when keyboard button enabled) -->
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/btnSetupKeyboard"
                         android:layout_width="match_parent"
@@ -1142,6 +1142,55 @@
                             android:inputType="none" />
 
                     </com.google.android.material.textfield.TextInputLayout>
+
+                    <!-- Bar Transparency Slider -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:layout_marginTop="16dp">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="horizontal"
+                            android:gravity="center_vertical">
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:text="Bar Transparency"
+                                android:textAppearance="?attr/textAppearanceBodyLarge"
+                                android:textColor="?attr/colorOnSurface" />
+
+                            <TextView
+                                android:id="@+id/tvTransparencyValue"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="0%"
+                                android:textAppearance="?attr/textAppearanceBodyMedium"
+                                android:textColor="?attr/colorOnSurfaceVariant" />
+
+                        </LinearLayout>
+
+                        <com.google.android.material.slider.Slider
+                            android:id="@+id/sliderTransparency"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:valueFrom="0"
+                            android:valueTo="50"
+                            android:stepSize="5"
+                            android:value="0" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Adjust how transparent the floating bar appears (0% = solid)"
+                            android:textAppearance="?attr/textAppearanceBodySmall"
+                            android:textColor="?attr/colorOnSurfaceVariant" />
+
+                    </LinearLayout>
 
                 </LinearLayout>
 

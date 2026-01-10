@@ -30,9 +30,11 @@ import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
+import com.google.android.material.slider.Slider
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.service.BubbleService
 import com.tinydictation.android.service.DictationAccessibilityService
+import com.tinydictation.android.service.DictationKeyboardService
 import com.tinydictation.android.service.KeyboardCompanionService
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
@@ -54,6 +56,22 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.21:
+            • NEW: Bar transparency slider in Floating Bar Settings
+            • Adjust floating bar transparency from 0% (solid) to 50% (semi-transparent)
+            • Renamed "bubble" references to "floating bar" throughout the UI
+            • Cleaner, more consistent terminology
+
+            v1.10.20:
+            • Fixed floating bar appearing when Horizontal Bar or Keyboard mode selected
+            • Floating bar UI only shows when "Vertical Floating Bar" mode is active
+            • BubbleService still runs for transcription backend in other modes (without UI)
+
+            v1.10.19:
+            • Fixed keyboard theme not applying immediately when changed in Settings
+            • Theme changes now take effect instantly without switching keyboards
+            • No longer need to switch away and back for theme to apply
+
             v1.10.18:
             • Seamless switching between Vertical and Horizontal floating bar modes
             • Vertical bar: tap horizontal bar icon to switch to horizontal mode
@@ -100,7 +118,7 @@ class SettingsActivity : AppCompatActivity() {
             • Fixed mutual exclusivity between dictation modes
             • Companion bar now hides when Tiny Dictation keyboard opens
             • Added floating bar button to companion bar for quick mode switching
-            • Tap the new sidebar icon to switch from companion mode to floating bubble
+            • Tap the new sidebar icon to switch from companion mode to floating bar
 
             v1.10.10:
             • Fixed Keyboard Companion bar overlaying keyboard suggestions
@@ -153,21 +171,21 @@ class SettingsActivity : AppCompatActivity() {
 
             v1.10.1:
             • Fixed: Dictation modes are now mutually exclusive
-            • Only ONE UI appears based on selected mode (Bubble, Companion, or Keyboard)
-            • No more floating bubbles appearing in Companion or Keyboard modes
+            • Only ONE UI appears based on selected mode (Floating Bar, Companion, or Keyboard)
+            • No more floating bars appearing in Companion or Keyboard modes
 
             v1.10.0:
             • NEW: Keyboard Companion Mode - horizontal bar above your keyboard
             • Works with Gboard, SwiftKey, or any keyboard
             • Automatically appears when keyboard is visible
             • Quick access to Mic, Language, and Expand buttons
-            • Choose mode in Settings: Bubble, Companion, or Full Keyboard
+            • Choose mode in Settings: Floating Bar, Companion, or Full Keyboard
 
             v1.9.26:
             • Fixed chevron icon color to match other keyboard icons consistently
 
             v1.9.25:
-            • Redesigned floating bubble as vertical bar matching keyboard styling
+            • Redesigned floating bar as vertical bar matching keyboard styling
             • Unified look with keyboard bar (same colors, buttons, icons)
             • Simplified to 3 core buttons: Mic, Language, Keyboard switch
             • Removed paste/note buttons for cleaner interface
@@ -197,7 +215,7 @@ class SettingsActivity : AppCompatActivity() {
             • Reordered keyboard buttons: Backspace, Enter, Paste, All, Switch
 
             v1.9.18:
-            • Keyboard bubble now switches directly to Tiny Dictation keyboard
+            • Keyboard button now switches directly to Tiny Dictation keyboard
             • Grant WRITE_SECURE_SETTINGS via ADB for direct switching
             • Falls back to picker if permission not granted
 
@@ -209,15 +227,15 @@ class SettingsActivity : AppCompatActivity() {
             • Added language switch button to keyboard bar
             • Added backspace button to keyboard bar
             • Long-press mic button opens settings
-            • Bubbles auto-hide when keyboard is visible
+            • Floating bar auto-hides when keyboard is visible
             • Fixed dark mode icons (now visible on dark backgrounds)
             • Removed redundant keyboard switch button
 
             v1.9.15:
             • Added keyboard action buttons: Enter, Select All, Paste, Switch Keyboard
             • Larger keyboard bar with 56dp buttons for easier tapping
-            • Mic button on keyboard toggles dictation like the bubble
-            • Recording state syncs between bubble and keyboard
+            • Mic button on keyboard toggles dictation like the floating bar
+            • Recording state syncs between floating bar and keyboard
 
             v1.9.14:
             • Added error handling to keyboard service to prevent crashes
@@ -507,6 +525,10 @@ class SettingsActivity : AppCompatActivity() {
     // Dictation mode selection
     private lateinit var dictationModeDropdown: AutoCompleteTextView
     private lateinit var barOrientationDropdown: AutoCompleteTextView
+
+    // Transparency slider
+    private lateinit var transparencySlider: Slider
+    private lateinit var transparencyValueText: TextView
 
     // Model downloads - Vosk
     private lateinit var tvVoskEnStatus: TextView
@@ -814,6 +836,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Setup keyboard theme dropdown
         setupKeyboardThemeDropdown()
+
+        // Setup transparency slider
+        transparencySlider = findViewById(R.id.sliderTransparency)
+        transparencyValueText = findViewById(R.id.tvTransparencyValue)
+        setupTransparencySlider()
     }
 
     private fun toggleChangelog() {
@@ -921,6 +948,28 @@ class SettingsActivity : AppCompatActivity() {
             val selectedValue = themes[position].second
             preferenceManager.setKeyboardTheme(selectedValue)
             DebugLog.i("Keyboard theme changed to: $selectedValue")
+
+            // Notify the running keyboard service to refresh its theme immediately
+            DictationKeyboardService.getInstance()?.refreshTheme()
+        }
+    }
+
+    private fun setupTransparencySlider() {
+        // Load current transparency value
+        val currentTransparency = preferenceManager.getBarTransparency()
+        transparencySlider.value = currentTransparency
+        transparencyValueText.text = "${currentTransparency.toInt()}%"
+
+        // Handle slider changes - apply immediately
+        transparencySlider.addOnChangeListener { _, value, fromUser ->
+            if (fromUser) {
+                transparencyValueText.text = "${value.toInt()}%"
+                preferenceManager.setBarTransparency(value)
+                DebugLog.i("Bar transparency changed to: ${value.toInt()}%")
+
+                // Notify BubbleService to apply new transparency
+                BubbleService.refreshTransparency()
+            }
         }
     }
 

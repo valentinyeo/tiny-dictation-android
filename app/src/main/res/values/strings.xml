@@ -6,7 +6,7 @@
     <string name="permission_microphone_title">Microphone Access</string>
     <string name="permission_microphone_desc">Required to record your voice for dictation</string>
     <string name="permission_overlay_title">Display Over Other Apps</string>
-    <string name="permission_overlay_desc">Required to show the floating dictation bubble</string>
+    <string name="permission_overlay_desc">Required to show the floating bar</string>
     <string name="permission_accessibility_title">Accessibility Service</string>
     <string name="permission_accessibility_desc">Required to insert text into any app</string>
 
@@ -46,12 +46,12 @@
     <string name="keyboard_subtype_english">English (Dictation)</string>
     <string name="keyboard_subtype_german">German (Dictation)</string>
     <string name="keyboard_switch_hint">Switch keyboard</string>
-    <string name="keyboard_status_idle">Tap bubble to start dictation</string>
+    <string name="keyboard_status_idle">Tap mic to start dictation</string>
     <string name="keyboard_status_active">Dictation active - speak now</string>
     <string name="keyboard_enable_title">Keyboard Input</string>
     <string name="keyboard_enable_desc">Enable keyboard for direct text input (works better in terminal apps)</string>
-    <string name="keyboard_bubble_title">Show Keyboard Bubble</string>
-    <string name="keyboard_bubble_desc">Show button to switch keyboards</string>
+    <string name="keyboard_bubble_title">Show Keyboard Button</string>
+    <string name="keyboard_bubble_desc">Show button to switch to keyboard</string>
     <string name="keyboard_theme_title">Keyboard Theme</string>
     <string name="keyboard_theme_system">System (Auto)</string>
     <string name="keyboard_theme_light">Light</string>
