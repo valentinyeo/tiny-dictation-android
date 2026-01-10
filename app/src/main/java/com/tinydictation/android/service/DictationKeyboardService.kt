@@ -677,22 +677,38 @@ class DictationKeyboardService : InputMethodService() {
     /**
      * Computes the insets that the keyboard occupies.
      * This tells apps how much space the keyboard takes so they can resize content.
+     *
+     * Critical for PWA compatibility: Apps use these insets to know how much to
+     * resize their content area when the keyboard is visible. Without proper insets,
+     * PWA content gets hidden behind the keyboard instead of being pushed up.
      */
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
 
-        // Get the keyboard view height
-        val view = keyboardView
-        if (view != null && view.height > 0) {
-            // The visible region is the keyboard area
-            outInsets.visibleTopInsets = outInsets.contentTopInsets
-            outInsets.contentTopInsets = outInsets.contentTopInsets
+        val view = keyboardView ?: return
 
-            // Touch region should cover the keyboard
-            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
-
-            Log.d(TAG, "onComputeInsets: height=${view.height}")
+        // Wait for the view to be laid out and have a valid height
+        if (view.height <= 0) {
+            DebugLog.d("DictationKeyboardService: onComputeInsets - view height is 0, waiting for layout")
+            return
         }
+
+        // Get the location of the keyboard view on screen
+        val location = IntArray(2)
+        view.getLocationOnScreen(location)
+        val keyboardTop = location[1]
+
+        // The visible top inset is where the keyboard starts (from top of screen)
+        // This tells apps that content above this point is visible
+        outInsets.visibleTopInsets = keyboardTop
+
+        // Content top insets - same as visible, apps should resize content to this point
+        outInsets.contentTopInsets = keyboardTop
+
+        // Set touchable region to content area - the keyboard handles its own touch events
+        outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
+
+        DebugLog.d("DictationKeyboardService: onComputeInsets - keyboardTop=$keyboardTop, viewHeight=${view.height}, visibleTopInsets=${outInsets.visibleTopInsets}, contentTopInsets=${outInsets.contentTopInsets}")
     }
 
     private fun commitTextInternal(text: String): Boolean {

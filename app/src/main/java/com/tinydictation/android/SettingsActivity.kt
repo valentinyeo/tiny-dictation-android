@@ -56,6 +56,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.22:
+            • Fixed keyboard overlaying PWA content instead of pushing it up
+            • Properly reports keyboard insets so apps can resize content
+            • PWAs now correctly adjust their layout when keyboard opens
+            • Added debug logging for keyboard insets troubleshooting
+
             v1.10.21:
             • NEW: Bar transparency slider in Floating Bar Settings
             • Adjust floating bar transparency from 0% (solid) to 50% (semi-transparent)
