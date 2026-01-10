@@ -4,6 +4,8 @@ import android.Manifest
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
+import android.media.audiofx.AcousticEchoCanceler
+import android.media.audiofx.NoiseSuppressor
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import com.tinydictation.android.util.DebugLog
@@ -43,6 +45,73 @@ class AudioRecorder {
     private var recordingJob: Job? = null
     private var isRecording = false
     private var chunksDelivered = 0
+
+    // Audio effects to filter out speaker audio
+    private var echoCanceler: AcousticEchoCanceler? = null
+    private var noiseSuppressor: NoiseSuppressor? = null
+
+    /**
+     * Enables audio effects to improve voice recording quality.
+     * - AcousticEchoCanceler: Filters out audio playing from the speaker (e.g., WhatsApp voice messages)
+     * - NoiseSuppressor: Reduces background noise
+     */
+    private fun enableAudioEffects(audioSessionId: Int) {
+        // Enable Acoustic Echo Cancellation
+        if (AcousticEchoCanceler.isAvailable()) {
+            try {
+                echoCanceler = AcousticEchoCanceler.create(audioSessionId)?.also { aec ->
+                    aec.enabled = true
+                    Log.i(TAG, "AudioRecorder: Acoustic Echo Cancellation enabled")
+                    DebugLog.i("AudioRecorder: AEC enabled - will filter speaker audio")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to enable AEC", e)
+                DebugLog.w("AudioRecorder: Failed to enable AEC - ${e.message}")
+            }
+        } else {
+            Log.i(TAG, "AudioRecorder: AEC not available on this device")
+            DebugLog.i("AudioRecorder: AEC not available")
+        }
+
+        // Enable Noise Suppression
+        if (NoiseSuppressor.isAvailable()) {
+            try {
+                noiseSuppressor = NoiseSuppressor.create(audioSessionId)?.also { ns ->
+                    ns.enabled = true
+                    Log.i(TAG, "AudioRecorder: Noise Suppression enabled")
+                    DebugLog.i("AudioRecorder: Noise suppression enabled")
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to enable NS", e)
+                DebugLog.w("AudioRecorder: Failed to enable NS - ${e.message}")
+            }
+        } else {
+            Log.i(TAG, "AudioRecorder: Noise Suppression not available on this device")
+        }
+    }
+
+    /**
+     * Releases audio effects resources.
+     */
+    private fun releaseAudioEffects() {
+        echoCanceler?.let {
+            try {
+                it.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing AEC", e)
+            }
+        }
+        echoCanceler = null
+
+        noiseSuppressor?.let {
+            try {
+                it.release()
+            } catch (e: Exception) {
+                Log.w(TAG, "Error releasing NS", e)
+            }
+        }
+        noiseSuppressor = null
+    }
 
     /**
      * Calculates the minimum buffer size required for AudioRecord.
@@ -105,6 +174,10 @@ class AudioRecorder {
                     Log.e(TAG, "Failed to initialize AudioRecord - state: ${record.state}")
                     throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
                 }
+
+                // Enable Acoustic Echo Cancellation to filter out speaker audio
+                // This prevents transcribing audio playing from WhatsApp voice messages, etc.
+                enableAudioEffects(record.audioSessionId)
             }
         } catch (e: SecurityException) {
             Log.e(TAG, "Permission denied for audio recording", e)
@@ -208,6 +281,9 @@ class AudioRecorder {
 
         recordingJob?.cancel()
         recordingJob = null
+
+        // Release audio effects first
+        releaseAudioEffects()
 
         audioRecord?.let { record ->
             try {

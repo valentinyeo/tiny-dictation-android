@@ -57,6 +57,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.2:
+            • FIX: Added echo cancellation to prevent transcribing speaker audio
+            • Mic no longer picks up WhatsApp voice messages, YouTube, etc.
+            • Also enabled noise suppression for cleaner voice input
+
             v1.11.1:
             • NEW: Added AssemblyAI and Gemini (Google) as cloud transcription providers
             • Both new providers auto-detect language by default
