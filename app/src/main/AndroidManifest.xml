@@ -43,7 +43,9 @@
         <activity
             android:name=".HistoryActivity"
             android:exported="false"
-            android:parentActivityName=".SettingsActivity" />
+            android:noHistory="true"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
 
         <!-- Floating Bubble Service -->
         <service

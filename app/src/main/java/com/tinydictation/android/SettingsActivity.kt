@@ -64,6 +64,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.14:
+            • FIX: Transcription history now saves properly!
+            • Transcriptions are saved after each final segment
+            • Fixed back button in history view - no longer goes to Settings
+            • History opens as overlay and closes back to previous app
+
             v1.11.13:
             • FIX: Bluetooth headset microphone now works!
             • Added Bluetooth SCO support for wireless headsets

@@ -32,6 +32,7 @@ import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.SettingsActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.TinyDictationApp
+import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
@@ -149,6 +150,10 @@ class BubbleService : LifecycleService() {
                     injectText(text + " ")
                     // Also add to paste buffer for manual paste option
                     appendToBuffer(text)
+                    // Save to transcription history for later access
+                    val language = preferenceManager.getLanguage()
+                    TranscriptionHistoryManager.getInstance(this).save(text, language)
+                    DebugLog.i("BubbleService: Saved transcription to history")
                     // Note: Clipboard copy now only happens when user explicitly
                     // pastes from history to avoid Android 13+ toast on every segment
                 }
