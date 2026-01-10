@@ -54,6 +54,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.8:
+            • Enhanced backspace button hold behavior
+            • Hold to delete: starts slow, accelerates over 1.5 seconds
+            • After 2 seconds of holding, switches to word-by-word deletion
+            • Faster and more intuitive text deletion
+
             v1.10.7:
             • Fixed Keyboard Companion bar not appearing when keyboard opens
             • Now uses AccessibilityService to detect keyboard visibility

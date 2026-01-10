@@ -72,7 +72,12 @@ class DictationKeyboardService : InputMethodService() {
     private var backspaceHandler: Handler? = null
     private var backspaceRunnable: Runnable? = null
     private val BACKSPACE_INITIAL_DELAY = 400L  // Delay before repeat starts
-    private val BACKSPACE_REPEAT_DELAY = 50L    // Delay between repeats
+    private val BACKSPACE_REPEAT_DELAY_START = 100L  // Initial repeat delay (slower)
+    private val BACKSPACE_REPEAT_DELAY_MIN = 30L     // Minimum repeat delay (fastest)
+    private val BACKSPACE_ACCELERATION_TIME = 1500L  // Time to reach max speed (ms)
+    private val BACKSPACE_WORD_DELETE_TIME = 2000L   // Time before switching to word deletion (ms)
+    private var backspaceStartTime = 0L              // When backspace hold started
+    private var currentBackspaceDelay = BACKSPACE_REPEAT_DELAY_START
 
     override fun onCreate() {
         super.onCreate()
@@ -357,6 +362,11 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Handles touch events for backspace button with hold-to-repeat.
+     *
+     * Behavior:
+     * - Tap: delete one character
+     * - Hold (0-1.5s): delete characters with accelerating speed
+     * - Hold (after 2s): switch to word-by-word deletion
      */
     private fun handleBackspaceTouch(event: MotionEvent): Boolean {
         when (event.action) {
@@ -364,12 +374,33 @@ class DictationKeyboardService : InputMethodService() {
                 // Send first backspace immediately
                 sendBackspace()
 
-                // Set up repeating backspace
+                // Record start time and reset delay
+                backspaceStartTime = System.currentTimeMillis()
+                currentBackspaceDelay = BACKSPACE_REPEAT_DELAY_START
+
+                // Set up repeating backspace with acceleration
                 backspaceHandler = Handler(Looper.getMainLooper())
                 backspaceRunnable = object : Runnable {
                     override fun run() {
-                        sendBackspace()
-                        backspaceHandler?.postDelayed(this, BACKSPACE_REPEAT_DELAY)
+                        val holdDuration = System.currentTimeMillis() - backspaceStartTime
+
+                        if (holdDuration >= BACKSPACE_WORD_DELETE_TIME) {
+                            // After 2 seconds, delete words instead of characters
+                            deleteWord()
+                            // Use a slightly slower rate for word deletion
+                            backspaceHandler?.postDelayed(this, 150L)
+                        } else {
+                            // Delete single character
+                            sendBackspace()
+
+                            // Calculate accelerated delay based on hold duration
+                            // Linear interpolation from REPEAT_DELAY_START to REPEAT_DELAY_MIN
+                            val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
+                            currentBackspaceDelay = (BACKSPACE_REPEAT_DELAY_START -
+                                (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
+
+                            backspaceHandler?.postDelayed(this, currentBackspaceDelay)
+                        }
                     }
                 }
                 // Start repeating after initial delay
@@ -385,6 +416,44 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
         return false
+    }
+
+    /**
+     * Deletes the word before the cursor.
+     * Finds the last word boundary (space) and deletes everything from there to cursor.
+     */
+    private fun deleteWord() {
+        Log.i(TAG, "DictationKeyboardService: Delete word")
+        DebugLog.d("DictationKeyboardService: Deleting word")
+
+        currentInputConnection?.let { ic ->
+            // Get text before cursor to find word boundary
+            val textBefore = ic.getTextBeforeCursor(50, 0)
+            if (textBefore.isNullOrEmpty()) {
+                // No text to delete
+                return
+            }
+
+            // Find the last word boundary
+            // First, skip any trailing spaces
+            var endIndex = textBefore.length
+            while (endIndex > 0 && textBefore[endIndex - 1] == ' ') {
+                endIndex--
+            }
+
+            // Then find the start of the word (last space before end)
+            var startIndex = endIndex
+            while (startIndex > 0 && textBefore[startIndex - 1] != ' ') {
+                startIndex--
+            }
+
+            // Calculate how many characters to delete
+            val charsToDelete = textBefore.length - startIndex
+            if (charsToDelete > 0) {
+                ic.deleteSurroundingText(charsToDelete, 0)
+                DebugLog.d("DictationKeyboardService: Deleted $charsToDelete chars (word)")
+            }
+        }
     }
 
     private fun sendBackspace() {
