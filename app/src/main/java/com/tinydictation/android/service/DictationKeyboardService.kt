@@ -11,6 +11,7 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
@@ -133,6 +134,11 @@ class DictationKeyboardService : InputMethodService() {
         // Enter button
         keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
             sendEnterKey()
+        }
+
+        // Switch back to previous keyboard button
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.setOnClickListener {
+            switchToPreviousKeyboard()
         }
     }
 
@@ -264,6 +270,48 @@ class DictationKeyboardService : InputMethodService() {
         currentInputConnection?.let { ic ->
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
             ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
+        }
+    }
+
+    /**
+     * Switches back to the previously used keyboard.
+     * Uses switchToLastInputMethod() which is available from API 11+.
+     */
+    private fun switchToPreviousKeyboard() {
+        Log.i(TAG, "DictationKeyboardService: Switching to previous keyboard")
+        DebugLog.i("DictationKeyboardService: Switching to previous keyboard")
+
+        try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            val token = window?.window?.attributes?.token
+
+            if (token != null) {
+                // API 11+ - Direct switch to previous keyboard
+                val switched = imm.switchToLastInputMethod(token)
+                if (switched) {
+                    Log.i(TAG, "Successfully switched to previous keyboard")
+                    DebugLog.i("DictationKeyboardService: Switched to previous keyboard")
+                } else {
+                    Log.w(TAG, "switchToLastInputMethod returned false, showing picker")
+                    showInputMethodPicker()
+                }
+            } else {
+                Log.w(TAG, "No window token, showing picker")
+                showInputMethodPicker()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Error switching keyboard", e)
+            DebugLog.e("DictationKeyboardService: Error switching keyboard - ${e.message}")
+            showInputMethodPicker()
+        }
+    }
+
+    private fun showInputMethodPicker() {
+        try {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.showInputMethodPicker()
+        } catch (e: Exception) {
+            Log.e(TAG, "Error showing keyboard picker", e)
         }
     }
 

@@ -126,4 +126,21 @@
             app:tint="@color/on_surface" />
     </FrameLayout>
 
+    <!-- Switch back to previous keyboard -->
+    <FrameLayout
+        android:id="@+id/btnSwitchBack"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="6dp"
+        android:background="@drawable/keyboard_button_background"
+        android:contentDescription="Switch to previous keyboard">
+
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_keyboard_return"
+            app:tint="@color/on_surface" />
+    </FrameLayout>
+
 </LinearLayout>

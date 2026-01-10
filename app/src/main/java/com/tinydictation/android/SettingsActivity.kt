@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.17:
+            • Added switch back button to return to previous keyboard instantly
+            • No more keyboard picker - one tap to switch back to Gboard/other
+
             v1.9.16:
             • Added language switch button to keyboard bar
             • Added backspace button to keyboard bar
