@@ -5,6 +5,8 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -147,6 +149,8 @@ class BubbleService : LifecycleService() {
                     injectText(text + " ")
                     // Also add to paste buffer for manual paste option
                     appendToBuffer(text)
+                    // Copy updated buffer to clipboard so it always has latest transcription
+                    copyBufferToClipboard()
                     // Note: History is saved when user taps clipboard, not on every transcript
                     // This prevents fragmented history entries
                 }
@@ -666,6 +670,7 @@ class BubbleService : LifecycleService() {
             }
             textBuffer.append(text)
             Log.d(TAG, "Buffer now: ${textBuffer.length} chars")
+            DebugLog.d("BubbleService: Buffer updated, ${textBuffer.length} chars")
         }
     }
 
@@ -674,6 +679,30 @@ class BubbleService : LifecycleService() {
      */
     fun clearBuffer() {
         textBuffer.clear()
+        DebugLog.d("BubbleService: Buffer cleared")
+    }
+
+    /**
+     * Copies the current text buffer to the system clipboard.
+     * Called after each transcription to keep clipboard updated with latest text.
+     */
+    private fun copyBufferToClipboard() {
+        val text = textBuffer.toString()
+        if (text.isBlank()) {
+            DebugLog.d("BubbleService: copyBufferToClipboard - buffer is empty, skipping")
+            return
+        }
+
+        try {
+            val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val clip = ClipData.newPlainText("Transcription", text)
+            clipboard.setPrimaryClip(clip)
+            Log.d(TAG, "Copied ${text.length} chars to clipboard")
+            DebugLog.i("BubbleService: Copied transcription to clipboard (${text.length} chars)")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to copy to clipboard", e)
+            DebugLog.e("BubbleService: Clipboard copy failed - ${e.message}")
+        }
     }
 
     /**

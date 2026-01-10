@@ -56,6 +56,18 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.27:
+            • Fixed clipboard not updating after transcription
+            • Each transcription now copies the full session text to clipboard
+            • Long-press copy in History no longer blocks future clipboard updates
+            • Added debug logging for clipboard operations
+
+            v1.10.26:
+            • Fixed backspace key in terminal/SSH apps (Connectbot, Termux)
+            • Uses sendDownUpKeyEvents() for more reliable key dispatch
+            • Works better with apps that need actual key events vs text manipulation
+            • Added debug logging to track backspace hold behavior
+
             v1.10.25:
             • Redesigned transcription history for thumb-zone accessibility
             • Grid/tiles layout with smaller font - see more transcriptions at once

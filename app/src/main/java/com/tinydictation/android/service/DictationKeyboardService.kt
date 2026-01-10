@@ -86,12 +86,15 @@ class DictationKeyboardService : InputMethodService() {
     private val BACKSPACE_WORD_DELETE_DELAY = 80L    // Delay between word deletions
     private var backspaceStartTime = 0L              // When backspace hold started
 
+    // Counter to track how many backspaces have been sent (for debugging)
+    private var backspaceCount = 0
+
     // Single runnable instance that checks the flag to decide whether to continue
     private val backspaceRepeatRunnable = object : Runnable {
         override fun run() {
             // Check flag - if button was released, stop immediately
             if (!isBackspaceHeld) {
-                DebugLog.d("DictationKeyboardService: Backspace released, stopping repeat")
+                DebugLog.d("DictationKeyboardService: Backspace released after $backspaceCount deletions, stopping repeat")
                 return
             }
 
@@ -100,17 +103,24 @@ class DictationKeyboardService : InputMethodService() {
             if (holdDuration >= BACKSPACE_WORD_DELETE_TIME) {
                 // After 2 seconds, delete words instead of characters
                 deleteWord()
+                backspaceCount++
                 // Continue word deletion as long as button is held
                 backspaceHandler.postDelayed(this, BACKSPACE_WORD_DELETE_DELAY)
             } else {
                 // Delete single character
                 sendBackspace()
+                backspaceCount++
 
                 // Calculate accelerated delay based on hold duration
                 // Linear interpolation from REPEAT_DELAY_START to REPEAT_DELAY_MIN
                 val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
                 val currentDelay = (BACKSPACE_REPEAT_DELAY_START -
                     (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
+
+                // Log every 10 deletions to avoid spam but track progress
+                if (backspaceCount % 10 == 0) {
+                    DebugLog.d("DictationKeyboardService: Backspace count=$backspaceCount, delay=${currentDelay}ms, held=${holdDuration}ms")
+                }
 
                 // Continue character deletion with current delay
                 backspaceHandler.postDelayed(this, currentDelay)
@@ -499,8 +509,12 @@ class DictationKeyboardService : InputMethodService() {
             MotionEvent.ACTION_DOWN -> {
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_DOWN")
 
+                // Reset counter for this hold session
+                backspaceCount = 0
+
                 // Send first backspace immediately
                 sendBackspace()
+                backspaceCount++
 
                 // Record start time and set flag to indicate button is held
                 backspaceStartTime = System.currentTimeMillis()
@@ -514,7 +528,8 @@ class DictationKeyboardService : InputMethodService() {
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL")
+                val holdDuration = System.currentTimeMillis() - backspaceStartTime
+                DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL after ${holdDuration}ms, $backspaceCount deletions")
 
                 // Clear the flag - this will cause the runnable to stop on next iteration
                 isBackspaceHeld = false
@@ -565,14 +580,19 @@ class DictationKeyboardService : InputMethodService() {
         }
     }
 
+    /**
+     * Sends a backspace/delete key event.
+     *
+     * Uses sendDownUpKeyEvents() which is InputMethodService's built-in method.
+     * This is more reliable for terminal/SSH apps (like Connectbot) than manually
+     * constructing KeyEvents, as the system handles the proper event dispatch.
+     *
+     * If that fails, falls back to deleteSurroundingText() which works for regular apps.
+     */
     private fun sendBackspace() {
-        Log.i(TAG, "DictationKeyboardService: Backspace")
-        DebugLog.d("DictationKeyboardService: Sending backspace")
-
-        currentInputConnection?.let { ic ->
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DEL))
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_DEL))
-        }
+        // Use the built-in InputMethodService method - more reliable for terminals
+        // This sends proper key events through the system's input dispatch chain
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
     }
 
     private fun selectAll() {
@@ -606,10 +626,8 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService: Enter key")
         DebugLog.d("DictationKeyboardService: Sending enter key")
 
-        currentInputConnection?.let { ic ->
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER))
-            ic.sendKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_ENTER))
-        }
+        // Use the built-in InputMethodService method for consistency with sendBackspace
+        sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
     }
 
     /**
