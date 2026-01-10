@@ -183,7 +183,7 @@ class TranscriptionManager(
                 try {
                     // Get headphone mic preference (default to false if no context)
                     val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
-                    audioRecorder.startRecording(currentScope, useHeadphoneMic) { samples ->
+                    audioRecorder.startRecording(currentScope, context!!, useHeadphoneMic) { samples ->
                         processAudioChunk(samples)
                     }
                     DebugLog.i("TranscriptionManager: Audio recording started (headphoneMic=$useHeadphoneMic)")

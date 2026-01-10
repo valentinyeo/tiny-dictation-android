@@ -1,7 +1,10 @@
 package com.tinydictation.android.audio
 
 import android.Manifest
+import android.content.Context
+import android.media.AudioDeviceInfo
 import android.media.AudioFormat
+import android.media.AudioManager
 import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.media.audiofx.AcousticEchoCanceler
@@ -131,7 +134,8 @@ class AudioRecorder {
      * Starts audio recording and delivers audio chunks via the callback.
      *
      * @param scope CoroutineScope to run the recording loop in
-     * @param useHeadphoneMic If true, uses DEFAULT audio source which prefers headphone mic.
+     * @param context Android context for accessing AudioManager
+     * @param useHeadphoneMic If true, explicitly routes audio to headset mic if connected.
      *                        If false, uses VOICE_RECOGNITION which prefers phone's built-in mic.
      * @param onAudioChunk Callback invoked with each audio chunk (320 samples / 20ms)
      * @throws SecurityException if RECORD_AUDIO permission is not granted
@@ -140,6 +144,7 @@ class AudioRecorder {
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startRecording(
         scope: CoroutineScope,
+        context: Context,
         useHeadphoneMic: Boolean = false,
         onAudioChunk: (ShortArray) -> Unit
     ) {
@@ -148,18 +153,17 @@ class AudioRecorder {
             return
         }
 
-        // Choose audio source based on setting
-        val audioSource = if (useHeadphoneMic) {
-            MediaRecorder.AudioSource.DEFAULT
-        } else {
-            MediaRecorder.AudioSource.VOICE_RECOGNITION
-        }
-        val sourceName = if (useHeadphoneMic) "DEFAULT (headphone mic)" else "VOICE_RECOGNITION (phone mic)"
+        // Always use VOICE_RECOGNITION as the base audio source for better quality
+        // We'll override the device explicitly with setPreferredDevice() if needed
+        val audioSource = MediaRecorder.AudioSource.VOICE_RECOGNITION
 
         Log.i(TAG, "Starting audio recording at $SAMPLE_RATE Hz")
-        DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz with $sourceName source")
+        DebugLog.i("AudioRecorder: Starting at $SAMPLE_RATE Hz, useHeadphoneMic=$useHeadphoneMic")
         val bufferSize = getMinBufferSize()
         Log.d(TAG, "Audio buffer size: $bufferSize bytes")
+
+        // Find headset mic if user wants to use it
+        val headsetMic = if (useHeadphoneMic) findHeadsetMic(context) else null
 
         try {
             audioRecord = AudioRecord(
@@ -173,6 +177,25 @@ class AudioRecorder {
                     record.release()
                     Log.e(TAG, "Failed to initialize AudioRecord - state: ${record.state}")
                     throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
+                }
+
+                // Explicitly set the preferred input device if headset mic is requested and available
+                if (useHeadphoneMic && headsetMic != null) {
+                    val success = record.setPreferredDevice(headsetMic)
+                    val deviceName = headsetMic.productName?.toString() ?: getDeviceTypeName(headsetMic.type)
+                    if (success) {
+                        Log.i(TAG, "AudioRecorder: Set preferred device to headset mic: $deviceName")
+                        DebugLog.i("AudioRecorder: Using headset mic: $deviceName")
+                    } else {
+                        Log.w(TAG, "AudioRecorder: Failed to set preferred device to headset mic")
+                        DebugLog.w("AudioRecorder: Failed to set headset mic, using default")
+                    }
+                } else if (useHeadphoneMic) {
+                    Log.w(TAG, "AudioRecorder: Headset mic requested but no headset connected")
+                    DebugLog.w("AudioRecorder: No headset mic found, using built-in mic")
+                } else {
+                    Log.i(TAG, "AudioRecorder: Using built-in microphone")
+                    DebugLog.i("AudioRecorder: Using built-in microphone")
                 }
 
                 // Enable Acoustic Echo Cancellation to filter out speaker audio
@@ -317,5 +340,59 @@ class AudioRecorder {
             bytes[i * 2 + 1] = ((sample shr 8) and 0xFF).toByte()
         }
         return bytes
+    }
+
+    /**
+     * Finds a connected headset microphone.
+     * Checks for wired, USB, and Bluetooth headsets with microphones.
+     * @return AudioDeviceInfo for the headset mic, or null if none connected
+     */
+    private fun findHeadsetMic(context: Context): AudioDeviceInfo? {
+        val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+
+        // Priority order: wired > USB > Bluetooth
+        val headsetTypes = listOf(
+            AudioDeviceInfo.TYPE_WIRED_HEADSET,
+            AudioDeviceInfo.TYPE_USB_HEADSET,
+            AudioDeviceInfo.TYPE_BLE_HEADSET,
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO
+        )
+
+        for (preferredType in headsetTypes) {
+            for (device in devices) {
+                if (device.type == preferredType) {
+                    val name = device.productName?.toString() ?: getDeviceTypeName(device.type)
+                    Log.d(TAG, "Found headset mic: $name (type=${device.type})")
+                    return device
+                }
+            }
+        }
+
+        // Log all available input devices for debugging
+        Log.d(TAG, "No headset mic found. Available input devices:")
+        for (device in devices) {
+            val name = device.productName?.toString() ?: "Unknown"
+            Log.d(TAG, "  - $name (type=${getDeviceTypeName(device.type)})")
+        }
+
+        return null
+    }
+
+    /**
+     * Returns a human-readable name for an audio device type.
+     */
+    private fun getDeviceTypeName(type: Int): String {
+        return when (type) {
+            AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in mic"
+            AudioDeviceInfo.TYPE_WIRED_HEADSET -> "Wired headset"
+            AudioDeviceInfo.TYPE_USB_HEADSET -> "USB headset"
+            AudioDeviceInfo.TYPE_USB_DEVICE -> "USB device"
+            AudioDeviceInfo.TYPE_BLE_HEADSET -> "Bluetooth LE headset"
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> "Bluetooth SCO"
+            AudioDeviceInfo.TYPE_BLUETOOTH_A2DP -> "Bluetooth A2DP"
+            AudioDeviceInfo.TYPE_TELEPHONY -> "Telephony"
+            else -> "Unknown ($type)"
+        }
     }
 }

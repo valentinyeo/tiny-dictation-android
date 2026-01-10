@@ -929,6 +929,17 @@
 
                     </LinearLayout>
 
+                    <!-- Mic Source Status Indicator -->
+                    <TextView
+                        android:id="@+id/tvMicSourceStatus"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_marginBottom="8dp"
+                        android:text="Current: Built-in microphone"
+                        android:textAppearance="?attr/textAppearanceBodySmall"
+                        android:textColor="?attr/colorPrimary" />
+
                     <!-- Simulate Typing Switch -->
                     <LinearLayout
                         android:layout_width="match_parent"

@@ -8,8 +8,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
+import android.media.AudioDeviceCallback
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
@@ -57,6 +62,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.10:
+            • FIX: Headphone mic now actually works!
+            • Uses setPreferredDevice() to explicitly route audio to headset mic
+            • Supports wired, USB, and Bluetooth headsets
+            • Added mic source indicator in Voice Settings
+            • Shows which mic will be used and warns if headset not connected
+
             v1.11.8:
             • FIX: Reverted keyboard to pre-emoji-picker state
             • Removed emoji picker feature temporarily to restore keyboard functionality
@@ -589,8 +601,21 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var apiKeyInput: TextInputEditText
     private lateinit var autoPunctuationSwitch: MaterialSwitch
     private lateinit var headphoneMicSwitch: MaterialSwitch
+    private lateinit var tvMicSourceStatus: TextView
     private lateinit var simulateTypingSwitch: MaterialSwitch
     private lateinit var pauseMediaSwitch: MaterialSwitch
+
+    // Audio device detection
+    private lateinit var audioManager: AudioManager
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val audioDeviceCallback = object : AudioDeviceCallback() {
+        override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
+            mainHandler.post { updateMicSourceStatus() }
+        }
+        override fun onAudioDevicesRemoved(removedDevices: Array<out AudioDeviceInfo>) {
+            mainHandler.post { updateMicSourceStatus() }
+        }
+    }
     private lateinit var languageBubbleSwitch: MaterialSwitch
     private lateinit var pasteBubbleSwitch: MaterialSwitch
     private lateinit var noteBubbleSwitch: MaterialSwitch
@@ -676,6 +701,7 @@ class SettingsActivity : AppCompatActivity() {
 
         preferenceManager = PreferenceManager(this)
         modelManager = ModelManager(this)
+        audioManager = getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
         initViews()
         loadSettings()
@@ -687,8 +713,18 @@ class SettingsActivity : AppCompatActivity() {
         Log.d(TAG, "SettingsActivity onResume")
         updatePermissionStatus()
 
+        // Register audio device callback to detect headset connect/disconnect
+        audioManager.registerAudioDeviceCallback(audioDeviceCallback, mainHandler)
+        updateMicSourceStatus()
+
         // Auto-start dictation if all permissions granted and API key configured
         autoStartDictationIfReady()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // Unregister audio device callback
+        audioManager.unregisterAudioDeviceCallback(audioDeviceCallback)
     }
 
     private fun autoStartDictationIfReady() {
@@ -742,6 +778,75 @@ class SettingsActivity : AppCompatActivity() {
             icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
             button.visibility = View.VISIBLE
         }
+    }
+
+    /**
+     * Updates the microphone source status display.
+     * Shows which microphone will be used based on:
+     * 1. The "Use headphone microphone" setting
+     * 2. Whether a headset microphone is actually connected
+     */
+    private fun updateMicSourceStatus() {
+        val useHeadphoneMic = preferenceManager.getUseHeadphoneMic()
+        val connectedHeadset = getConnectedHeadsetMic()
+
+        val statusText = when {
+            useHeadphoneMic && connectedHeadset != null -> {
+                "Will use: $connectedHeadset"
+            }
+            useHeadphoneMic && connectedHeadset == null -> {
+                "No headset connected - will use built-in mic"
+            }
+            !useHeadphoneMic -> {
+                "Will use: Built-in microphone"
+            }
+            else -> {
+                "Will use: Built-in microphone"
+            }
+        }
+
+        tvMicSourceStatus.text = statusText
+
+        // Change color based on whether intended source is available
+        val color = if (useHeadphoneMic && connectedHeadset == null) {
+            ContextCompat.getColor(this, R.color.bubble_recording) // Warning color
+        } else {
+            ContextCompat.getColor(this, R.color.bubble_listening) // Success color
+        }
+        tvMicSourceStatus.setTextColor(color)
+
+        DebugLog.d("Mic source status: $statusText (headset connected: ${connectedHeadset != null})")
+    }
+
+    /**
+     * Detects connected headset microphones.
+     * Returns the name of the connected headset mic, or null if none connected.
+     */
+    private fun getConnectedHeadsetMic(): String? {
+        val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
+
+        for (device in devices) {
+            val deviceType = device.type
+            val productName = device.productName?.toString()?.takeIf { it.isNotBlank() }
+
+            when (deviceType) {
+                AudioDeviceInfo.TYPE_WIRED_HEADSET -> {
+                    return productName ?: "Wired headset mic"
+                }
+                AudioDeviceInfo.TYPE_USB_HEADSET -> {
+                    return productName ?: "USB headset mic"
+                }
+                AudioDeviceInfo.TYPE_BLE_HEADSET -> {
+                    return productName ?: "Bluetooth LE headset mic"
+                }
+                AudioDeviceInfo.TYPE_BLUETOOTH_SCO -> {
+                    return productName ?: "Bluetooth headset mic"
+                }
+                // TYPE_BLUETOOTH_A2DP is output only, not input
+            }
+        }
+
+        return null
     }
 
     private fun allPermissionsGranted(): Boolean {
@@ -846,6 +951,7 @@ class SettingsActivity : AppCompatActivity() {
         apiKeyInput = findViewById(R.id.etApiKey)
         autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
+        tvMicSourceStatus = findViewById(R.id.tvMicSourceStatus)
         simulateTypingSwitch = findViewById(R.id.switchSimulateTyping)
         pauseMediaSwitch = findViewById(R.id.switchPauseMedia)
         languageBubbleSwitch = findViewById(R.id.switchLanguageBubble)
@@ -1629,6 +1735,7 @@ class SettingsActivity : AppCompatActivity() {
         // Headphone mic toggle applies immediately
         headphoneMicSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setUseHeadphoneMic(isChecked)
+            updateMicSourceStatus()
             DebugLog.i("Headphone mic setting changed to: $isChecked")
         }
 
