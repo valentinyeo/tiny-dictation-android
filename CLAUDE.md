@@ -33,6 +33,36 @@ This ensures every APK has a unique version and users can see what changed.
 - **Minor (1.x.0)**: New features, significant changes
 - **Major (x.0.0)**: Breaking changes, major rewrites
 
+## Dictation Modes
+
+The app has three mutually exclusive dictation modes:
+
+1. **Vertical Floating Bar** (`BubbleService.kt`)
+   - Draggable sidebar overlay with mic, language, and mode buttons
+   - Can be dragged to dismiss (drag to X)
+   - Transparency adjustable via settings
+
+2. **Horizontal Companion Bar** (`KeyboardCompanionService.kt`)
+   - Bar that appears above the user's existing keyboard
+   - Uses AccessibilityService to detect when keyboards are visible
+   - Positioned 340dp from bottom to clear keyboard + suggestions
+
+3. **Full Keyboard (IME)** (`DictationKeyboardService.kt`)
+   - Complete replacement keyboard with dictation and action buttons
+   - Button order: Chevron | Language | Mic | Enter | Backspace | Paste | SelectAll
+   - Chevron switches back to previous keyboard
+   - Long-press mic opens Settings, long-press paste opens History
+
+## Transcription Engines
+
+- **Deepgram** (cloud) - Default, requires API key and internet
+- **Vosk** (offline) - Fast streaming recognition, ~45MB models
+- **Sherpa-ONNX/Whisper** (offline) - High quality, ~75MB models
+
+Engine interface: `app/src/main/java/com/tinydictation/android/transcription/TranscriptionEngine.kt`
+
+Model management: `ModelManager.kt` handles downloading/storing offline models
+
 ## Build System
 
 - Gradle 8.2 with Kotlin DSL
@@ -42,8 +72,10 @@ This ensures every APK has a unique version and users can see what changed.
 ## Key Files
 
 - `MainActivity.kt` - Main entry point, permission handling, dictation control
-- `BubbleService.kt` - Floating bubble overlay service
-- `TranscriptionManager.kt` - Orchestrates audio recording, VAD, and Deepgram
+- `BubbleService.kt` - Floating bar overlay service
+- `KeyboardCompanionService.kt` - Companion bar above other keyboards
+- `DictationKeyboardService.kt` - Full IME keyboard replacement
+- `TranscriptionManager.kt` - Orchestrates audio recording, VAD, and transcription
 - `AudioRecorder.kt` - Audio capture (uses VOICE_RECOGNITION source for phone mic)
 - `VoiceActivityDetector.kt` - Simple RMS-based VAD (thresholds: speech=100, silence=50)
 - `DeepgramClient.kt` - WebSocket client for Deepgram API
@@ -66,5 +98,10 @@ This ensures every APK has a unique version and users can see what changed.
 
 On Android 13+, after installing the APK, users need to:
 1. Go to Settings > Apps > Tiny Dictation
-2. Tap ⋮ (three dots) menu > "Allow restricted settings"
+2. Tap three-dot menu > "Allow restricted settings"
 3. Then enable Accessibility service in Settings > Accessibility
+
+## Pending Work
+
+- Settings screen reorganization (plan exists but not implemented)
+- See plan file at `~/.claude/plans/pure-nibbling-phoenix.md` for offline transcription details
