@@ -133,6 +133,7 @@ jobs:
         env:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          CHANGELOG: ${{ steps.changelog.outputs.changelog }}
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             BASE_URL="https://github.com/${{ github.repository }}/releases/download/v${{ steps.version.outputs.version_name }}-${{ steps.version.outputs.sha_short }}"
@@ -140,7 +141,6 @@ jobs:
             ARM32_APK="TinyDictation-v${{ steps.version.outputs.version_name }}-armeabi-v7a-${{ steps.version.outputs.sha_short }}.apk"
 
             # Build message - use printf for newlines
-            CHANGELOG="${{ steps.changelog.outputs.changelog }}"
             MESSAGE=$(printf "<b>Tiny Dictation v${{ steps.version.outputs.version_name }}</b>\n\n%s\n\n<a href=\"%s/%s\">Download APK (ARM64)</a>\n<a href=\"%s/%s\">Download APK (ARM32)</a>" "$CHANGELOG" "$BASE_URL" "$ARM64_APK" "$BASE_URL" "$ARM32_APK")
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               -H "Content-Type: application/json" \

@@ -60,8 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.18:
+            • FIX: Build workflow quote escaping issue
+
             v1.11.17:
-            • SIMPLIFY: Removed "Type instead of paste" toggle
+            • SIMPLIFY: Removed Type instead of paste toggle
             • Keyboard always types directly - setting no longer needed
 
             v1.11.16:
