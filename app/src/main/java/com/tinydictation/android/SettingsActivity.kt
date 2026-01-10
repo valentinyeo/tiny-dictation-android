@@ -53,6 +53,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.19:
+            • Reordered keyboard buttons: Backspace, Enter, Paste, All, Switch
+
             v1.9.18:
             • Keyboard bubble now switches directly to Tiny Dictation keyboard
             • Grant WRITE_SECURE_SETTINGS via ADB for direct switching

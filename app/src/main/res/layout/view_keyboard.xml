@@ -73,23 +73,21 @@
             app:tint="@color/on_surface" />
     </FrameLayout>
 
-    <!-- Select All button -->
+    <!-- Enter button -->
     <FrameLayout
-        android:id="@+id/btnSelectAll"
+        android:id="@+id/btnEnter"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Select all">
+        android:contentDescription="Enter">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+        <ImageView
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_gravity="center"
-            android:text="All"
-            android:textSize="12sp"
-            android:textColor="@color/on_surface"
-            android:textStyle="bold" />
+            android:src="@drawable/ic_enter"
+            app:tint="@color/on_surface" />
     </FrameLayout>
 
     <!-- Paste button -->
@@ -109,21 +107,23 @@
             app:tint="@color/on_surface" />
     </FrameLayout>
 
-    <!-- Enter button -->
+    <!-- Select All button -->
     <FrameLayout
-        android:id="@+id/btnEnter"
+        android:id="@+id/btnSelectAll"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_marginStart="6dp"
         android:background="@drawable/keyboard_button_background"
-        android:contentDescription="Enter">
+        android:contentDescription="Select all">
 
-        <ImageView
-            android:layout_width="24dp"
-            android:layout_height="24dp"
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
             android:layout_gravity="center"
-            android:src="@drawable/ic_enter"
-            app:tint="@color/on_surface" />
+            android:text="All"
+            android:textSize="12sp"
+            android:textColor="@color/on_surface"
+            android:textStyle="bold" />
     </FrameLayout>
 
     <!-- Switch back to previous keyboard -->
