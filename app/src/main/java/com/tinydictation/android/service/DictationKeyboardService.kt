@@ -189,11 +189,13 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         // Wrap in ripple for touch feedback
+        // Use mutate() to ensure each button has its own independent drawable state
+        // This prevents visual state from "bleeding" between buttons
         val rippleDrawable = RippleDrawable(
             android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
             backgroundDrawable,
             null
-        )
+        ).mutate() as RippleDrawable
         button.background = rippleDrawable
 
         // Apply icon tint to ImageView children using a non-stateful ColorStateList

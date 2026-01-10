@@ -54,6 +54,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.6:
+            • Fixed button state bleed bug in keyboard bar
+            • Pressing Enter no longer causes Chevron button to show activated state
+            • Each button now has fully independent visual state
+
             v1.10.5:
             • Re-enabled Keyboard Companion mode
             • Companion bar sits above your keyboard (between text and keyboard)
