@@ -341,6 +341,27 @@ class DictationKeyboardService : InputMethodService() {
         BubbleService.getInstance()?.setKeyboardVisible(false)
     }
 
+    /**
+     * Computes the insets that the keyboard occupies.
+     * This tells apps how much space the keyboard takes so they can resize content.
+     */
+    override fun onComputeInsets(outInsets: Insets) {
+        super.onComputeInsets(outInsets)
+
+        // Get the keyboard view height
+        val view = keyboardView
+        if (view != null && view.height > 0) {
+            // The visible region is the keyboard area
+            outInsets.visibleTopInsets = outInsets.contentTopInsets
+            outInsets.contentTopInsets = outInsets.contentTopInsets
+
+            // Touch region should cover the keyboard
+            outInsets.touchableInsets = Insets.TOUCHABLE_INSETS_CONTENT
+
+            Log.d(TAG, "onComputeInsets: height=${view.height}")
+        }
+    }
+
     private fun commitTextInternal(text: String): Boolean {
         val ic = currentInputConnection
         if (ic == null) {

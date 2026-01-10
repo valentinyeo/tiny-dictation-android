@@ -53,6 +53,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.21:
+            • Fixed keyboard insets so apps resize content properly
+            • PWA and web apps should no longer be hidden behind keyboard
+
             v1.9.20:
             • All keyboard icons now white, only mic turns red when recording
 
