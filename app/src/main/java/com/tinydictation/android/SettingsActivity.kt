@@ -57,6 +57,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.4:
+            • FIX: Emoji picker no longer crashes the keyboard
+            • Fixed view inflation issue by integrating picker into keyboard layout
+
             v1.11.3:
             • NEW: Emoji picker button added to keyboard bar
             • Tap the smiley icon to open emoji picker

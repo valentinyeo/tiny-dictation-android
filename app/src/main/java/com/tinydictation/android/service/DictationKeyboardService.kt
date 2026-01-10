@@ -172,8 +172,9 @@ class DictationKeyboardService : InputMethodService() {
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
 
-    // Emoji picker
-    private var emojiPickerView: View? = null
+    // Emoji picker (integrated into keyboardView)
+    private var keyboardBar: View? = null
+    private var emojiPickerPanel: View? = null
     private var isEmojiPickerVisible = false
     private var currentEmojiCategory = EMOJI_SMILEYS
     private var emojiAdapter: EmojiAdapter? = null
@@ -300,7 +301,12 @@ class DictationKeyboardService : InputMethodService() {
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
 
+            // Emoji picker is integrated into the same layout
+            keyboardBar = keyboardView?.findViewById(R.id.keyboardBar)
+            emojiPickerPanel = keyboardView?.findViewById(R.id.emojiPickerPanel)
+
             setupButtonHandlers()
+            setupEmojiPicker()
             applyTheme()
             updateMicButton()
             updateLanguageButton()
@@ -944,23 +950,15 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Shows the emoji picker, replacing the keyboard bar temporarily.
+     * Shows the emoji picker, hiding the keyboard bar.
      */
     private fun showEmojiPicker() {
         Log.i(TAG, "DictationKeyboardService: Showing emoji picker")
         DebugLog.i("DictationKeyboardService: Opening emoji picker")
 
-        // Inflate emoji picker if not already done
-        if (emojiPickerView == null) {
-            emojiPickerView = layoutInflater.inflate(R.layout.view_emoji_picker, null)
-            setupEmojiPicker()
-        }
-
-        // Hide the keyboard bar and show emoji picker
-        keyboardView?.visibility = View.GONE
-
-        // Set the emoji picker as the input view
-        setInputView(emojiPickerView!!)
+        // Toggle visibility - both are in the same layout
+        keyboardBar?.visibility = View.GONE
+        emojiPickerPanel?.visibility = View.VISIBLE
         isEmojiPickerVisible = true
 
         // Show smileys category by default
@@ -975,8 +973,9 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService: Hiding emoji picker")
         DebugLog.i("DictationKeyboardService: Closing emoji picker")
 
-        keyboardView?.visibility = View.VISIBLE
-        setInputView(keyboardView!!)
+        // Toggle visibility back
+        emojiPickerPanel?.visibility = View.GONE
+        keyboardBar?.visibility = View.VISIBLE
         isEmojiPickerVisible = false
     }
 
@@ -984,10 +983,10 @@ class DictationKeyboardService : InputMethodService() {
      * Sets up the emoji picker with category tabs and grid.
      */
     private fun setupEmojiPicker() {
-        val picker = emojiPickerView ?: return
+        val picker = keyboardView ?: return
 
         // Setup RecyclerView with grid layout
-        val emojiGrid = picker.findViewById<RecyclerView>(R.id.emojiGrid)
+        val emojiGrid = picker.findViewById<RecyclerView>(R.id.emojiGrid) ?: return
         emojiGrid.layoutManager = GridLayoutManager(this, 8) // 8 columns
 
         emojiAdapter = EmojiAdapter(EMOJI_SMILEYS) { emoji ->
@@ -1050,7 +1049,7 @@ class DictationKeyboardService : InputMethodService() {
      * Highlights the selected category tab.
      */
     private fun updateCategoryTabHighlight(selectedTabId: Int) {
-        val picker = emojiPickerView ?: return
+        val picker = keyboardView ?: return
         val tabIds = listOf(
             R.id.tabSmileys, R.id.tabGestures, R.id.tabHearts, R.id.tabAnimals,
             R.id.tabFood, R.id.tabActivities, R.id.tabObjects, R.id.tabSymbols
@@ -1066,7 +1065,7 @@ class DictationKeyboardService : InputMethodService() {
      * Applies the current theme to the emoji picker.
      */
     private fun applyEmojiPickerTheme() {
-        val picker = emojiPickerView ?: return
+        val picker = keyboardView ?: return
         val prefs = PreferenceManager(this)
         val themeSetting = prefs.getKeyboardTheme()
 
@@ -1098,7 +1097,7 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         // Apply background
-        picker.findViewById<LinearLayout>(R.id.emojiPickerContainer)?.setBackgroundColor(backgroundColor)
+        picker.findViewById<LinearLayout>(R.id.emojiPickerPanel)?.setBackgroundColor(backgroundColor)
 
         // Apply theme to close button
         applyButtonTheme(picker.findViewById(R.id.btnCloseEmoji), buttonColor, iconColor)
