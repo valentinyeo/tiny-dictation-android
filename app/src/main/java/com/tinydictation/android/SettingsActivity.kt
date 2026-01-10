@@ -54,6 +54,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.10.15:
+            • Fixed companion bar NOT hiding when Tiny Dictation keyboard opens
+            • Now stops KeyboardCompanionService entirely (not just hiding the bar)
+            • Previous fix in v1.10.11 only hid the bar temporarily
+            • Service listener would show it again - now service is fully stopped
+            • Also updates dictation mode preference to keyboard mode automatically
+
             v1.10.14:
             • Fixed backspace button stopping after 1-2 seconds
             • Backspace now keeps deleting as long as button is held

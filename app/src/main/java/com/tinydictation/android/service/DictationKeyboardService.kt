@@ -133,10 +133,14 @@ class DictationKeyboardService : InputMethodService() {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
-        // Hide the companion bar since Tiny Dictation keyboard is now active
-        // This ensures mutual exclusivity between dictation modes
-        KeyboardCompanionService.getInstance()?.hideBar()
-        Log.d(TAG, "DictationKeyboardService: Hiding companion bar (if any)")
+        // Stop companion service entirely when our keyboard is active
+        // Just hiding the bar doesn't work because the service's keyboard visibility
+        // listener will show it again. We need to stop the service completely.
+        if (KeyboardCompanionService.isRunning()) {
+            Log.i(TAG, "DictationKeyboardService: Stopping KeyboardCompanionService from onCreateInputView")
+            DebugLog.i("DictationKeyboardService: Stopping companion service on create")
+            KeyboardCompanionService.stop(this)
+        }
 
         return try {
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
@@ -597,9 +601,23 @@ class DictationKeyboardService : InputMethodService() {
         // Auto-hide bubbles when keyboard is visible
         BubbleService.getInstance()?.setKeyboardVisible(true)
 
-        // Hide companion bar since Tiny Dictation keyboard is now active
-        // This ensures mutual exclusivity between dictation modes
-        KeyboardCompanionService.getInstance()?.hideBar()
+        // Stop companion service entirely when our keyboard is active
+        // Just hiding the bar doesn't work because the service's keyboard visibility
+        // listener will show it again. We need to stop the service completely.
+        if (KeyboardCompanionService.isRunning()) {
+            Log.i(TAG, "DictationKeyboardService: Stopping KeyboardCompanionService")
+            DebugLog.i("DictationKeyboardService: Stopping companion service - keyboard is active")
+            KeyboardCompanionService.stop(this)
+        }
+
+        // Update dictation mode preference to keyboard mode
+        // This ensures the preference reflects the actual active mode
+        val prefs = PreferenceManager(this)
+        if (prefs.getDictationMode() != PreferenceManager.MODE_KEYBOARD) {
+            Log.i(TAG, "DictationKeyboardService: Updating dictation mode to MODE_KEYBOARD")
+            DebugLog.i("DictationKeyboardService: Setting mode to keyboard")
+            prefs.setDictationMode(PreferenceManager.MODE_KEYBOARD)
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
