@@ -53,6 +53,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.9.20:
+            • All keyboard icons now white, only mic turns red when recording
+
             v1.9.19:
             • Reordered keyboard buttons: Backspace, Enter, Paste, All, Switch
 

@@ -215,7 +215,7 @@ class DictationKeyboardService : InputMethodService() {
         val color = if (isRecording) {
             ContextCompat.getColor(this, R.color.bubble_recording)
         } else {
-            ContextCompat.getColor(this, R.color.primary)
+            ContextCompat.getColor(this, R.color.on_surface)
         }
         micIcon?.setColorFilter(color)
     }

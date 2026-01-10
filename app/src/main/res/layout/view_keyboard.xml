@@ -27,7 +27,7 @@
             android:layout_height="24dp"
             android:layout_gravity="center"
             android:src="@drawable/ic_mic"
-            app:tint="@color/primary" />
+            app:tint="@color/on_surface" />
     </FrameLayout>
 
     <!-- Language switch button -->
