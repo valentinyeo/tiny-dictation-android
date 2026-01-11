@@ -60,6 +60,37 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.26:
+            • FIX: Imperial Red (#ED2939) mic icon when recording
+
+            v1.11.25:
+            • FIX: First word of dictation no longer missed
+            • Audio is now buffered while WebSocket connects to Deepgram
+            • Previously audio recorded during connection was silently dropped
+
+            v1.11.24:
+            • FIX: Language toggle now works with Deepgram
+            • Switching EN/DE actually changes transcription language
+            • Previously only saved preference but engine kept using English
+
+            v1.11.23:
+            • NEW: AMOLED Black theme option for keyboard
+            • Pure black background (#000000) saves battery on OLED screens
+            • Select in Settings > Keyboard Theme
+
+            v1.11.22:
+            • FIX: Even brighter red mic icon (#FF1744) for dark theme
+
+            v1.11.21:
+            • FIX: Brighter red mic icon when recording (more visible in dark theme)
+
+            v1.11.20:
+            • FIX: Battery drain - transcription now stops when keyboard is hidden
+            • Audio recording stops automatically when you leave the keyboard
+
+            v1.11.19:
+            • ADD: History button on keyboard for quick access to transcription history
+
             v1.11.18:
             • FIX: Build workflow quote escaping issue
 
@@ -1391,7 +1422,8 @@ class SettingsActivity : AppCompatActivity() {
         val themes = listOf(
             getString(R.string.keyboard_theme_system) to PreferenceManager.THEME_SYSTEM,
             getString(R.string.keyboard_theme_light) to PreferenceManager.THEME_LIGHT,
-            getString(R.string.keyboard_theme_dark) to PreferenceManager.THEME_DARK
+            getString(R.string.keyboard_theme_dark) to PreferenceManager.THEME_DARK,
+            getString(R.string.keyboard_theme_amoled) to PreferenceManager.THEME_AMOLED
         )
 
         val displayNames = themes.map { it.first }

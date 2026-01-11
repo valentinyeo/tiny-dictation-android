@@ -56,6 +56,7 @@
     <string name="keyboard_theme_system">System (Auto)</string>
     <string name="keyboard_theme_light">Light</string>
     <string name="keyboard_theme_dark">Dark</string>
+    <string name="keyboard_theme_amoled">AMOLED Black</string>
 
     <!-- Debug -->
     <string name="debug_title">Debug</string>

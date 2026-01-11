@@ -26,7 +26,7 @@
     <!-- Bubble Colors (Dark Mode optimized) -->
     <color name="bubble_idle">#B0B0B0</color>
     <color name="bubble_listening">#64B5F6</color>
-    <color name="bubble_recording">#EF5350</color>
+    <color name="bubble_recording">#ED2939</color>
     <color name="bubble_processing">#FFB74D</color>
 
     <!-- Text colors for better readability - full opacity, high contrast -->

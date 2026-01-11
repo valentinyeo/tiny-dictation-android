@@ -39,9 +39,10 @@ The app uses keyboard-based dictation only:
 
 **Full Keyboard (IME)** (`DictationKeyboardService.kt`)
 - Complete replacement keyboard with dictation and action buttons
-- Button order: Chevron | Language | Mic | Enter | Backspace | Paste | SelectAll
+- Button order: Chevron | Language | Mic | Enter | Backspace | History | SelectAll
 - Chevron switches back to previous keyboard
-- Long-press mic opens Settings, long-press paste opens History
+- Long-press mic opens Settings
+- History button opens transcription history
 
 ### Archived Modes (in `archived/` directory)
 The following experimental modes have been archived but preserved for reference:
@@ -63,6 +64,61 @@ Model management: `ModelManager.kt` handles downloading/storing offline models
 - Gradle 8.2 with Kotlin DSL
 - Android SDK 34, min SDK 26
 - GitHub Actions CI/CD on `main`, `master`, and `claude/**` branches
+
+### Local Build Commands (Resource-Friendly)
+
+**CRITICAL**: This is a small VPS with limited resources. Always use resource-limited builds:
+
+```bash
+# Standard build (low priority, limited workers and memory)
+nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx512m"
+
+# If system is very constrained, use single worker:
+nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx384m"
+```
+
+**Flags explained:**
+- `nice -n 19` - Lowest CPU priority, won't freeze system
+- `--no-daemon` - Don't keep Gradle daemon running (saves memory)
+- `--max-workers=2` - Limit parallel tasks (default uses all CPUs)
+- `-Xmx512m` - Limit JVM heap to 512MB
+
+**Trade-off**: Resource-limited builds take ~35-60 seconds vs ~20 seconds with full resources. System responsiveness is more important.
+
+### System Monitoring (CRITICAL)
+
+**This VPS has only 3.8GB RAM. DO NOT:**
+- Spawn multiple agents in parallel (each uses ~1GB)
+- Start builds while other agents are running
+- Use more than `--max-workers=1` when system is busy
+
+**Before building, check system:**
+```bash
+# Check load and memory
+top -b -n 1 | head -10
+
+# If load average > 5 or free RAM < 500MB, wait or kill processes
+```
+
+**If system becomes unresponsive:**
+```bash
+# Kill gradle immediately
+pkill -9 -f gradle; ./gradlew --stop
+```
+
+**Alternative: Use GitHub Actions**
+Push to `claude/**` branch to trigger automated builds on GitHub's servers instead of local VPS.
+
+### Sending APKs to Telegram
+
+Always include version and changelog in the caption:
+```bash
+cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
+curl -s -X POST "https://api.telegram.org/bot{TOKEN}/sendDocument" \
+  -F chat_id="{CHAT_ID}" \
+  -F document=@"/tmp/TinyDictation-v{VERSION}-arm64.apk" \
+  -F caption="v{VERSION} - {CHANGELOG_SUMMARY}"
+```
 
 ## Key Files
 

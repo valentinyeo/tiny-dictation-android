@@ -62,6 +62,7 @@ class PreferenceManager(context: Context) {
         const val THEME_SYSTEM = "system"
         const val THEME_LIGHT = "light"
         const val THEME_DARK = "dark"
+        const val THEME_AMOLED = "amoled"
 
         // Dictation mode constants (keyboard mode only - bubble and companion archived)
         const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard (only supported mode)

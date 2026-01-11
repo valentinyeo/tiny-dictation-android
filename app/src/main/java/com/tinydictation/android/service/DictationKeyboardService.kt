@@ -42,7 +42,7 @@ import com.tinydictation.android.util.PreferenceManager
  * Input Method Service (IME) for Tiny Dictation.
  *
  * This provides a keyboard bar with action buttons for dictation and text manipulation.
- * Buttons: Mic, Language, Backspace, Select All, Paste, Enter
+ * Buttons: Chevron, Language, Mic, Enter, Backspace, History, Select All
  */
 class DictationKeyboardService : InputMethodService() {
 
@@ -305,31 +305,43 @@ class DictationKeyboardService : InputMethodService() {
         val prefs = PreferenceManager(this)
         val themeSetting = prefs.getKeyboardTheme()
 
-        // Determine if we should use dark theme
-        val useDarkTheme = when (themeSetting) {
-            PreferenceManager.THEME_LIGHT -> false
-            PreferenceManager.THEME_DARK -> true
-            else -> { // THEME_SYSTEM
-                val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                nightModeFlags == Configuration.UI_MODE_NIGHT_YES
-            }
-        }
-
         // Define colors based on theme
         val backgroundColor: Int
         val buttonColor: Int
         val iconColor: Int
 
-        if (useDarkTheme) {
-            // Dark theme - use existing dark colors from colors.xml
-            backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
-            buttonColor = ContextCompat.getColor(this, R.color.surface)
-            iconColor = ContextCompat.getColor(this, R.color.on_surface)
-        } else {
-            // Light theme - white background, gray buttons, black icons
-            backgroundColor = Color.parseColor("#F5F5F5")
-            buttonColor = Color.parseColor("#E0E0E0")
-            iconColor = Color.parseColor("#1C1B1F")
+        when (themeSetting) {
+            PreferenceManager.THEME_AMOLED -> {
+                // AMOLED black theme - pure black saves battery on OLED screens
+                backgroundColor = Color.parseColor("#000000")  // Pure black
+                buttonColor = Color.parseColor("#1A1A1A")      // Very dark gray
+                iconColor = Color.parseColor("#FFFFFF")        // White
+            }
+            PreferenceManager.THEME_DARK -> {
+                // Dark theme - use existing dark colors from colors.xml
+                backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
+                buttonColor = ContextCompat.getColor(this, R.color.surface)
+                iconColor = ContextCompat.getColor(this, R.color.on_surface)
+            }
+            PreferenceManager.THEME_LIGHT -> {
+                // Light theme - white background, gray buttons, black icons
+                backgroundColor = Color.parseColor("#F5F5F5")
+                buttonColor = Color.parseColor("#E0E0E0")
+                iconColor = Color.parseColor("#1C1B1F")
+            }
+            else -> {
+                // THEME_SYSTEM - follow system setting
+                val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
+                    backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
+                    buttonColor = ContextCompat.getColor(this, R.color.surface)
+                    iconColor = ContextCompat.getColor(this, R.color.on_surface)
+                } else {
+                    backgroundColor = Color.parseColor("#F5F5F5")
+                    buttonColor = Color.parseColor("#E0E0E0")
+                    iconColor = Color.parseColor("#1C1B1F")
+                }
+            }
         }
 
         // Apply background color to keyboard container
@@ -340,6 +352,7 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnHistory), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
@@ -352,7 +365,7 @@ class DictationKeyboardService : InputMethodService() {
             textView?.setTextColor(iconColor)
         }
 
-        DebugLog.d("DictationKeyboardService: Applied theme - dark=$useDarkTheme")
+        DebugLog.d("DictationKeyboardService: Applied theme - $themeSetting")
     }
 
     /**
@@ -414,6 +427,11 @@ class DictationKeyboardService : InputMethodService() {
             sendEnterKey()
         }
 
+        // History button - opens transcription history
+        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.setOnClickListener {
+            openTranscriptionHistory()
+        }
+
         // Switch back to previous keyboard button
         keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.setOnClickListener {
             switchToPreviousKeyboard()
@@ -451,6 +469,16 @@ class DictationKeyboardService : InputMethodService() {
         DebugLog.i("DictationKeyboardService: Long press - opening settings")
 
         val intent = Intent(this, SettingsActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        startActivity(intent)
+    }
+
+    private fun openTranscriptionHistory() {
+        Log.i(TAG, "DictationKeyboardService: Opening transcription history")
+        DebugLog.i("DictationKeyboardService: Opening history")
+
+        val intent = Intent(this, HistoryActivity::class.java).apply {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         }
         startActivity(intent)
@@ -501,6 +529,9 @@ class DictationKeyboardService : InputMethodService() {
         // Toggle between en and de (or extend for more languages)
         val newLang = if (currentLang == "en") "de" else "en"
         prefs.setLanguage(newLang)
+
+        // Update transcription engine language for the change to take effect
+        transcriptionManager?.setLanguage(newLang)
 
         updateLanguageButton()
         Log.i(TAG, "Language changed to: $newLang")
@@ -555,19 +586,18 @@ class DictationKeyboardService : InputMethodService() {
         val prefs = PreferenceManager(this)
         val themeSetting = prefs.getKeyboardTheme()
 
-        val useDarkTheme = when (themeSetting) {
-            PreferenceManager.THEME_LIGHT -> false
-            PreferenceManager.THEME_DARK -> true
+        return when (themeSetting) {
+            PreferenceManager.THEME_AMOLED -> Color.parseColor("#FFFFFF")  // White for AMOLED
+            PreferenceManager.THEME_DARK -> ContextCompat.getColor(this, R.color.on_surface)
+            PreferenceManager.THEME_LIGHT -> Color.parseColor("#1C1B1F")
             else -> { // THEME_SYSTEM
                 val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
-                nightModeFlags == Configuration.UI_MODE_NIGHT_YES
+                if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
+                    ContextCompat.getColor(this, R.color.on_surface)
+                } else {
+                    Color.parseColor("#1C1B1F")
+                }
             }
-        }
-
-        return if (useDarkTheme) {
-            ContextCompat.getColor(this, R.color.on_surface)
-        } else {
-            Color.parseColor("#1C1B1F")
         }
     }
 
@@ -804,6 +834,15 @@ class DictationKeyboardService : InputMethodService() {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
+
+        // Stop transcription when keyboard is hidden to save battery
+        if (isRecording || isProcessing) {
+            Log.i(TAG, "DictationKeyboardService: Stopping transcription - keyboard hidden")
+            DebugLog.i("DictationKeyboardService: Stopping transcription (keyboard hidden)")
+            transcriptionManager?.stopListening()
+            isRecording = false
+            isProcessing = false
+        }
     }
 
     /**
