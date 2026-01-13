@@ -22,6 +22,7 @@ import android.view.View
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
+import android.widget.HorizontalScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -86,6 +87,13 @@ class DictationKeyboardService : InputMethodService() {
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
+    private var emojiGifPanel: View? = null
+    private var emojiGifPanelManager: com.tinydictation.android.gif.EmojiGifPanelManager? = null
+    private var isEmojiPanelVisible = false
+    private var qwertyPanel: View? = null
+    private var isQwertyPanelVisible = false
+    private var isShiftActive = false
+    private var isCapsLock = false
 
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
@@ -245,7 +253,18 @@ class DictationKeyboardService : InputMethodService() {
                     updateMicButton()
                 }
             },
-            context = this
+            context = this,
+            onSilenceAutoStop = {
+                // Called when silence auto-stop timeout expires
+                Log.i(TAG, "Silence auto-stop triggered")
+                DebugLog.i("DictationKeyboardService: Silence auto-stop triggered")
+                Handler(Looper.getMainLooper()).post {
+                    transcriptionManager?.stopListening()
+                    isRecording = false
+                    isProcessing = false
+                    updateMicButton()
+                }
+            }
         )
     }
 
@@ -279,12 +298,17 @@ class DictationKeyboardService : InputMethodService() {
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
+            emojiGifPanel = keyboardView?.findViewById(R.id.emojiGifPanel)
+            qwertyPanel = keyboardView?.findViewById(R.id.qwertyPanel)
 
             setupButtonHandlers()
+            setupEmojiGifPanel()
+            setupQwertyKeyboard()
             applyTheme()
             updateMicButton()
             updateLanguageButton()
             setupVersionDisplay()
+            scrollDictationBarToDefault()
 
             keyboardView!!
         } catch (e: Exception) {
@@ -344,7 +368,8 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
 
-        // Apply background color to keyboard container
+        // Apply background color to root and keyboard container
+        keyboardView?.findViewById<LinearLayout>(R.id.keyboardRoot)?.setBackgroundColor(backgroundColor)
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.setBackgroundColor(backgroundColor)
 
         // Apply button and icon colors to all buttons
@@ -352,7 +377,8 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnHistory), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
@@ -427,9 +453,14 @@ class DictationKeyboardService : InputMethodService() {
             sendEnterKey()
         }
 
-        // History button - opens transcription history
-        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.setOnClickListener {
-            openTranscriptionHistory()
+        // Emoji button - toggles emoji panel
+        keyboardView?.findViewById<FrameLayout>(R.id.btnEmoji)?.setOnClickListener {
+            toggleEmojiPanel()
+        }
+
+        // Keyboard button - toggles QWERTY keyboard panel
+        keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboard)?.setOnClickListener {
+            toggleQwertyPanel()
         }
 
         // Switch back to previous keyboard button
@@ -530,8 +561,23 @@ class DictationKeyboardService : InputMethodService() {
         val newLang = if (currentLang == "en") "de" else "en"
         prefs.setLanguage(newLang)
 
-        // Update transcription engine language for the change to take effect
-        transcriptionManager?.setLanguage(newLang)
+        // If currently recording, restart mic to apply new language immediately
+        if (isRecording || isProcessing) {
+            Log.i(TAG, "Restarting mic to apply language change")
+            DebugLog.i("DictationKeyboardService: Restarting mic for language change")
+            transcriptionManager?.stopListening()
+            isRecording = false
+            isProcessing = false
+            updateMicButton()
+
+            // Brief delay then restart with new language
+            Handler(Looper.getMainLooper()).postDelayed({
+                transcriptionManager?.startListening()
+            }, 100)
+        } else {
+            // Not recording, just update the engine's language setting
+            transcriptionManager?.setLanguage(newLang)
+        }
 
         updateLanguageButton()
         Log.i(TAG, "Language changed to: $newLang")
@@ -636,6 +682,192 @@ class DictationKeyboardService : InputMethodService() {
         } catch (e: Exception) {
             DebugLog.e("DictationKeyboardService: Failed to get version - ${e.message}")
             versionText?.visibility = View.GONE
+        }
+    }
+
+    /**
+     * Scrolls the dictation bar to default position.
+     * Current order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
+     * Default position 0 shows the main buttons on the left; scroll right to see Emoji/Keyboard/Chevron.
+     */
+    private fun scrollDictationBarToDefault() {
+        // Start at position 0 (leftmost) - no scrolling needed
+        // Main buttons (SelectAll, Backspace, Enter, Mic, Language) are visible by default
+    }
+
+    /**
+     * Sets up the tabbed Emoji/GIF panel with the panel manager.
+     */
+    private fun setupEmojiGifPanel() {
+        emojiGifPanel?.let { panel ->
+            emojiGifPanelManager = com.tinydictation.android.gif.EmojiGifPanelManager(
+                context = this,
+                panelView = panel,
+                onEmojiSelected = { emoji ->
+                    currentInputConnection?.commitText(emoji, 1)
+                    Log.d(TAG, "Emoji inserted: $emoji")
+                },
+                onGifSelected = { gif ->
+                    Log.d(TAG, "GIF selected: ${gif.id}")
+                },
+                getInputConnection = { currentInputConnection }
+            )
+            Log.i(TAG, "EmojiGifPanelManager initialized")
+            DebugLog.i("DictationKeyboardService: EmojiGifPanelManager initialized")
+        }
+    }
+
+    /**
+     * Toggles the emoji/GIF panel visibility.
+     * Hides QWERTY panel if visible.
+     */
+    private fun toggleEmojiPanel() {
+        // Hide QWERTY panel if showing
+        if (isQwertyPanelVisible) {
+            isQwertyPanelVisible = false
+            qwertyPanel?.visibility = View.GONE
+        }
+
+        isEmojiPanelVisible = !isEmojiPanelVisible
+        emojiGifPanel?.visibility = if (isEmojiPanelVisible) View.VISIBLE else View.GONE
+        Log.d(TAG, "Emoji/GIF panel visibility: $isEmojiPanelVisible")
+        DebugLog.i("DictationKeyboardService: Emoji/GIF panel ${if (isEmojiPanelVisible) "shown" else "hidden"}")
+    }
+
+    /**
+     * Toggles the QWERTY keyboard panel visibility.
+     * Hides emoji panel if visible.
+     */
+    private fun toggleQwertyPanel() {
+        // Hide emoji panel if showing
+        if (isEmojiPanelVisible) {
+            isEmojiPanelVisible = false
+            emojiGifPanel?.visibility = View.GONE
+        }
+
+        isQwertyPanelVisible = !isQwertyPanelVisible
+        qwertyPanel?.visibility = if (isQwertyPanelVisible) View.VISIBLE else View.GONE
+        Log.d(TAG, "QWERTY panel visibility: $isQwertyPanelVisible")
+        DebugLog.i("DictationKeyboardService: QWERTY panel ${if (isQwertyPanelVisible) "shown" else "hidden"}")
+    }
+
+    /**
+     * Sets up the QWERTY keyboard key handlers.
+     */
+    private fun setupQwertyKeyboard() {
+        qwertyPanel ?: return
+
+        // Letter keys - map button IDs to characters
+        val letterKeys = mapOf(
+            R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
+            R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
+            R.id.key_o to "o", R.id.key_p to "p", R.id.key_a to "a", R.id.key_s to "s",
+            R.id.key_d to "d", R.id.key_f to "f", R.id.key_g to "g", R.id.key_h to "h",
+            R.id.key_j to "j", R.id.key_k to "k", R.id.key_l to "l", R.id.key_z to "z",
+            R.id.key_x to "x", R.id.key_c to "c", R.id.key_v to "v", R.id.key_b to "b",
+            R.id.key_n to "n", R.id.key_m to "m"
+        )
+
+        for ((id, char) in letterKeys) {
+            qwertyPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+                val textToCommit = if (isShiftActive || isCapsLock) char.uppercase() else char
+                currentInputConnection?.commitText(textToCommit, 1)
+
+                // Turn off shift after one character (unless caps lock)
+                if (isShiftActive && !isCapsLock) {
+                    isShiftActive = false
+                    updateShiftKeyDisplay()
+                }
+            }
+        }
+
+        // Punctuation keys
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
+            currentInputConnection?.commitText(",", 1)
+        }
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)?.setOnClickListener {
+            currentInputConnection?.commitText(".", 1)
+        }
+
+        // Space bar
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_space)?.setOnClickListener {
+            currentInputConnection?.commitText(" ", 1)
+        }
+
+        // Enter key
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_enter)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+        }
+
+        // Backspace key
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        }
+
+        // Shift key - tap for shift, double-tap for caps lock
+        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
+        var lastShiftTapTime = 0L
+        shiftButton?.setOnClickListener {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastShiftTapTime < 300) {
+                // Double tap - toggle caps lock
+                isCapsLock = !isCapsLock
+                isShiftActive = isCapsLock
+                DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
+            } else {
+                // Single tap - toggle shift
+                if (isCapsLock) {
+                    // Turn off caps lock
+                    isCapsLock = false
+                    isShiftActive = false
+                } else {
+                    isShiftActive = !isShiftActive
+                }
+            }
+            lastShiftTapTime = currentTime
+            updateShiftKeyDisplay()
+        }
+
+        // 123/numbers key - placeholder for future numeric keyboard
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
+            // TODO: Switch to numeric keyboard panel
+            DebugLog.d("DictationKeyboardService: Numbers key tapped (not implemented)")
+        }
+    }
+
+    /**
+     * Updates the shift key display based on current state.
+     */
+    private fun updateShiftKeyDisplay() {
+        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
+        shiftButton?.text = when {
+            isCapsLock -> "⇪"  // Caps lock indicator
+            isShiftActive -> "⇧"  // Shift active (filled)
+            else -> "⇧"  // Normal shift
+        }
+
+        // Update letter key displays to show uppercase when shift/caps active
+        updateLetterKeyDisplays()
+    }
+
+    /**
+     * Updates all letter keys to show uppercase or lowercase.
+     */
+    private fun updateLetterKeyDisplays() {
+        val letterKeys = mapOf(
+            R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
+            R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
+            R.id.key_o to "o", R.id.key_p to "p", R.id.key_a to "a", R.id.key_s to "s",
+            R.id.key_d to "d", R.id.key_f to "f", R.id.key_g to "g", R.id.key_h to "h",
+            R.id.key_j to "j", R.id.key_k to "k", R.id.key_l to "l", R.id.key_z to "z",
+            R.id.key_x to "x", R.id.key_c to "c", R.id.key_v to "v", R.id.key_b to "b",
+            R.id.key_n to "n", R.id.key_m to "m"
+        )
+
+        val useUppercase = isShiftActive || isCapsLock
+        for ((id, char) in letterKeys) {
+            qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
+                if (useUppercase) char.uppercase() else char
         }
     }
 

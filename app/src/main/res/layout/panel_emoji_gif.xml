@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tabbed Emoji/GIF panel for the keyboard -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/emojiGifPanelRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/surface_variant">
+
+    <!-- Tab bar: Emoji | GIF -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:orientation="horizontal"
+        android:background="@color/surface">
+
+        <!-- Emoji tab -->
+        <FrameLayout
+            android:id="@+id/tabEmoji"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground">
+
+            <TextView
+                android:id="@+id/tvTabEmoji"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="Emoji"
+                android:textSize="14sp"
+                android:textColor="@color/on_surface"
+                android:textStyle="bold" />
+
+            <View
+                android:id="@+id/indicatorEmoji"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_gravity="bottom"
+                android:background="@color/bubble_recording" />
+        </FrameLayout>
+
+        <!-- GIF tab -->
+        <FrameLayout
+            android:id="@+id/tabGif"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:background="?attr/selectableItemBackground">
+
+            <TextView
+                android:id="@+id/tvTabGif"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:text="GIF"
+                android:textSize="14sp"
+                android:textColor="@color/on_surface" />
+
+            <View
+                android:id="@+id/indicatorGif"
+                android:layout_width="match_parent"
+                android:layout_height="3dp"
+                android:layout_gravity="bottom"
+                android:background="@android:color/transparent" />
+        </FrameLayout>
+    </LinearLayout>
+
+    <!-- Content area -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <!-- Emoji picker (visible by default) -->
+        <androidx.emoji2.emojipicker.EmojiPickerView
+            android:id="@+id/emojiPicker"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:emojiGridColumns="10"
+            android:visibility="visible" />
+
+        <!-- GIF content area -->
+        <LinearLayout
+            android:id="@+id/gifContent"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <!-- Search bar -->
+            <EditText
+                android:id="@+id/etGifSearch"
+                android:layout_width="match_parent"
+                android:layout_height="40dp"
+                android:layout_margin="8dp"
+                android:paddingHorizontal="12dp"
+                android:background="@drawable/keyboard_button_background"
+                android:hint="Search GIFs..."
+                android:textSize="14sp"
+                android:textColor="@color/on_surface"
+                android:textColorHint="@color/on_surface_variant"
+                android:imeOptions="actionSearch"
+                android:inputType="text"
+                android:maxLines="1" />
+
+            <!-- GIF grid -->
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvGifs"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:clipToPadding="false"
+                android:padding="4dp" />
+
+            <!-- Loading/empty state -->
+            <FrameLayout
+                android:id="@+id/gifStateContainer"
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:visibility="gone">
+
+                <ProgressBar
+                    android:id="@+id/progressGif"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvGifMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="center"
+                    android:textColor="@color/on_surface_variant"
+                    android:textSize="14sp"
+                    android:visibility="gone" />
+            </FrameLayout>
+
+            <!-- Giphy attribution (required by API terms) -->
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="4dp"
+                android:text="Powered by GIPHY"
+                android:textSize="10sp"
+                android:textColor="@color/on_surface_variant" />
+        </LinearLayout>
+    </FrameLayout>
+</LinearLayout>

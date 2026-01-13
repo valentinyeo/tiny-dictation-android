@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Custom style for EmojiPickerView to customize category headers -->
+    <style name="EmojiPickerStyle">
+        <!-- Override text color to white for category headers -->
+        <item name="android:textColorPrimary">#CCFFFFFF</item>
+        <!-- Category icon color - slightly dimmed white -->
+        <item name="colorControlNormal">#AAFFFFFF</item>
+    </style>
+
     <style name="Theme.TinyDictation" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Primary colors -->
         <item name="colorPrimary">@color/primary</item>

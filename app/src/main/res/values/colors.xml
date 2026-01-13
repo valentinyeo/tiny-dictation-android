@@ -26,7 +26,7 @@
     <!-- Bubble Colors -->
     <color name="bubble_idle">#9E9E9E</color>
     <color name="bubble_listening">#2196F3</color>
-    <color name="bubble_recording">#F44336</color>
+    <color name="bubble_recording">#FF0000</color>
     <color name="bubble_processing">#FF9800</color>
 
     <!-- Text colors for better readability -->

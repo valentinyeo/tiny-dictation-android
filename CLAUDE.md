@@ -13,19 +13,13 @@ This ensures every APK has a unique version and users can see what changed.
    - `versionCode` - Integer, increment by 1 for each build
    - `versionName` - Semantic version string (e.g., "1.2.0")
 
-2. **APK naming**: The build workflow automatically names APKs as:
-   - `TinyDictation-v{versionName}-{gitShortHash}.apk`
-   - Example: `TinyDictation-v1.2.0-e6da897.apk`
-
-3. **Version display**: Version is shown in:
+2. **Version display**: Version is shown in:
    - Main screen (bottom): "v1.3.0"
    - Settings screen (About section): "Version 1.3.0 (6)"
 
-4. **Changelog**: Update changelog in `SettingsActivity.kt` companion object
+3. **Changelog**: Update changelog in `SettingsActivity.kt` companion object
    - Add new version at the top with bullet points
    - Keep previous versions for history
-
-5. **Telegram notifications**: Include version in build notifications
 
 ## When to bump version
 
@@ -63,62 +57,47 @@ Model management: `ModelManager.kt` handles downloading/storing offline models
 
 - Gradle 8.2 with Kotlin DSL
 - Android SDK 34, min SDK 26
-- GitHub Actions CI/CD on `main`, `master`, and `claude/**` branches
+- **Builds are done locally** (no GitHub Actions - saves CI minutes)
 
-### Local Build Commands (Resource-Friendly)
+### Local Build Commands
 
-**CRITICAL**: This is a small VPS with limited resources. Always use resource-limited builds:
+Local builds are fast (~45-60 seconds). Use resource-limited flags to keep system responsive:
 
 ```bash
-# Standard build (low priority, limited workers and memory)
+# Standard build (recommended)
 nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx512m"
-
-# If system is very constrained, use single worker:
-nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=1 -Dorg.gradle.jvmargs="-Xmx384m"
 ```
 
 **Flags explained:**
 - `nice -n 19` - Lowest CPU priority, won't freeze system
 - `--no-daemon` - Don't keep Gradle daemon running (saves memory)
-- `--max-workers=2` - Limit parallel tasks (default uses all CPUs)
+- `--max-workers=2` - Limit parallel tasks
 - `-Xmx512m` - Limit JVM heap to 512MB
 
-**Trade-off**: Resource-limited builds take ~35-60 seconds vs ~20 seconds with full resources. System responsiveness is more important.
-
-### System Monitoring (CRITICAL)
-
-**This VPS has only 3.8GB RAM. DO NOT:**
-- Spawn multiple agents in parallel (each uses ~1GB)
-- Start builds while other agents are running
-- Use more than `--max-workers=1` when system is busy
-
-**Before building, check system:**
-```bash
-# Check load and memory
-top -b -n 1 | head -10
-
-# If load average > 5 or free RAM < 500MB, wait or kill processes
-```
-
-**If system becomes unresponsive:**
-```bash
-# Kill gradle immediately
-pkill -9 -f gradle; ./gradlew --stop
-```
-
-**Alternative: Use GitHub Actions**
-Push to `claude/**` branch to trigger automated builds on GitHub's servers instead of local VPS.
+**Output APKs:**
+- `app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` (~46MB)
+- `app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk` (~37MB)
 
 ### Sending APKs to Telegram
 
-Always include version and changelog in the caption:
+**APK naming convention**: Copy and rename with version before sending:
 ```bash
 cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
+```
+Example: `TinyDictation-v1.11.27-arm64.apk`
+
+Telegram credentials are in `~/.telegram-deploy`. Send with **actual changelog** in caption:
+```bash
 curl -s -X POST "https://api.telegram.org/bot{TOKEN}/sendDocument" \
   -F chat_id="{CHAT_ID}" \
   -F document=@"/tmp/TinyDictation-v{VERSION}-arm64.apk" \
-  -F caption="v{VERSION} - {CHANGELOG_SUMMARY}"
+  -F caption="v{VERSION}
+• Change 1
+• Change 2
+• Change 3"
 ```
+
+**Important**: Always list the actual changes from the changelog in SettingsActivity.kt, not just a summary.
 
 ## Key Files
 

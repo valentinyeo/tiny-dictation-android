@@ -60,6 +60,60 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.42:
+            • UI: Button order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
+            • NEW: GIF support via Giphy API (requires API key in Settings)
+            • UI: Tabbed Emoji/GIF panel - tap tabs to switch
+            • GIF search with trending GIFs on open
+
+            v1.11.41:
+            • UI: Scrollable dictation bar
+            • FIX: Removed Giphy SDK - faster app startup
+
+            v1.11.40:
+            • UI: Emoji category headers improved (headline case, white color, regular spacing)
+            • Fixed: Emoji picker references updated to match new panel layout
+
+            v1.11.39:
+            • UI: Smaller emojis in picker (12 columns instead of default 9)
+            • UI: Taller emoji panel (280dp) to show more rows
+
+            v1.11.38:
+            • NEW: QWERTY keyboard - tap keyboard button to expand typing panel
+            • Shift key (tap for shift, double-tap for caps lock)
+            • Keys update to show uppercase when shift/caps active
+
+            v1.11.37:
+            • NEW: Emoji picker - tap emoji button to expand, tap emoji to insert
+            • Keyboard expands upward to show emoji grid (200dp)
+            • Replaced History button with Emoji button
+
+            v1.11.36:
+            • FIX: Language now properly refreshed from preferences on each mic start
+
+            v1.11.35:
+            • FIX: Language switch now auto-restarts mic when recording
+
+            v1.11.34:
+            • UI: Brightest pure red (#FF0000) for recording mic icon
+            • UI: Removed glow effect
+
+            v1.11.32:
+            • UI: Recording mic icon color (#FF4040)
+
+            v1.11.30:
+            • UI: Version number - same size, wider letter spacing, more visible
+
+            v1.11.28:
+            • FIX: Language selection now persists after device sleep/wake
+            • Previously, language would reset to English after device sleep
+
+            v1.11.27:
+            • NEW: Auto-stop after silence - recording stops automatically when you stop speaking
+            • Configurable silence duration: 2s, 3s, or 5s (default: 3s)
+            • Toggle on/off in Settings > Voice Settings
+            • Behaves like traditional dictation apps
+
             v1.11.26:
             • FIX: Imperial Red (#ED2939) mic icon when recording
 
@@ -672,6 +726,9 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var headphoneMicSwitch: MaterialSwitch
     private lateinit var tvMicSourceStatus: TextView
     private lateinit var pauseMediaSwitch: MaterialSwitch
+    private lateinit var silenceAutoStopSwitch: MaterialSwitch
+    private lateinit var tilSilenceDuration: TextInputLayout
+    private lateinit var silenceDurationDropdown: AutoCompleteTextView
 
     // Audio device detection
     private lateinit var audioManager: AudioManager
@@ -708,6 +765,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var assemblyAIApiKeyInput: TextInputEditText
     private lateinit var tilGeminiApiKey: TextInputLayout
     private lateinit var geminiApiKeyInput: TextInputEditText
+    private lateinit var tilGiphyApiKey: TextInputLayout
+    private lateinit var giphyApiKeyInput: TextInputEditText
     private lateinit var layoutAutoDetect: LinearLayout
     private lateinit var autoDetectSwitch: MaterialSwitch
     private lateinit var layoutAutoFallback: LinearLayout
@@ -929,6 +988,9 @@ class SettingsActivity : AppCompatActivity() {
         headphoneMicSwitch = findViewById(R.id.switchHeadphoneMic)
         tvMicSourceStatus = findViewById(R.id.tvMicSourceStatus)
         pauseMediaSwitch = findViewById(R.id.switchPauseMedia)
+        silenceAutoStopSwitch = findViewById(R.id.switchSilenceAutoStop)
+        tilSilenceDuration = findViewById(R.id.tilSilenceDuration)
+        silenceDurationDropdown = findViewById(R.id.actvSilenceDuration)
         btnSetupKeyboard = findViewById(R.id.btnSetupKeyboard)
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         copyDebugLogButton = findViewById(R.id.btnCopyDebugLog)
@@ -965,6 +1027,8 @@ class SettingsActivity : AppCompatActivity() {
         assemblyAIApiKeyInput = findViewById(R.id.etAssemblyAIApiKey)
         tilGeminiApiKey = findViewById(R.id.tilGeminiApiKey)
         geminiApiKeyInput = findViewById(R.id.etGeminiApiKey)
+        tilGiphyApiKey = findViewById(R.id.tilGiphyApiKey)
+        giphyApiKeyInput = findViewById(R.id.etGiphyApiKey)
         layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
         layoutAutoFallback = findViewById(R.id.layoutAutoFallback)
@@ -992,6 +1056,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Setup keyboard theme dropdown
         setupKeyboardThemeDropdown()
+
+        // Setup silence auto-stop dropdown
+        setupSilenceAutoStopDropdown()
     }
 
     private fun toggleChangelog() {
@@ -1451,6 +1518,65 @@ class SettingsActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Sets up the silence auto-stop toggle and duration dropdown.
+     */
+    private fun setupSilenceAutoStopDropdown() {
+        // Duration options: display name to milliseconds
+        val durations = listOf(
+            "2 seconds" to 2000,
+            "3 seconds" to 3000,
+            "5 seconds" to 5000
+        )
+
+        val displayNames = durations.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        silenceDurationDropdown.setAdapter(adapter)
+
+        // Load current setting
+        val currentMs = preferenceManager.getSilenceAutoStopMs()
+        val isEnabled = currentMs > 0
+
+        // Set switch state
+        silenceAutoStopSwitch.isChecked = isEnabled
+
+        // Set duration dropdown state
+        tilSilenceDuration.visibility = if (isEnabled) View.VISIBLE else View.GONE
+        if (isEnabled) {
+            val currentIndex = durations.indexOfFirst { it.second == currentMs }
+            if (currentIndex >= 0) {
+                silenceDurationDropdown.setText(displayNames[currentIndex], false)
+            } else {
+                // Default to 3 seconds if stored value doesn't match options
+                silenceDurationDropdown.setText(displayNames[1], false)
+            }
+        }
+
+        // Handle switch changes
+        silenceAutoStopSwitch.setOnCheckedChangeListener { _, isChecked ->
+            tilSilenceDuration.visibility = if (isChecked) View.VISIBLE else View.GONE
+            if (isChecked) {
+                // Enable with default or previously selected duration
+                val selectedText = silenceDurationDropdown.text.toString()
+                val selectedMs = durations.find { it.first == selectedText }?.second
+                    ?: PreferenceManager.DEFAULT_SILENCE_AUTO_STOP_MS
+                preferenceManager.setSilenceAutoStopMs(selectedMs)
+                DebugLog.i("Silence auto-stop enabled: ${selectedMs}ms")
+            } else {
+                // Disable (0 = disabled)
+                preferenceManager.setSilenceAutoStopMs(0)
+                DebugLog.i("Silence auto-stop disabled")
+            }
+        }
+
+        // Handle duration selection
+        silenceDurationDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selectedMs = durations[position].second
+            preferenceManager.setSilenceAutoStopMs(selectedMs)
+            DebugLog.i("Silence auto-stop duration changed to: ${selectedMs}ms")
+        }
+    }
+
     private fun displayVersionInfo() {
         try {
             val packageInfo = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -1486,6 +1612,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Load pause media during dictation setting
         pauseMediaSwitch.isChecked = preferenceManager.getPauseMediaDuringDictation()
+
+        // Load Giphy API key
+        preferenceManager.getGiphyApiKey()?.let { key ->
+            giphyApiKeyInput.setText(key)
+        }
 
         // Update model status
         updateModelStatus()
@@ -1744,6 +1875,12 @@ class SettingsActivity : AppCompatActivity() {
         // Save Gemini API key if provided
         if (!geminiApiKey.isNullOrEmpty()) {
             preferenceManager.setGeminiApiKey(geminiApiKey)
+        }
+
+        // Save Giphy API key if provided
+        val giphyApiKey = giphyApiKeyInput.text?.toString()?.trim()
+        if (!giphyApiKey.isNullOrEmpty()) {
+            preferenceManager.setGiphyApiKey(giphyApiKey)
         }
 
         // Save auto-punctuation

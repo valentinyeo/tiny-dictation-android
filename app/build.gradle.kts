@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 131
-        versionName = "1.11.26"
+        versionCode = 149
+        versionName = "1.11.42"
     }
 
     // Generate separate APKs per ABI to reduce size
@@ -106,4 +106,10 @@ dependencies {
 
     // Archive extraction (for tar.bz2 Whisper models)
     implementation("org.apache.commons:commons-compress:1.26.0")
+
+    // Emoji Picker
+    implementation("androidx.emoji2:emoji2-emojipicker:1.4.0")
+
+    // Glide for loading GIF images
+    implementation("com.github.bumptech.glide:glide:4.16.0")
 }

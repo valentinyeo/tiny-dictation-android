@@ -22,8 +22,10 @@ import com.tinydictation.android.util.PreferenceManager
 import com.tinydictation.android.util.TranscriptionFilter
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
@@ -38,7 +40,8 @@ class TranscriptionManager(
     private val onTranscript: (text: String, isFinal: Boolean) -> Unit,
     private val onError: ((String) -> Unit)? = null,
     private val onStateChange: ((TranscriptionState) -> Unit)? = null,
-    private val context: Context? = null
+    private val context: Context? = null,
+    private val onSilenceAutoStop: (() -> Unit)? = null
 ) {
 
     companion object {
@@ -65,6 +68,9 @@ class TranscriptionManager(
     private var currentLanguage = "en"
     private var audioChunkCount = 0
 
+    // Silence auto-stop: timer that triggers when no audio chunks received for configured duration
+    private var silenceTimeoutJob: Job? = null
+
     // Available engines
     private val engines = mutableMapOf<String, TranscriptionEngine>()
 
@@ -73,6 +79,43 @@ class TranscriptionManager(
         engines[PreferenceManager.ENGINE_DEEPGRAM] = DeepgramEngine(apiKey)
         engines[PreferenceManager.ENGINE_VOSK] = VoskEngine()
         engines[PreferenceManager.ENGINE_SHERPA_ONNX] = SherpaOnnxEngine()
+
+        // Initialize language from user preferences (fixes bug where language reset to "en" after sleep)
+        currentLanguage = preferenceManager?.getLanguage() ?: "en"
+    }
+
+    /**
+     * Starts or resets the silence auto-stop timeout.
+     * When this timer expires without being reset, recording stops automatically.
+     */
+    private fun resetSilenceTimeout() {
+        val timeoutMs = preferenceManager?.getSilenceAutoStopMs() ?: 0
+        if (timeoutMs <= 0) return  // Auto-stop disabled
+
+        val currentScope = scope ?: return
+
+        // Cancel any existing timeout
+        silenceTimeoutJob?.cancel()
+
+        // Start new timeout
+        silenceTimeoutJob = currentScope.launch(Dispatchers.Main) {
+            delay(timeoutMs.toLong())
+
+            // Timer expired - trigger auto-stop
+            if (isListening) {
+                Log.i(TAG, "Silence auto-stop triggered after ${timeoutMs}ms of silence")
+                DebugLog.i("TranscriptionManager: Auto-stopping after ${timeoutMs}ms of silence")
+                onSilenceAutoStop?.invoke()
+            }
+        }
+    }
+
+    /**
+     * Cancels the silence timeout (called when stopping listening).
+     */
+    private fun cancelSilenceTimeout() {
+        silenceTimeoutJob?.cancel()
+        silenceTimeoutJob = null
     }
 
     /**
@@ -99,8 +142,11 @@ class TranscriptionManager(
             }
         }
 
-        Log.i(TAG, "TranscriptionManager starting listening")
-        DebugLog.i("TranscriptionManager: Starting listening")
+        // Refresh language from preferences before starting (in case it changed)
+        currentLanguage = preferenceManager?.getLanguage() ?: "en"
+
+        Log.i(TAG, "TranscriptionManager starting listening (language: $currentLanguage)")
+        DebugLog.i("TranscriptionManager: Starting listening (language: $currentLanguage)")
         isListening = true
         audioChunkCount = 0
 
@@ -217,6 +263,9 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Stopping listening")
         isListening = false
 
+        // Cancel silence auto-stop timer
+        cancelSilenceTimeout()
+
         audioRecorder.stopRecording()
         currentEngine?.endSession()
 
@@ -236,6 +285,9 @@ class TranscriptionManager(
         if (!isListening) return
 
         audioChunkCount++
+
+        // Reset silence auto-stop timer on each audio chunk
+        resetSilenceTimeout()
 
         // Log periodically
         if (audioChunkCount % 100 == 0) {

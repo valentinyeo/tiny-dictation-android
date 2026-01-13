@@ -38,8 +38,11 @@ class PreferenceManager(context: Context) {
         private const val KEY_PAUSE_MEDIA_DURING_DICTATION = "pause_media_during_dictation"
         private const val KEY_BAR_ORIENTATION = "bar_orientation"
         private const val KEY_BAR_TRANSPARENCY = "bar_transparency"
+        private const val KEY_SILENCE_AUTO_STOP_MS = "silence_auto_stop_ms"
+        private const val KEY_GIPHY_API_KEY = "giphy_api_key"
 
         // Default values
+        const val DEFAULT_SILENCE_AUTO_STOP_MS = 3000  // 3 seconds default, 0 = disabled
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
         const val DEFAULT_AUTO_PUNCTUATION = true
         const val DEFAULT_SMART_FORMAT = true
@@ -921,5 +924,58 @@ class PreferenceManager(context: Context) {
      */
     fun hasFallbackModel(): Boolean {
         return !getFallbackModel().isNullOrBlank()
+    }
+
+    // ========== Silence Auto-Stop ==========
+
+    /**
+     * Gets the silence auto-stop timeout in milliseconds.
+     * When recording and silence is detected for this duration, recording stops automatically.
+     * @return Timeout in milliseconds (2000, 3000, 5000), or 0 if disabled
+     */
+    fun getSilenceAutoStopMs(): Int {
+        return prefs.getInt(KEY_SILENCE_AUTO_STOP_MS, DEFAULT_SILENCE_AUTO_STOP_MS)
+    }
+
+    /**
+     * Sets the silence auto-stop timeout.
+     * @param ms Timeout in milliseconds (0 to disable, or 2000/3000/5000)
+     */
+    fun setSilenceAutoStopMs(ms: Int) {
+        prefs.edit().putInt(KEY_SILENCE_AUTO_STOP_MS, ms).apply()
+    }
+
+    /**
+     * Checks if silence auto-stop is enabled.
+     * @return true if auto-stop after silence is enabled
+     */
+    fun isSilenceAutoStopEnabled(): Boolean {
+        return getSilenceAutoStopMs() > 0
+    }
+
+    // ========== Giphy API Key ==========
+
+    /**
+     * Gets the stored Giphy API key for GIF search.
+     * @return The API key, or null if not set
+     */
+    fun getGiphyApiKey(): String? {
+        return prefs.getString(KEY_GIPHY_API_KEY, null)
+    }
+
+    /**
+     * Sets the Giphy API key.
+     * @param key The API key to store
+     */
+    fun setGiphyApiKey(key: String) {
+        prefs.edit().putString(KEY_GIPHY_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if a Giphy API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasGiphyApiKey(): Boolean {
+        return !getGiphyApiKey().isNullOrBlank()
     }
 }
