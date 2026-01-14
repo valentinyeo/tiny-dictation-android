@@ -60,6 +60,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.62:
+            • NEW: Tabbed keyboard - swipe or tap tabs to switch ABC/123↑
+            • Tab 1: QWERTY keyboard (letters, numbers, symbols)
+            • Tab 2: Cursor keys + numpad (arrows, navigation, calculator)
+            • Removed separate numpad button from bar
+
             v1.11.61:
             • NEW: Cursor/Numpad keyboard panel - tap grid icon to toggle
             • Left side: Calculator-style numpad (0-9, dot, equals)

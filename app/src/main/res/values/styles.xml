@@ -28,4 +28,10 @@
     <style name="KeyboardKeySpace" parent="KeyboardKey">
         <item name="android:layout_weight">4</item>
     </style>
+
+    <!-- Keyboard tab text style -->
+    <style name="KeyboardTabText" parent="TextAppearance.Material3.LabelMedium">
+        <item name="android:textSize">12sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
 </resources>

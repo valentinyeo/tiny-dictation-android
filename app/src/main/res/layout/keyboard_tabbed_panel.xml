@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Tabbed keyboard panel with QWERTY and Cursor/Numpad tabs -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/keyboardTabbedPanel"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:background="@color/surface_variant"
+    android:visibility="gone">
+
+    <!-- Tab bar at top -->
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/keyboardTabLayout"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:background="@color/surface_variant"
+        app:tabMode="fixed"
+        app:tabGravity="fill"
+        app:tabIndicatorColor="@color/primary"
+        app:tabIndicatorHeight="2dp"
+        app:tabSelectedTextColor="@color/primary"
+        app:tabTextColor="@color/on_surface_variant"
+        app:tabTextAppearance="@style/KeyboardTabText">
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="ABC" />
+
+        <com.google.android.material.tabs.TabItem
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="123↑" />
+
+    </com.google.android.material.tabs.TabLayout>
+
+    <!-- Swipeable container for keyboard panels -->
+    <FrameLayout
+        android:id="@+id/keyboardPagesContainer"
+        android:layout_width="match_parent"
+        android:layout_height="200dp">
+
+        <!-- Page 0: QWERTY keyboard -->
+        <include
+            layout="@layout/keyboard_qwerty_panel"
+            android:id="@+id/qwertyPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="visible" />
+
+        <!-- Page 1: Cursor/Numpad keyboard -->
+        <include
+            layout="@layout/keyboard_cursor_numpad_panel"
+            android:id="@+id/cursorNumpadPage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+
+    </FrameLayout>
+
+</LinearLayout>
