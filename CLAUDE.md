@@ -6,8 +6,21 @@
 1. Increment `versionCode` by 1
 2. Update `versionName` appropriately (patch/minor/major)
 3. **Update the "What's New" changelog** in `SettingsActivity.kt` companion object
+4. **COMMIT after every version** - Never leave versions uncommitted!
 
 This ensures every APK has a unique version and users can see what changed.
+
+### Mandatory Commit After Every Build
+
+**CRITICAL: After building and sending each version to Telegram, you MUST commit the changes immediately.**
+
+```bash
+git add -A && git commit -m "v{VERSION}: {Brief description of changes}"
+```
+
+Example: `git commit -m "v1.11.54: Mic colors - imperial red states"`
+
+**Never leave uncommitted versions.** If you skip this, reverting or switching branches will lose all work.
 
 1. **Version location**: `app/build.gradle.kts`
    - `versionCode` - Integer, increment by 1 for each build
@@ -80,6 +93,8 @@ nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvma
 
 ### Sending APKs to Telegram
 
+**CRITICAL: Every build MUST be sent to Telegram immediately after building.** The user cannot test APKs locally - they must be sent to Telegram to install on their phone. Do not ask "do you want me to send it?" - just send it automatically after every build.
+
 **APK naming convention**: Copy and rename with version before sending:
 ```bash
 cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
@@ -88,8 +103,8 @@ Example: `TinyDictation-v1.11.27-arm64.apk`
 
 Telegram credentials are in `~/.telegram-deploy`. Send with **actual changelog** in caption:
 ```bash
-curl -s -X POST "https://api.telegram.org/bot{TOKEN}/sendDocument" \
-  -F chat_id="{CHAT_ID}" \
+source ~/.telegram-deploy && curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
+  -F chat_id="${TELEGRAM_CHAT_ID}" \
   -F document=@"/tmp/TinyDictation-v{VERSION}-arm64.apk" \
   -F caption="v{VERSION}
 • Change 1
@@ -98,6 +113,8 @@ curl -s -X POST "https://api.telegram.org/bot{TOKEN}/sendDocument" \
 ```
 
 **Important**: Always list the actual changes from the changelog in SettingsActivity.kt, not just a summary.
+
+Use `/send` to manually trigger sending the latest APK if needed.
 
 ## Key Files
 

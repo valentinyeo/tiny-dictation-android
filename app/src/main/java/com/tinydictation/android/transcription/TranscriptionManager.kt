@@ -50,11 +50,17 @@ class TranscriptionManager(
 
     /**
      * Current state of the transcription manager.
+     *
+     * IDLE = Mic off, not listening
+     * STANDBY = Mic on, listening locally with VAD, NOT streaming (no cost)
+     * TRANSCRIBING = Speech detected, actively streaming to cloud (incurs cost)
+     * ERROR = Something went wrong
      */
     enum class TranscriptionState {
         IDLE,
-        LISTENING,
-        TRANSCRIBING,
+        STANDBY,      // Listening locally, waiting for speech (gray mic)
+        LISTENING,    // Legacy - kept for compatibility
+        TRANSCRIBING, // Actively streaming to cloud (red mic)
         ERROR
     }
 
@@ -70,6 +76,17 @@ class TranscriptionManager(
 
     // Silence auto-stop: timer that triggers when no audio chunks received for configured duration
     private var silenceTimeoutJob: Job? = null
+
+    // Smart VAD for standby mode - only stream when speech detected
+    private var isEngineConnected = false
+    private val audioBuffer = mutableListOf<ShortArray>()
+    private val AUDIO_BUFFER_MAX_CHUNKS = 25  // ~500ms of audio at 20ms chunks
+    private val SPEECH_RMS_THRESHOLD = 800    // RMS threshold to detect speech start
+    private val SILENCE_RMS_THRESHOLD = 300   // RMS threshold to detect silence
+    private var consecutiveSilenceChunks = 0
+    private val SILENCE_CHUNKS_TO_STOP = 75   // ~1.5 seconds of silence to stop streaming
+    private var consecutiveSpeechChunks = 0
+    private val SPEECH_CHUNKS_TO_START = 3    // ~60ms of speech to start streaming
 
     // Available engines
     private val engines = mutableMapOf<String, TranscriptionEngine>()
@@ -120,6 +137,8 @@ class TranscriptionManager(
 
     /**
      * Starts listening for speech and transcribing.
+     * Begins in STANDBY mode - recording locally with VAD but NOT streaming to cloud.
+     * Only connects to cloud when speech is detected (saves API costs).
      */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startListening() {
@@ -145,10 +164,14 @@ class TranscriptionManager(
         // Refresh language from preferences before starting (in case it changed)
         currentLanguage = preferenceManager?.getLanguage() ?: "en"
 
-        Log.i(TAG, "TranscriptionManager starting listening (language: $currentLanguage)")
-        DebugLog.i("TranscriptionManager: Starting listening (language: $currentLanguage)")
+        Log.i(TAG, "TranscriptionManager starting in STANDBY mode (language: $currentLanguage)")
+        DebugLog.i("TranscriptionManager: Starting in STANDBY mode (language: $currentLanguage)")
         isListening = true
+        isEngineConnected = false
         audioChunkCount = 0
+        consecutiveSilenceChunks = 0
+        consecutiveSpeechChunks = 0
+        audioBuffer.clear()
 
         // Request audio focus to pause other media apps (if enabled)
         if (preferenceManager?.getPauseMediaDuringDictation() == true) {
@@ -174,7 +197,7 @@ class TranscriptionManager(
             return
         }
 
-        // Select and initialize the appropriate engine
+        // Pre-select engine (but don't connect yet - that happens when speech detected)
         currentScope.launch(Dispatchers.IO) {
             val engine = selectEngine()
             if (engine == null) {
@@ -186,10 +209,10 @@ class TranscriptionManager(
             }
 
             currentEngine = engine
-            Log.i(TAG, "Selected engine: ${engine.displayName}")
-            DebugLog.i("TranscriptionManager: Using ${engine.displayName}")
+            Log.i(TAG, "Selected engine: ${engine.displayName} (will connect when speech detected)")
+            DebugLog.i("TranscriptionManager: Using ${engine.displayName} (standby)")
 
-            // Initialize engine
+            // Initialize engine (but don't start session yet)
             val initResult = engine.initialize(context!!, currentLanguage)
             if (initResult.isFailure) {
                 currentScope.launch(Dispatchers.Main) {
@@ -199,47 +222,19 @@ class TranscriptionManager(
                 return@launch
             }
 
-            // Start engine session
+            // Enter STANDBY state - listening locally but not streaming
             currentScope.launch(Dispatchers.Main) {
-                updateState(TranscriptionState.TRANSCRIBING)
+                updateState(TranscriptionState.STANDBY)
             }
-
-            // Clear any stale audio from previous sessions before starting
-            engine.clearAudioBuffer()
-
-            engine.startSession(
-                onTranscript = { text, isFinal ->
-                    currentScope.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            // Filter out Whisper hallucinations (sound descriptions, repetition, etc.)
-                            val filteredText = TranscriptionFilter.filter(text)
-                            if (filteredText != null) {
-                                onTranscript(filteredText, isFinal)
-                            } else {
-                                DebugLog.d("TranscriptionManager: Filtered out noise/hallucination: ${text.take(50)}...")
-                            }
-                        }
-                    }
-                },
-                onError = { error ->
-                    currentScope.launch(Dispatchers.Main) {
-                        if (isListening) {
-                            DebugLog.e("TranscriptionManager: Engine error - $error")
-                            onError?.invoke(error)
-                        }
-                    }
-                }
-            )
 
             // Start audio recording
             currentScope.launch(Dispatchers.Main) {
                 try {
-                    // Get headphone mic preference (default to false if no context)
                     val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
                     audioRecorder.startRecording(currentScope, context!!, useHeadphoneMic) { samples ->
                         processAudioChunk(samples)
                     }
-                    DebugLog.i("TranscriptionManager: Audio recording started (headphoneMic=$useHeadphoneMic)")
+                    DebugLog.i("TranscriptionManager: Audio recording started in STANDBY mode")
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to start audio recording", e)
                     DebugLog.e("TranscriptionManager: Failed to start recording - ${e.message}")
@@ -279,22 +274,143 @@ class TranscriptionManager(
     }
 
     /**
-     * Processes an audio chunk - sends to the active engine.
+     * Processes an audio chunk with smart VAD.
+     *
+     * In STANDBY mode: buffers audio, runs VAD, connects to engine when speech detected
+     * In TRANSCRIBING mode: streams to engine, runs VAD, disconnects when silence detected
      */
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
 
         audioChunkCount++
+        val rms = calculateRMS(samples)
 
-        // Reset silence auto-stop timer on each audio chunk
-        resetSilenceTimeout()
+        // Always buffer audio (for sending when speech starts)
+        synchronized(audioBuffer) {
+            audioBuffer.add(samples.copyOf())
+            while (audioBuffer.size > AUDIO_BUFFER_MAX_CHUNKS) {
+                audioBuffer.removeAt(0)
+            }
+        }
+
+        if (!isEngineConnected) {
+            // STANDBY mode - waiting for speech
+            if (rms > SPEECH_RMS_THRESHOLD) {
+                consecutiveSpeechChunks++
+                consecutiveSilenceChunks = 0
+
+                if (consecutiveSpeechChunks >= SPEECH_CHUNKS_TO_START) {
+                    // Speech detected! Connect to engine and start streaming
+                    Log.i(TAG, "Speech detected (RMS=$rms), connecting to engine")
+                    DebugLog.i("TranscriptionManager: Speech detected, connecting to cloud")
+                    connectAndStartStreaming()
+                }
+            } else {
+                consecutiveSpeechChunks = 0
+            }
+        } else {
+            // TRANSCRIBING mode - actively streaming
+            currentEngine?.processAudio(samples)
+
+            // Reset silence auto-stop timer
+            resetSilenceTimeout()
+
+            if (rms < SILENCE_RMS_THRESHOLD) {
+                consecutiveSilenceChunks++
+                consecutiveSpeechChunks = 0
+
+                if (consecutiveSilenceChunks >= SILENCE_CHUNKS_TO_STOP) {
+                    // Silence detected! Disconnect from engine, return to standby
+                    Log.i(TAG, "Silence detected, returning to standby")
+                    DebugLog.i("TranscriptionManager: Silence detected, returning to standby")
+                    disconnectAndStandby()
+                }
+            } else {
+                consecutiveSilenceChunks = 0
+                consecutiveSpeechChunks++
+            }
+        }
 
         // Log periodically
         if (audioChunkCount % 100 == 0) {
-            DebugLog.d("TranscriptionManager: Processed $audioChunkCount chunks")
+            val state = if (isEngineConnected) "STREAMING" else "STANDBY"
+            DebugLog.d("TranscriptionManager: chunks=$audioChunkCount, RMS=$rms, state=$state")
         }
+    }
 
-        currentEngine?.processAudio(samples)
+    /**
+     * Calculates RMS (root mean square) of audio samples for VAD.
+     */
+    private fun calculateRMS(samples: ShortArray): Int {
+        if (samples.isEmpty()) return 0
+        var sum = 0L
+        for (sample in samples) {
+            sum += sample.toLong() * sample.toLong()
+        }
+        return kotlin.math.sqrt(sum.toDouble() / samples.size).toInt()
+    }
+
+    /**
+     * Connects to the transcription engine and starts streaming.
+     * Called when speech is detected in STANDBY mode.
+     */
+    private fun connectAndStartStreaming() {
+        val engine = currentEngine ?: return
+        val currentScope = scope ?: return
+
+        isEngineConnected = true
+        consecutiveSilenceChunks = 0
+        updateState(TranscriptionState.TRANSCRIBING)
+
+        // Clear any stale audio and start session
+        engine.clearAudioBuffer()
+
+        engine.startSession(
+            onTranscript = { text, isFinal ->
+                currentScope.launch(Dispatchers.Main) {
+                    if (isListening) {
+                        val filteredText = TranscriptionFilter.filter(text)
+                        if (filteredText != null) {
+                            onTranscript(filteredText, isFinal)
+                        } else {
+                            DebugLog.d("TranscriptionManager: Filtered out noise: ${text.take(50)}...")
+                        }
+                    }
+                }
+            },
+            onError = { error ->
+                currentScope.launch(Dispatchers.Main) {
+                    if (isListening) {
+                        DebugLog.e("TranscriptionManager: Engine error - $error")
+                        onError?.invoke(error)
+                    }
+                }
+            }
+        )
+
+        // Send buffered audio (so we don't miss the start of speech)
+        synchronized(audioBuffer) {
+            DebugLog.d("TranscriptionManager: Sending ${audioBuffer.size} buffered chunks")
+            for (chunk in audioBuffer) {
+                engine.processAudio(chunk)
+            }
+            audioBuffer.clear()
+        }
+    }
+
+    /**
+     * Disconnects from the transcription engine and returns to STANDBY.
+     * Called when silence is detected in TRANSCRIBING mode.
+     */
+    private fun disconnectAndStandby() {
+        isEngineConnected = false
+        consecutiveSpeechChunks = 0
+        cancelSilenceTimeout()
+
+        currentEngine?.endSession()
+        updateState(TranscriptionState.STANDBY)
+
+        DebugLog.i("TranscriptionManager: Returned to STANDBY mode")
     }
 
     /**

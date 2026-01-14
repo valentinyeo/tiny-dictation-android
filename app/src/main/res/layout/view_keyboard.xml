@@ -11,13 +11,12 @@
     android:orientation="vertical"
     android:background="@color/surface_variant">
 
-    <!-- Expandable emoji/GIF panel - hidden by default, fixed height when visible -->
-    <include
-        layout="@layout/panel_emoji_gif"
-        android:id="@+id/emojiGifPanel"
+    <!-- Expandable emoji panel - lazy loaded via ViewStub for fast keyboard startup -->
+    <ViewStub
+        android:id="@+id/emojiPanelStub"
+        android:layout="@layout/panel_emoji"
         android:layout_width="match_parent"
-        android:layout_height="280dp"
-        android:visibility="gone" />
+        android:layout_height="280dp" />
 
     <!-- Expandable QWERTY keyboard panel - hidden by default -->
     <include
@@ -41,7 +40,7 @@
             android:fillViewport="true">
 
             <!-- Main dictation bar - KEEP THIS ID
-                 Order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron -->
+                 Order: Chevron | Keyboard | Emoji | Language | Mic | Enter | Backspace | SelectAll -->
             <LinearLayout
                 android:id="@+id/keyboardContainer"
                 android:layout_width="wrap_content"
@@ -53,74 +52,56 @@
                 android:background="@color/surface_variant"
                 android:minHeight="64dp">
 
-                <!-- Select All button -->
+                <!-- Switch back to previous keyboard (small chevron) -->
                 <FrameLayout
-                    android:id="@+id/btnSelectAll"
-                    android:layout_width="48dp"
+                    android:id="@+id/btnSwitchBack"
+                    android:layout_width="36dp"
                     android:layout_height="48dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Select all">
+                    android:contentDescription="Switch to previous keyboard">
 
                     <ImageView
-                        android:id="@+id/ivSelectAll"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:id="@+id/ivSwitchBack"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_select_all"
+                        android:src="@drawable/ic_chevron_down"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Backspace button -->
+                <!-- Keyboard button - toggles QWERTY keyboard panel -->
                 <FrameLayout
-                    android:id="@+id/btnBackspace"
+                    android:id="@+id/btnKeyboard"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Backspace">
+                    android:contentDescription="Keyboard">
 
                     <ImageView
-                        android:id="@+id/ivBackspace"
+                        android:id="@+id/ivKeyboard"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_backspace"
+                        android:src="@drawable/ic_keyboard"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Enter button -->
+                <!-- Emoji button - toggles emoji panel -->
                 <FrameLayout
-                    android:id="@+id/btnEnter"
+                    android:id="@+id/btnEmoji"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Enter">
+                    android:contentDescription="Emoji picker">
 
                     <ImageView
-                        android:id="@+id/ivEnter"
+                        android:id="@+id/ivEmoji"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_enter"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- Mic button - toggle dictation (long press = settings) -->
-                <FrameLayout
-                    android:id="@+id/btnKeyboardMic"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Toggle dictation">
-
-                    <ImageView
-                        android:id="@+id/ivKeyboardMic"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_mic"
+                        android:src="@drawable/ic_emoji"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
@@ -144,57 +125,75 @@
                         android:textStyle="bold" />
                 </FrameLayout>
 
-                <!-- Emoji button - toggles emoji panel -->
+                <!-- Mic button - toggle dictation (long press = settings) -->
                 <FrameLayout
-                    android:id="@+id/btnEmoji"
+                    android:id="@+id/btnKeyboardMic"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Emoji picker">
+                    android:contentDescription="Toggle dictation">
 
                     <ImageView
-                        android:id="@+id/ivEmoji"
+                        android:id="@+id/ivKeyboardMic"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_emoji"
+                        android:src="@drawable/ic_mic"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Keyboard button - toggles QWERTY keyboard panel -->
+                <!-- Enter button -->
                 <FrameLayout
-                    android:id="@+id/btnKeyboard"
+                    android:id="@+id/btnEnter"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Keyboard">
+                    android:contentDescription="Enter">
 
                     <ImageView
-                        android:id="@+id/ivKeyboard"
+                        android:id="@+id/ivEnter"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_keyboard"
+                        android:src="@drawable/ic_enter"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Switch back to previous keyboard (small chevron) -->
+                <!-- Backspace button -->
                 <FrameLayout
-                    android:id="@+id/btnSwitchBack"
-                    android:layout_width="36dp"
+                    android:id="@+id/btnBackspace"
+                    android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Switch to previous keyboard">
+                    android:contentDescription="Backspace">
 
                     <ImageView
-                        android:id="@+id/ivSwitchBack"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:id="@+id/ivBackspace"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_chevron_down"
+                        android:src="@drawable/ic_backspace"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- Select All button -->
+                <FrameLayout
+                    android:id="@+id/btnSelectAll"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Select all">
+
+                    <ImageView
+                        android:id="@+id/ivSelectAll"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_select_all"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 

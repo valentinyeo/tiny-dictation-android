@@ -19,6 +19,7 @@ import android.view.KeyEvent
 import android.view.LayoutInflater
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewStub
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
@@ -87,9 +88,10 @@ class DictationKeyboardService : InputMethodService() {
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
-    private var emojiGifPanel: View? = null
-    private var emojiGifPanelManager: com.tinydictation.android.gif.EmojiGifPanelManager? = null
+    private var emojiPanelStub: ViewStub? = null
+    private var emojiPanel: View? = null
     private var isEmojiPanelVisible = false
+    private var isEmojiPanelInflated = false
     private var qwertyPanel: View? = null
     private var isQwertyPanelVisible = false
     private var isShiftActive = false
@@ -102,6 +104,7 @@ class DictationKeyboardService : InputMethodService() {
     private var transcriptionManager: TranscriptionManager? = null
     private var isRecording = false
     private var isProcessing = false
+    private var isStandby = false  // True when in standby/hibernation mode
 
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
@@ -236,18 +239,27 @@ class DictationKeyboardService : InputMethodService() {
                         TranscriptionManager.TranscriptionState.IDLE -> {
                             isRecording = false
                             isProcessing = false
+                            isStandby = false
+                        }
+                        TranscriptionManager.TranscriptionState.STANDBY -> {
+                            isRecording = true
+                            isProcessing = false
+                            isStandby = true
                         }
                         TranscriptionManager.TranscriptionState.LISTENING -> {
                             isRecording = true
                             isProcessing = false
+                            isStandby = false
                         }
                         TranscriptionManager.TranscriptionState.TRANSCRIBING -> {
                             isRecording = true
                             isProcessing = true
+                            isStandby = false
                         }
                         TranscriptionManager.TranscriptionState.ERROR -> {
                             isRecording = false
                             isProcessing = false
+                            isStandby = false
                         }
                     }
                     updateMicButton()
@@ -298,11 +310,11 @@ class DictationKeyboardService : InputMethodService() {
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
-            emojiGifPanel = keyboardView?.findViewById(R.id.emojiGifPanel)
+            emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
             qwertyPanel = keyboardView?.findViewById(R.id.qwertyPanel)
 
             setupButtonHandlers()
-            setupEmojiGifPanel()
+            // Note: Emoji panel is lazy-loaded on first use
             setupQwertyKeyboard()
             applyTheme()
             updateMicButton()
@@ -584,21 +596,21 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     private fun updateMicButton() {
-        val color = if (isRecording || isProcessing) {
-            ContextCompat.getColor(this, R.color.bubble_recording)
-        } else {
-            // Use themed icon color when not recording
-            getThemedIconColor()
+        // Three visual states:
+        // - Active (transcribing): Imperial red #ED2939
+        // - Inactive (standby/hibernation): Darker imperial red #8B1C26
+        // - Off: White/themed
+        val color = when {
+            isProcessing -> Color.parseColor("#ED2939")  // Imperial red - actively transcribing
+            isStandby -> Color.parseColor("#8B1C26")  // Darker imperial red - standby
+            isRecording -> Color.parseColor("#ED2939")  // Imperial red (legacy)
+            else -> getThemedIconColor()  // White/themed - off
         }
         // Use imageTintList with a non-stateful ColorStateList to prevent color changes on press
         micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
 
-        // Handle pulse animation for processing state
-        if (isProcessing) {
-            startPulseAnimation(micIcon)
-        } else {
-            stopPulseAnimation(micIcon)
-        }
+        // No pulse animation - just static colors
+        stopPulseAnimation(micIcon)
     }
 
     /**
@@ -696,30 +708,24 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Sets up the tabbed Emoji/GIF panel with the panel manager.
+     * Sets up the emoji picker panel.
      */
-    private fun setupEmojiGifPanel() {
-        emojiGifPanel?.let { panel ->
-            emojiGifPanelManager = com.tinydictation.android.gif.EmojiGifPanelManager(
-                context = this,
-                panelView = panel,
-                onEmojiSelected = { emoji ->
-                    currentInputConnection?.commitText(emoji, 1)
-                    Log.d(TAG, "Emoji inserted: $emoji")
-                },
-                onGifSelected = { gif ->
-                    Log.d(TAG, "GIF selected: ${gif.id}")
-                },
-                getInputConnection = { currentInputConnection }
-            )
-            Log.i(TAG, "EmojiGifPanelManager initialized")
-            DebugLog.i("DictationKeyboardService: EmojiGifPanelManager initialized")
+    private fun setupEmojiPanel() {
+        emojiPanel?.let { panel ->
+            val emojiPicker = panel.findViewById<androidx.emoji2.emojipicker.EmojiPickerView>(R.id.emojiPicker)
+            emojiPicker?.setOnEmojiPickedListener { emojiViewItem ->
+                currentInputConnection?.commitText(emojiViewItem.emoji, 1)
+                Log.d(TAG, "Emoji inserted: ${emojiViewItem.emoji}")
+            }
+            Log.i(TAG, "Emoji panel initialized")
+            DebugLog.i("DictationKeyboardService: Emoji panel initialized")
         }
     }
 
     /**
-     * Toggles the emoji/GIF panel visibility.
+     * Toggles the emoji panel visibility.
      * Hides QWERTY panel if visible.
+     * Lazy-loads the panel on first use for fast keyboard startup.
      */
     private fun toggleEmojiPanel() {
         // Hide QWERTY panel if showing
@@ -728,10 +734,18 @@ class DictationKeyboardService : InputMethodService() {
             qwertyPanel?.visibility = View.GONE
         }
 
+        // Lazy inflate the panel on first use
+        if (!isEmojiPanelInflated) {
+            DebugLog.i("DictationKeyboardService: Lazy-inflating emoji panel...")
+            emojiPanel = emojiPanelStub?.inflate()
+            isEmojiPanelInflated = true
+            setupEmojiPanel()
+        }
+
         isEmojiPanelVisible = !isEmojiPanelVisible
-        emojiGifPanel?.visibility = if (isEmojiPanelVisible) View.VISIBLE else View.GONE
-        Log.d(TAG, "Emoji/GIF panel visibility: $isEmojiPanelVisible")
-        DebugLog.i("DictationKeyboardService: Emoji/GIF panel ${if (isEmojiPanelVisible) "shown" else "hidden"}")
+        emojiPanel?.visibility = if (isEmojiPanelVisible) View.VISIBLE else View.GONE
+        Log.d(TAG, "Emoji panel visibility: $isEmojiPanelVisible")
+        DebugLog.i("DictationKeyboardService: Emoji panel ${if (isEmojiPanelVisible) "shown" else "hidden"}")
     }
 
     /**
@@ -742,7 +756,7 @@ class DictationKeyboardService : InputMethodService() {
         // Hide emoji panel if showing
         if (isEmojiPanelVisible) {
             isEmojiPanelVisible = false
-            emojiGifPanel?.visibility = View.GONE
+            emojiPanel?.visibility = View.GONE
         }
 
         isQwertyPanelVisible = !isQwertyPanelVisible

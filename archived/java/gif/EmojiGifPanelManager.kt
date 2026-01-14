@@ -231,4 +231,22 @@ class EmojiGifPanelManager(
 
         Toast.makeText(context, "GIF URL inserted", Toast.LENGTH_SHORT).show()
     }
+
+    /**
+     * Returns true if the GIF search field is currently focused.
+     * Used to redirect voice transcription to the search field.
+     */
+    fun isGifSearchFocused(): Boolean {
+        return gifContent.isVisible && etGifSearch.hasFocus()
+    }
+
+    /**
+     * Inserts text into the GIF search field.
+     * Used for voice transcription when the search field is focused.
+     */
+    fun insertTextInGifSearch(text: String) {
+        val start = etGifSearch.selectionStart
+        val end = etGifSearch.selectionEnd
+        etGifSearch.text.replace(start.coerceAtLeast(0), end.coerceAtLeast(0), text)
+    }
 }
