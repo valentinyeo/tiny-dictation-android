@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.57:
+            • UI: Keyboard and Emoji buttons show active state when panels are expanded
+            • Active buttons show purple tint with up-arrow indicator
+            • Clear visual feedback for which panel is currently open
+
             v1.11.56:
             • NEW: Word Dictionary - fix common misspellings automatically
             • Add words that get replaced in all transcriptions

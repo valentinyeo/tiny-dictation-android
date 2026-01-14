@@ -97,6 +97,12 @@ class DictationKeyboardService : InputMethodService() {
     private var isShiftActive = false
     private var isCapsLock = false
 
+    // Button references for expanded state indicators
+    private var keyboardButton: FrameLayout? = null
+    private var keyboardIcon: ImageView? = null
+    private var emojiButton: FrameLayout? = null
+    private var emojiIcon: ImageView? = null
+
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
 
@@ -316,6 +322,10 @@ class DictationKeyboardService : InputMethodService() {
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
             qwertyPanel = keyboardView?.findViewById(R.id.qwertyPanel)
+            keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
+            keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
+            emojiButton = keyboardView?.findViewById(R.id.btnEmoji)
+            emojiIcon = keyboardView?.findViewById(R.id.ivEmoji)
 
             setupButtonHandlers()
             // Note: Emoji panel is lazy-loaded on first use
@@ -663,6 +673,42 @@ class DictationKeyboardService : InputMethodService() {
         }
     }
 
+    /**
+     * Updates the keyboard button visual state based on QWERTY panel visibility.
+     * When expanded: shows up-arrow icon variant and uses primary color for active look.
+     * When collapsed: shows normal icon with themed color.
+     */
+    private fun updateKeyboardButtonState() {
+        val iconRes = if (isQwertyPanelVisible) R.drawable.ic_keyboard_expanded else R.drawable.ic_keyboard
+        keyboardIcon?.setImageResource(iconRes)
+
+        // Apply active color (primary) when expanded, themed color when collapsed
+        val iconColor = if (isQwertyPanelVisible) {
+            ContextCompat.getColor(this, R.color.primary)
+        } else {
+            getThemedIconColor()
+        }
+        keyboardIcon?.imageTintList = android.content.res.ColorStateList.valueOf(iconColor)
+    }
+
+    /**
+     * Updates the emoji button visual state based on emoji panel visibility.
+     * When expanded: shows up-arrow icon variant and uses primary color for active look.
+     * When collapsed: shows normal icon with themed color.
+     */
+    private fun updateEmojiButtonState() {
+        val iconRes = if (isEmojiPanelVisible) R.drawable.ic_emoji_expanded else R.drawable.ic_emoji
+        emojiIcon?.setImageResource(iconRes)
+
+        // Apply active color (primary) when expanded, themed color when collapsed
+        val iconColor = if (isEmojiPanelVisible) {
+            ContextCompat.getColor(this, R.color.primary)
+        } else {
+            getThemedIconColor()
+        }
+        emojiIcon?.imageTintList = android.content.res.ColorStateList.valueOf(iconColor)
+    }
+
     private fun updateLanguageButton() {
         val prefs = PreferenceManager(this)
         val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
@@ -740,6 +786,7 @@ class DictationKeyboardService : InputMethodService() {
         if (isQwertyPanelVisible) {
             isQwertyPanelVisible = false
             qwertyPanel?.visibility = View.GONE
+            updateKeyboardButtonState()
         }
 
         // Lazy inflate the panel on first use
@@ -752,6 +799,7 @@ class DictationKeyboardService : InputMethodService() {
 
         isEmojiPanelVisible = !isEmojiPanelVisible
         emojiPanel?.visibility = if (isEmojiPanelVisible) View.VISIBLE else View.GONE
+        updateEmojiButtonState()
         Log.d(TAG, "Emoji panel visibility: $isEmojiPanelVisible")
         DebugLog.i("DictationKeyboardService: Emoji panel ${if (isEmojiPanelVisible) "shown" else "hidden"}")
     }
@@ -765,10 +813,12 @@ class DictationKeyboardService : InputMethodService() {
         if (isEmojiPanelVisible) {
             isEmojiPanelVisible = false
             emojiPanel?.visibility = View.GONE
+            updateEmojiButtonState()
         }
 
         isQwertyPanelVisible = !isQwertyPanelVisible
         qwertyPanel?.visibility = if (isQwertyPanelVisible) View.VISIBLE else View.GONE
+        updateKeyboardButtonState()
         Log.d(TAG, "QWERTY panel visibility: $isQwertyPanelVisible")
         DebugLog.i("DictationKeyboardService: QWERTY panel ${if (isQwertyPanelVisible) "shown" else "hidden"}")
     }
@@ -1077,6 +1127,8 @@ class DictationKeyboardService : InputMethodService() {
 
         updateMicButton()
         updateLanguageButton()
+        updateKeyboardButtonState()
+        updateEmojiButtonState()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
