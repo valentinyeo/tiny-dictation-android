@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.64:
+            • FIX: Remove duplicate visibility/ID attributes from layout
+
             v1.11.63:
             • FIX: Keyboard panel not showing (include tag ID issue)
 

@@ -21,7 +21,6 @@
     <!-- Tabbed keyboard panel (QWERTY + Cursor/Numpad) - hidden by default -->
     <include
         layout="@layout/keyboard_tabbed_panel"
-        android:id="@+id/keyboardTabbedPanel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:visibility="gone" />
