@@ -60,6 +60,12 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.56:
+            • NEW: Word Dictionary - fix common misspellings automatically
+            • Add words that get replaced in all transcriptions
+            • Case-insensitive matching with case preservation
+            • Quick restart button in Settings
+
             v1.11.55:
             • UI: Keyboard bar now scrolls to show SelectAll button by default
 
@@ -725,6 +731,8 @@ class SettingsActivity : AppCompatActivity() {
     private lateinit var overlayButton: MaterialButton
     private lateinit var accessibilityButton: MaterialButton
     private lateinit var historyButton: MaterialButton
+    private lateinit var dictionaryButton: MaterialButton
+    private lateinit var restartAppButton: MaterialButton
 
     private lateinit var toolbar: MaterialToolbar
     private lateinit var apiKeyInput: TextInputEditText
@@ -987,6 +995,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // History button
         historyButton = findViewById(R.id.btnHistory)
+
+        // Dictionary and Restart buttons
+        dictionaryButton = findViewById(R.id.btnDictionary)
+        restartAppButton = findViewById(R.id.btnRestartApp)
 
         // Settings views
         apiKeyInput = findViewById(R.id.etApiKey)
@@ -1716,6 +1728,18 @@ class SettingsActivity : AppCompatActivity() {
         historyButton.setOnClickListener {
             Log.d(TAG, "History button clicked")
             startActivity(Intent(this, HistoryActivity::class.java))
+        }
+
+        // Dictionary button
+        dictionaryButton.setOnClickListener {
+            Log.d(TAG, "Dictionary button clicked")
+            startActivity(Intent(this, DictionaryActivity::class.java))
+        }
+
+        // Restart app button
+        restartAppButton.setOnClickListener {
+            Log.d(TAG, "Restart app button clicked")
+            android.os.Process.killProcess(android.os.Process.myPid())
         }
 
         // Setup keyboard button - opens system keyboard settings

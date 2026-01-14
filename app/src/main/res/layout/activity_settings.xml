@@ -34,6 +34,16 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- Restart App Button (at very top for quick access) -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnRestartApp"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="16dp"
+                android:text="Restart App"
+                app:icon="@drawable/ic_close"
+                style="@style/Widget.Material3.Button.TonalButton" />
+
             <!-- Permissions Section Header -->
             <TextView
                 android:layout_width="wrap_content"
@@ -231,9 +241,19 @@
                 android:id="@+id/btnHistory"
                 android:layout_width="match_parent"
                 android:layout_height="48dp"
-                android:layout_marginBottom="24dp"
+                android:layout_marginBottom="8dp"
                 android:text="@string/view_history"
                 app:icon="@drawable/ic_history"
+                style="@style/Widget.Material3.Button.OutlinedButton" />
+
+            <!-- Word Dictionary Button -->
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnDictionary"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginBottom="24dp"
+                android:text="Word Dictionary"
+                app:icon="@drawable/ic_note"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
 
             <!-- Transcription Provider Section (Unified) -->

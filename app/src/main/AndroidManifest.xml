@@ -47,6 +47,12 @@
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
+        <!-- Dictionary Activity -->
+        <activity
+            android:name=".DictionaryActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TinyDictation" />
+
         <!-- Accessibility Service for Text Injection -->
         <service
             android:name=".service.DictationAccessibilityService"

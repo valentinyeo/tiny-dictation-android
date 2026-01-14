@@ -214,9 +214,13 @@ class DictationKeyboardService : InputMethodService() {
                 if (isFinal && text.isNotBlank()) {
                     // Commit text to the current input field
                     Handler(Looper.getMainLooper()).post {
-                        commitTextInternal(text + " ")
+                        // Apply word replacements before committing
+                        val processedText = com.tinydictation.android.dictionary.WordReplacementManager
+                            .getInstance(this@DictationKeyboardService)
+                            .applyReplacements(text)
+                        commitTextInternal(processedText + " ")
                     }
-                    // Save to transcription history
+                    // Save original text to transcription history
                     val language = prefs.getLanguage()
                     TranscriptionHistoryManager.getInstance(this).save(text, language)
                     DebugLog.i("DictationKeyboardService: Saved transcription to history")
