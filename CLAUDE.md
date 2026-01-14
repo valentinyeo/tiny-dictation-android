@@ -14,11 +14,12 @@
 5. Copy APK: cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
 6. Send to Telegram (see command below)
 7. COMMIT IMMEDIATELY: git add -A && git commit -m "v{VERSION}: {description}"
+8. PUSH IMMEDIATELY: git push origin master
 ```
 
-**Step 7 is NOT optional. Uncommitted versions WILL BE LOST.**
+**Steps 7 and 8 are NOT optional. Uncommitted/unpushed versions WILL BE LOST.**
 
-Previous sessions skipped commits and lost 8 versions of work. Don't repeat this mistake.
+Previous sessions skipped commits and lost 8 versions of work. Another session committed but forgot to push 13 versions. Don't repeat these mistakes.
 
 ---
 
