@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.59:
+            • NEW: Numbers/symbols keyboard - tap 123 to switch
+            • Two symbol pages: tap #+= for more symbols (€£¥ etc.)
+            • Tap ABC to return to letters
+
             v1.11.58:
             • FIX: Dictation bar now scrolls left to show SelectAll button
 

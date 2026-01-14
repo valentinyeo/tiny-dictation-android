@@ -96,6 +96,7 @@ class DictationKeyboardService : InputMethodService() {
     private var isQwertyPanelVisible = false
     private var isShiftActive = false
     private var isCapsLock = false
+    private var isNumbersMode = false  // Numbers/symbols keyboard mode
 
     // Button references for expanded state indicators
     private var keyboardButton: FrameLayout? = null
@@ -819,6 +820,14 @@ class DictationKeyboardService : InputMethodService() {
         isQwertyPanelVisible = !isQwertyPanelVisible
         qwertyPanel?.visibility = if (isQwertyPanelVisible) View.VISIBLE else View.GONE
         updateKeyboardButtonState()
+
+        // Reset to letters mode when closing the keyboard
+        if (!isQwertyPanelVisible && isNumbersMode) {
+            isNumbersMode = false
+            isShiftActive = false
+            updateKeyboardMode()
+        }
+
         Log.d(TAG, "QWERTY panel visibility: $isQwertyPanelVisible")
         DebugLog.i("DictationKeyboardService: QWERTY panel ${if (isQwertyPanelVisible) "shown" else "hidden"}")
     }
@@ -840,13 +849,15 @@ class DictationKeyboardService : InputMethodService() {
             R.id.key_n to "n", R.id.key_m to "m"
         )
 
-        for ((id, char) in letterKeys) {
-            qwertyPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
-                val textToCommit = if (isShiftActive || isCapsLock) char.uppercase() else char
+        for ((id, _) in letterKeys) {
+            val button = qwertyPanel?.findViewById<android.widget.Button>(id)
+            button?.setOnClickListener {
+                // Use the button's displayed text (works for both letters and numbers/symbols)
+                val textToCommit = button.text.toString()
                 currentInputConnection?.commitText(textToCommit, 1)
 
-                // Turn off shift after one character (unless caps lock)
-                if (isShiftActive && !isCapsLock) {
+                // Turn off shift after one character (unless caps lock, and only in letters mode)
+                if (!isNumbersMode && isShiftActive && !isCapsLock) {
                     isShiftActive = false
                     updateShiftKeyDisplay()
                 }
@@ -876,34 +887,159 @@ class DictationKeyboardService : InputMethodService() {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         }
 
-        // Shift key - tap for shift, double-tap for caps lock
+        // Shift key - tap for shift, double-tap for caps lock (or symbols toggle in numbers mode)
         val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
         var lastShiftTapTime = 0L
         shiftButton?.setOnClickListener {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastShiftTapTime < 300) {
-                // Double tap - toggle caps lock
-                isCapsLock = !isCapsLock
-                isShiftActive = isCapsLock
-                DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
+            if (isNumbersMode) {
+                // In numbers mode, shift toggles secondary symbols
+                isShiftActive = !isShiftActive
+                updateSymbolsDisplay()
             } else {
-                // Single tap - toggle shift
-                if (isCapsLock) {
-                    // Turn off caps lock
-                    isCapsLock = false
-                    isShiftActive = false
+                // In letters mode, normal shift/caps behavior
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastShiftTapTime < 300) {
+                    // Double tap - toggle caps lock
+                    isCapsLock = !isCapsLock
+                    isShiftActive = isCapsLock
+                    DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
                 } else {
-                    isShiftActive = !isShiftActive
+                    // Single tap - toggle shift
+                    if (isCapsLock) {
+                        // Turn off caps lock
+                        isCapsLock = false
+                        isShiftActive = false
+                    } else {
+                        isShiftActive = !isShiftActive
+                    }
                 }
+                lastShiftTapTime = currentTime
+                updateShiftKeyDisplay()
             }
-            lastShiftTapTime = currentTime
-            updateShiftKeyDisplay()
         }
 
-        // 123/numbers key - placeholder for future numeric keyboard
+        // 123/ABC key - toggle between letters and numbers/symbols
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
-            // TODO: Switch to numeric keyboard panel
-            DebugLog.d("DictationKeyboardService: Numbers key tapped (not implemented)")
+            toggleNumbersMode()
+        }
+    }
+
+    /**
+     * Toggles between QWERTY letters and numbers/symbols mode.
+     */
+    private fun toggleNumbersMode() {
+        isNumbersMode = !isNumbersMode
+        updateKeyboardMode()
+        DebugLog.d("DictationKeyboardService: Numbers mode: $isNumbersMode")
+    }
+
+    /**
+     * Updates all keyboard keys based on current mode (letters vs numbers/symbols).
+     */
+    private fun updateKeyboardMode() {
+        // Numbers/symbols mapping for each key position
+        // Row 1: 1 2 3 4 5 6 7 8 9 0
+        // Row 2: @ # $ % & - + ( )
+        // Row 3: ! " ' : ; / ? Backspace
+        val numbersRow1 = mapOf(
+            R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
+            R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
+            R.id.key_o to "9", R.id.key_p to "0"
+        )
+        val numbersRow2 = mapOf(
+            R.id.key_a to "@", R.id.key_s to "#", R.id.key_d to "$", R.id.key_f to "%",
+            R.id.key_g to "&", R.id.key_h to "-", R.id.key_j to "+", R.id.key_k to "(",
+            R.id.key_l to ")"
+        )
+        val numbersRow3 = mapOf(
+            R.id.key_z to "!", R.id.key_x to "\"", R.id.key_c to "'", R.id.key_v to ":",
+            R.id.key_b to ";", R.id.key_n to "/", R.id.key_m to "?"
+        )
+
+        val lettersRow1 = mapOf(
+            R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
+            R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
+            R.id.key_o to "o", R.id.key_p to "p"
+        )
+        val lettersRow2 = mapOf(
+            R.id.key_a to "a", R.id.key_s to "s", R.id.key_d to "d", R.id.key_f to "f",
+            R.id.key_g to "g", R.id.key_h to "h", R.id.key_j to "j", R.id.key_k to "k",
+            R.id.key_l to "l"
+        )
+        val lettersRow3 = mapOf(
+            R.id.key_z to "z", R.id.key_x to "x", R.id.key_c to "c", R.id.key_v to "v",
+            R.id.key_b to "b", R.id.key_n to "n", R.id.key_m to "m"
+        )
+
+        if (isNumbersMode) {
+            // Update to numbers/symbols
+            for ((id, char) in numbersRow1 + numbersRow2 + numbersRow3) {
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+            }
+            // Update mode switch button to "ABC"
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "ABC"
+            // Hide shift key text (not applicable in numbers mode)
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
+        } else {
+            // Update to letters
+            val useUppercase = isShiftActive || isCapsLock
+            for ((id, char) in lettersRow1 + lettersRow2 + lettersRow3) {
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
+                    if (useUppercase) char.uppercase() else char
+            }
+            // Update mode switch button to "123"
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "123"
+            // Restore shift key
+            updateShiftKeyDisplay()
+        }
+    }
+
+    /**
+     * Updates symbols display for secondary symbols (when shift is pressed in numbers mode).
+     */
+    private fun updateSymbolsDisplay() {
+        // Primary symbols (no shift): 1-0, @ # $ % & - + ( ), ! " ' : ; / ?
+        // Secondary symbols (shift): ~ ` | • √ π ÷ × ¶ ∆, € £ ¥ ^ ° = { } \ © ® ™ ✓
+        val primaryRow1 = mapOf(
+            R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
+            R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
+            R.id.key_o to "9", R.id.key_p to "0"
+        )
+        val primaryRow2 = mapOf(
+            R.id.key_a to "@", R.id.key_s to "#", R.id.key_d to "$", R.id.key_f to "%",
+            R.id.key_g to "&", R.id.key_h to "-", R.id.key_j to "+", R.id.key_k to "(",
+            R.id.key_l to ")"
+        )
+        val primaryRow3 = mapOf(
+            R.id.key_z to "!", R.id.key_x to "\"", R.id.key_c to "'", R.id.key_v to ":",
+            R.id.key_b to ";", R.id.key_n to "/", R.id.key_m to "?"
+        )
+
+        val secondaryRow1 = mapOf(
+            R.id.key_q to "~", R.id.key_w to "`", R.id.key_e to "|", R.id.key_r to "•",
+            R.id.key_t to "√", R.id.key_y to "π", R.id.key_u to "÷", R.id.key_i to "×",
+            R.id.key_o to "§", R.id.key_p to "∆"
+        )
+        val secondaryRow2 = mapOf(
+            R.id.key_a to "€", R.id.key_s to "£", R.id.key_d to "¥", R.id.key_f to "^",
+            R.id.key_g to "°", R.id.key_h to "=", R.id.key_j to "{", R.id.key_k to "}",
+            R.id.key_l to "\\"
+        )
+        val secondaryRow3 = mapOf(
+            R.id.key_z to "©", R.id.key_x to "®", R.id.key_c to "™", R.id.key_v to "✓",
+            R.id.key_b to "[", R.id.key_n to "]", R.id.key_m to "_"
+        )
+
+        if (isShiftActive) {
+            for ((id, char) in secondaryRow1 + secondaryRow2 + secondaryRow3) {
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+            }
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "123"
+        } else {
+            for ((id, char) in primaryRow1 + primaryRow2 + primaryRow3) {
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+            }
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
         }
     }
 
