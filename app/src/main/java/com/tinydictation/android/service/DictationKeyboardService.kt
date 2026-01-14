@@ -95,7 +95,9 @@ class DictationKeyboardService : InputMethodService() {
 
     // Tabbed keyboard panel (QWERTY + Cursor/Numpad)
     private var keyboardTabbedPanel: View? = null
-    private var keyboardTabLayout: com.google.android.material.tabs.TabLayout? = null
+    private var tabABC: TextView? = null
+    private var tabNumpad: TextView? = null
+    private var tabIndicator: View? = null
     private var qwertyPanel: View? = null
     private var cursorNumpadPanel: View? = null
     private var isKeyboardPanelVisible = false
@@ -332,7 +334,9 @@ class DictationKeyboardService : InputMethodService() {
 
             // Tabbed keyboard panel
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
-            keyboardTabLayout = keyboardTabbedPanel?.findViewById(R.id.keyboardTabLayout)
+            tabABC = keyboardTabbedPanel?.findViewById(R.id.tabABC)
+            tabNumpad = keyboardTabbedPanel?.findViewById(R.id.tabNumpad)
+            tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
 
@@ -855,22 +859,26 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Sets up the keyboard tab layout and swipe gestures.
+     * Sets up the keyboard tab bar and swipe gestures.
      */
     private fun setupKeyboardTabs() {
         // Set initial visibility - QWERTY visible, cursor/numpad hidden
         qwertyPanel?.visibility = View.VISIBLE
         cursorNumpadPanel?.visibility = View.GONE
 
-        // Tab selection listener
-        keyboardTabLayout?.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
-            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
-                currentKeyboardTab = tab?.position ?: 0
+        // Tab click listeners
+        tabABC?.setOnClickListener {
+            if (currentKeyboardTab != 0) {
+                currentKeyboardTab = 0
                 updateKeyboardTabContent()
             }
-            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
-        })
+        }
+        tabNumpad?.setOnClickListener {
+            if (currentKeyboardTab != 1) {
+                currentKeyboardTab = 1
+                updateKeyboardTabContent()
+            }
+        }
 
         // Set up swipe gesture detection on the keyboard pages container
         val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
@@ -881,16 +889,14 @@ class DictationKeyboardService : InputMethodService() {
 
                 // Horizontal swipe detection
                 if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY) && kotlin.math.abs(diffX) > 100 && kotlin.math.abs(velocityX) > 100) {
-                    if (diffX > 0) {
+                    if (diffX > 0 && currentKeyboardTab > 0) {
                         // Swipe right - go to previous tab
-                        if (currentKeyboardTab > 0) {
-                            keyboardTabLayout?.getTabAt(currentKeyboardTab - 1)?.select()
-                        }
-                    } else {
+                        currentKeyboardTab = 0
+                        updateKeyboardTabContent()
+                    } else if (diffX < 0 && currentKeyboardTab < 1) {
                         // Swipe left - go to next tab
-                        if (currentKeyboardTab < 1) {
-                            keyboardTabLayout?.getTabAt(currentKeyboardTab + 1)?.select()
-                        }
+                        currentKeyboardTab = 1
+                        updateKeyboardTabContent()
                     }
                     return true
                 }
@@ -903,6 +909,9 @@ class DictationKeyboardService : InputMethodService() {
             gestureDetector.onTouchEvent(event)
             false  // Allow child views to also handle touch events
         }
+
+        // Update initial tab indicator
+        updateTabIndicator()
     }
 
     /**
@@ -919,7 +928,37 @@ class DictationKeyboardService : InputMethodService() {
                 cursorNumpadPanel?.visibility = View.VISIBLE
             }
         }
+        updateTabIndicator()
         DebugLog.d("DictationKeyboardService: Switched to keyboard tab $currentKeyboardTab")
+    }
+
+    /**
+     * Updates the tab indicator position and colors.
+     */
+    private fun updateTabIndicator() {
+        val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
+        val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
+
+        when (currentKeyboardTab) {
+            0 -> {
+                tabABC?.setTextColor(primaryColor)
+                tabNumpad?.setTextColor(inactiveColor)
+            }
+            1 -> {
+                tabABC?.setTextColor(inactiveColor)
+                tabNumpad?.setTextColor(primaryColor)
+            }
+        }
+
+        // Update indicator position (half width, positioned under selected tab)
+        tabIndicator?.post {
+            val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
+            val indicatorWidth = parentWidth / 2
+            tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
+                width = indicatorWidth
+            }
+            tabIndicator?.translationX = (currentKeyboardTab * indicatorWidth).toFloat()
+        }
     }
 
     /**

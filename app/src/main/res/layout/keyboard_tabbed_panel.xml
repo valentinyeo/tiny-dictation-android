@@ -1,38 +1,60 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Tabbed keyboard panel with QWERTY and Cursor/Numpad tabs -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/keyboardTabbedPanel"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:background="@color/surface_variant">
 
-    <!-- Tab bar at top -->
-    <com.google.android.material.tabs.TabLayout
-        android:id="@+id/keyboardTabLayout"
+    <!-- Simple tab bar using LinearLayout (Material TabLayout fails in IME context) -->
+    <LinearLayout
+        android:id="@+id/keyboardTabBar"
         android:layout_width="match_parent"
         android:layout_height="36dp"
-        android:background="@color/surface_variant"
-        app:tabMode="fixed"
-        app:tabGravity="fill"
-        app:tabIndicatorColor="@color/primary"
-        app:tabIndicatorHeight="2dp"
-        app:tabSelectedTextColor="@color/primary"
-        app:tabTextColor="@color/on_surface_variant"
-        app:tabTextAppearance="@style/KeyboardTabText">
+        android:orientation="horizontal"
+        android:background="@color/surface_variant">
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="ABC" />
+        <TextView
+            android:id="@+id/tabABC"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="ABC"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/primary"
+            android:background="?android:attr/selectableItemBackground" />
 
-        <com.google.android.material.tabs.TabItem
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="123↑" />
+        <TextView
+            android:id="@+id/tabNumpad"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="123↑"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface_variant"
+            android:background="?android:attr/selectableItemBackground" />
 
-    </com.google.android.material.tabs.TabLayout>
+    </LinearLayout>
+
+    <!-- Tab indicator line -->
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="@color/surface">
+
+        <View
+            android:id="@+id/tabIndicator"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_gravity="start"
+            android:background="@color/primary" />
+
+    </FrameLayout>
 
     <!-- Swipeable container for keyboard panels -->
     <FrameLayout

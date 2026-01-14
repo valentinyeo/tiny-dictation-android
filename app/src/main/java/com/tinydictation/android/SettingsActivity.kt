@@ -61,7 +61,7 @@ class SettingsActivity : AppCompatActivity() {
         // Changelog - update this with each version
         private val CHANGELOG = """
             v1.11.65:
-            • DEBUG: Show actual error message when keyboard fails to load
+            • FIX: Replace Material TabLayout with simple tab bar (TabLayout fails in IME context)
 
             v1.11.64:
             • FIX: Remove duplicate visibility/ID attributes from layout
