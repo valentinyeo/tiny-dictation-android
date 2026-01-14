@@ -60,10 +60,14 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.67:
+            • NEW: Space button added for quick space insertion during dictation
+            • Swapped Emoji/Keyboard order (Emoji first)
+            • Button order: Chevron | Emoji | Keyboard | Clipboard | Enter | Space | MIC | Backspace | Language | SelectAll
+
             v1.11.66:
             • NEW: Restored button order with MIC centered for thumb access
             • NEW: Clipboard/History button restored - opens transcription history
-            • Button order: Chevron | Keyboard | Emoji | Clipboard | Enter | MIC | Backspace | Language | SelectAll
 
             v1.11.65:
             • FIX: Replace Material TabLayout with simple tab bar (TabLayout fails in IME context)

@@ -55,10 +55,31 @@ The app uses keyboard-based dictation only:
 
 **Full Keyboard (IME)** (`DictationKeyboardService.kt`)
 - Complete replacement keyboard with dictation and action buttons
-- Button order: Chevron | Language | Mic | Enter | Backspace | History | SelectAll
 - Chevron switches back to previous keyboard
 - Long-press mic opens Settings
-- History button opens transcription history
+- Clipboard button opens transcription history (select & paste past transcriptions)
+
+### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
+
+```
+Chevron | Emoji | Keyboard | Clipboard | Enter | Space | MIC | Backspace | Language | SelectAll
+         └──── scroll left to see ─────┘              └───── visible, MIC centered ──────────┘
+```
+
+**Button functions:**
+1. **Chevron** - Switch to previous keyboard
+2. **Emoji** - Toggle emoji picker panel
+3. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
+4. **Clipboard** - Open transcription history (icon: ic_history)
+5. **Enter** - Send enter key
+6. **Space** - Insert space (useful during dictation)
+7. **MIC** - Toggle dictation (CENTERED for thumb access)
+8. **Backspace** - Delete character
+9. **Language** - Switch transcription language
+10. **SelectAll** - Select all text
+
+**Layout file:** `app/src/main/res/layout/view_keyboard.xml`
+**Scroll behavior:** Centers on MIC button by default
 
 ### Archived Modes (in `archived/` directory)
 The following experimental modes have been archived but preserved for reference:

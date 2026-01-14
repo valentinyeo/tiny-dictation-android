@@ -428,6 +428,7 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnHistory), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnSpace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
         // Apply text color to language text
@@ -504,6 +505,11 @@ class DictationKeyboardService : InputMethodService() {
         // Enter button
         keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
             sendEnterKey()
+        }
+
+        // Space button - insert space
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSpace)?.setOnClickListener {
+            currentInputConnection?.commitText(" ", 1)
         }
 
         // Emoji button - toggles emoji panel
