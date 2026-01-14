@@ -40,7 +40,8 @@
             android:fillViewport="true">
 
             <!-- Main dictation bar - KEEP THIS ID
-                 Order: Chevron | Keyboard | Emoji | Language | Mic | Enter | Backspace | SelectAll -->
+                 Order: SelectAll | Paste | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
+                 Scroll starts at LEFT so SelectAll/Paste are visible by default -->
             <LinearLayout
                 android:id="@+id/keyboardContainer"
                 android:layout_width="wrap_content"
@@ -52,56 +53,92 @@
                 android:background="@color/surface_variant"
                 android:minHeight="64dp">
 
-                <!-- Switch back to previous keyboard (small chevron) -->
+                <!-- Select All button -->
                 <FrameLayout
-                    android:id="@+id/btnSwitchBack"
-                    android:layout_width="36dp"
+                    android:id="@+id/btnSelectAll"
+                    android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Switch to previous keyboard">
+                    android:contentDescription="Select all">
 
                     <ImageView
-                        android:id="@+id/ivSwitchBack"
-                        android:layout_width="18dp"
-                        android:layout_height="18dp"
+                        android:id="@+id/ivSelectAll"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_chevron_down"
+                        android:src="@drawable/ic_select_all"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Keyboard button - toggles QWERTY keyboard panel -->
+                <!-- Paste button -->
                 <FrameLayout
-                    android:id="@+id/btnKeyboard"
+                    android:id="@+id/btnPaste"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Keyboard">
+                    android:contentDescription="Paste">
 
                     <ImageView
-                        android:id="@+id/ivKeyboard"
+                        android:id="@+id/ivPaste"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_keyboard"
+                        android:src="@drawable/ic_paste"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Emoji button - toggles emoji panel -->
+                <!-- Backspace button -->
                 <FrameLayout
-                    android:id="@+id/btnEmoji"
+                    android:id="@+id/btnBackspace"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Emoji picker">
+                    android:contentDescription="Backspace">
 
                     <ImageView
-                        android:id="@+id/ivEmoji"
+                        android:id="@+id/ivBackspace"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_emoji"
+                        android:src="@drawable/ic_backspace"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- Enter button -->
+                <FrameLayout
+                    android:id="@+id/btnEnter"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Enter">
+
+                    <ImageView
+                        android:id="@+id/ivEnter"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_enter"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- Mic button - toggle dictation (long press = settings) -->
+                <FrameLayout
+                    android:id="@+id/btnKeyboardMic"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Toggle dictation">
+
+                    <ImageView
+                        android:id="@+id/ivKeyboardMic"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_mic"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
@@ -125,75 +162,57 @@
                         android:textStyle="bold" />
                 </FrameLayout>
 
-                <!-- Mic button - toggle dictation (long press = settings) -->
+                <!-- Emoji button - toggles emoji panel -->
                 <FrameLayout
-                    android:id="@+id/btnKeyboardMic"
+                    android:id="@+id/btnEmoji"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Toggle dictation">
+                    android:contentDescription="Emoji picker">
 
                     <ImageView
-                        android:id="@+id/ivKeyboardMic"
+                        android:id="@+id/ivEmoji"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_mic"
+                        android:src="@drawable/ic_emoji"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Enter button -->
+                <!-- Keyboard button - toggles QWERTY keyboard panel -->
                 <FrameLayout
-                    android:id="@+id/btnEnter"
+                    android:id="@+id/btnKeyboard"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Enter">
+                    android:contentDescription="Keyboard">
 
                     <ImageView
-                        android:id="@+id/ivEnter"
+                        android:id="@+id/ivKeyboard"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_enter"
+                        android:src="@drawable/ic_keyboard"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- Backspace button -->
+                <!-- Switch back to previous keyboard (small chevron) -->
                 <FrameLayout
-                    android:id="@+id/btnBackspace"
-                    android:layout_width="48dp"
+                    android:id="@+id/btnSwitchBack"
+                    android:layout_width="36dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Backspace">
+                    android:contentDescription="Switch to previous keyboard">
 
                     <ImageView
-                        android:id="@+id/ivBackspace"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
+                        android:id="@+id/ivSwitchBack"
+                        android:layout_width="18dp"
+                        android:layout_height="18dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_backspace"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- Select All button -->
-                <FrameLayout
-                    android:id="@+id/btnSelectAll"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Select all">
-
-                    <ImageView
-                        android:id="@+id/ivSelectAll"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_select_all"
+                        android:src="@drawable/ic_chevron_down"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 

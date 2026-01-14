@@ -407,6 +407,7 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
         // Apply text color to language text
@@ -473,6 +474,11 @@ class DictationKeyboardService : InputMethodService() {
         // Select All button
         keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.setOnClickListener {
             selectAll()
+        }
+
+        // Paste button - paste from system clipboard
+        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.setOnClickListener {
+            pasteFromClipboard()
         }
 
         // Enter button
@@ -1190,6 +1196,21 @@ class DictationKeyboardService : InputMethodService() {
             val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
             val totalLength = before.length + after.length
             ic.setSelection(0, totalLength)
+        }
+    }
+
+    private fun pasteFromClipboard() {
+        Log.i(TAG, "DictationKeyboardService: Paste from clipboard")
+        DebugLog.d("DictationKeyboardService: Pasting from clipboard")
+
+        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as? android.content.ClipboardManager
+        val clip = clipboard?.primaryClip
+        if (clip != null && clip.itemCount > 0) {
+            val text = clip.getItemAt(0).coerceToText(this)
+            if (text.isNotEmpty()) {
+                currentInputConnection?.commitText(text, 1)
+                DebugLog.d("DictationKeyboardService: Pasted ${text.length} characters")
+            }
         }
     }
 

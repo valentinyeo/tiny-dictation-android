@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.60:
+            • FIX: Restored Paste button to dictation bar
+            • FIX: Reordered buttons - SelectAll/Paste now on left (visible by default)
+            • Button order: SelectAll | Paste | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
+
             v1.11.59:
             • NEW: Numbers/symbols keyboard - tap 123 to switch
             • Two symbol pages: tap #+= for more symbols (€£¥ etc.)
