@@ -427,7 +427,7 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnHistory), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
 
         // Apply text color to language text
@@ -496,9 +496,9 @@ class DictationKeyboardService : InputMethodService() {
             selectAll()
         }
 
-        // Paste button - paste from system clipboard
-        keyboardView?.findViewById<FrameLayout>(R.id.btnPaste)?.setOnClickListener {
-            pasteFromClipboard()
+        // History/Clipboard button - opens transcription history
+        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.setOnClickListener {
+            openTranscriptionHistory()
         }
 
         // Enter button
@@ -775,16 +775,23 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Scrolls the dictation bar to default position.
-     * Current order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
-     * Default position 0 shows the main buttons on the left; scroll right to see Emoji/Keyboard/Chevron.
+     * Scrolls the dictation bar to center the MIC button.
+     * Button order: Chevron | Keyboard | Emoji | Clipboard | Enter | MIC | Backspace | Language | SelectAll
      */
     private fun scrollDictationBarToDefault() {
-        // Scroll to the LEFT so SelectAll button is fully visible
-        // Button order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
         val scrollView = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
+        val micButton = keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboardMic)
+
         scrollView?.post {
-            scrollView.fullScroll(HorizontalScrollView.FOCUS_LEFT)
+            micButton?.let { mic ->
+                // Calculate scroll position to center MIC button
+                val scrollViewWidth = scrollView.width
+                val micLeft = mic.left
+                val micWidth = mic.width
+                val micCenter = micLeft + micWidth / 2
+                val scrollTo = micCenter - scrollViewWidth / 2
+                scrollView.smoothScrollTo(scrollTo.coerceAtLeast(0), 0)
+            }
         }
     }
 
