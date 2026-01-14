@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.55:
+            • UI: Keyboard bar now scrolls to show SelectAll button by default
+
             v1.11.54:
             • UI: Mic colors - active: imperial red, standby: dark imperial red, off: white
 
