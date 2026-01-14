@@ -1,26 +1,34 @@
 # Tiny Dictation Android - Development Notes
 
-## Versioning Requirements
+## ⚠️ MANDATORY WORKFLOW - READ FIRST ⚠️
 
-**CRITICAL**: Before ANY code change that will be pushed, you MUST:
-1. Increment `versionCode` by 1
-2. Update `versionName` appropriately (patch/minor/major)
-3. **Update the "What's New" changelog** in `SettingsActivity.kt` companion object
-4. **COMMIT after every version** - Never leave versions uncommitted!
+**Every code change MUST follow this exact sequence. NO EXCEPTIONS.**
 
-This ensures every APK has a unique version and users can see what changed.
+### The Build-Send-Commit Cycle
 
-### Mandatory Commit After Every Build
-
-**CRITICAL: After building and sending each version to Telegram, you MUST commit the changes immediately.**
-
-```bash
-git add -A && git commit -m "v{VERSION}: {Brief description of changes}"
+```
+1. Make code changes
+2. Update version in app/build.gradle.kts (increment versionCode + versionName)
+3. Update changelog in SettingsActivity.kt
+4. Build: nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx512m"
+5. Copy APK: cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
+6. Send to Telegram (see command below)
+7. COMMIT IMMEDIATELY: git add -A && git commit -m "v{VERSION}: {description}"
 ```
 
-Example: `git commit -m "v1.11.54: Mic colors - imperial red states"`
+**Step 7 is NOT optional. Uncommitted versions WILL BE LOST.**
 
-**Never leave uncommitted versions.** If you skip this, reverting or switching branches will lose all work.
+Previous sessions skipped commits and lost 8 versions of work. Don't repeat this mistake.
+
+---
+
+## Versioning Requirements
+
+**CRITICAL**: For ANY code change, you MUST:
+1. Increment `versionCode` by 1
+2. Update `versionName` appropriately (patch/minor/major)
+3. Update changelog in `SettingsActivity.kt` companion object
+4. **COMMIT after every version** - Never leave versions uncommitted!
 
 1. **Version location**: `app/build.gradle.kts`
    - `versionCode` - Integer, increment by 1 for each build

@@ -4,6 +4,15 @@
 
 **Every build MUST be sent to Telegram for testing.** The user cannot test APKs locally - they need to be sent to Telegram to install on their phone. After completing any code changes and building an APK, ALWAYS send it to Telegram immediately. Do not ask "do you want me to send it?" - just send it.
 
+## ⚠️ CRITICAL: COMMIT AFTER SENDING ⚠️
+
+**After sending to Telegram, you MUST commit immediately:**
+```bash
+git add -A && git commit -m "v{VERSION}: {Brief description}"
+```
+
+**Never skip this step.** Previous sessions lost 8 versions of work by not committing.
+
 ## What This Skill Does
 
 Sends the latest built APK to Telegram for testing on the user's device.
