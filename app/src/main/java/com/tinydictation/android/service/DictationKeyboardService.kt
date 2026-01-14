@@ -753,11 +753,11 @@ class DictationKeyboardService : InputMethodService() {
      * Default position 0 shows the main buttons on the left; scroll right to see Emoji/Keyboard/Chevron.
      */
     private fun scrollDictationBarToDefault() {
-        // Scroll to the RIGHT so SelectAll button is fully visible
-        // Button order: Chevron | Keyboard | Emoji | Language | Mic | Enter | Backspace | SelectAll
+        // Scroll to the LEFT so SelectAll button is fully visible
+        // Button order: SelectAll | Backspace | Enter | Mic | Language | Emoji | Keyboard | Chevron
         val scrollView = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
         scrollView?.post {
-            scrollView.fullScroll(HorizontalScrollView.FOCUS_RIGHT)
+            scrollView.fullScroll(HorizontalScrollView.FOCUS_LEFT)
         }
     }
 

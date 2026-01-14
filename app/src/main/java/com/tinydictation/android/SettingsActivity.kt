@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.58:
+            • FIX: Dictation bar now scrolls left to show SelectAll button
+
             v1.11.57:
             • UI: Keyboard and Emoji buttons show active state when panels are expanded
             • Active buttons show purple tint with up-arrow indicator
