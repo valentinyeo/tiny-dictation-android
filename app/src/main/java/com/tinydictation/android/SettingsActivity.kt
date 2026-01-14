@@ -60,6 +60,9 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.63:
+            • FIX: Keyboard panel not showing (include tag ID issue)
+
             v1.11.62:
             • NEW: Tabbed keyboard - swipe or tap tabs to switch ABC/123↑
             • Tab 1: QWERTY keyboard (letters, numbers, symbols)

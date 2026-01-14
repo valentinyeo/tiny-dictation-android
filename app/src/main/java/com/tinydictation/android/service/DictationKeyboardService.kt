@@ -96,8 +96,8 @@ class DictationKeyboardService : InputMethodService() {
     // Tabbed keyboard panel (QWERTY + Cursor/Numpad)
     private var keyboardTabbedPanel: View? = null
     private var keyboardTabLayout: com.google.android.material.tabs.TabLayout? = null
-    private var qwertyPage: View? = null
-    private var cursorNumpadPage: View? = null
+    private var qwertyPanel: View? = null
+    private var cursorNumpadPanel: View? = null
     private var isKeyboardPanelVisible = false
     private var currentKeyboardTab = 0  // 0 = QWERTY, 1 = Cursor/Numpad
 
@@ -333,8 +333,8 @@ class DictationKeyboardService : InputMethodService() {
             // Tabbed keyboard panel
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
             keyboardTabLayout = keyboardTabbedPanel?.findViewById(R.id.keyboardTabLayout)
-            qwertyPage = keyboardTabbedPanel?.findViewById(R.id.qwertyPage)
-            cursorNumpadPage = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPage)
+            qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
+            cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
 
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
@@ -857,6 +857,10 @@ class DictationKeyboardService : InputMethodService() {
      * Sets up the keyboard tab layout and swipe gestures.
      */
     private fun setupKeyboardTabs() {
+        // Set initial visibility - QWERTY visible, cursor/numpad hidden
+        qwertyPanel?.visibility = View.VISIBLE
+        cursorNumpadPanel?.visibility = View.GONE
+
         // Tab selection listener
         keyboardTabLayout?.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
@@ -906,12 +910,12 @@ class DictationKeyboardService : InputMethodService() {
     private fun updateKeyboardTabContent() {
         when (currentKeyboardTab) {
             0 -> {
-                qwertyPage?.visibility = View.VISIBLE
-                cursorNumpadPage?.visibility = View.GONE
+                qwertyPanel?.visibility = View.VISIBLE
+                cursorNumpadPanel?.visibility = View.GONE
             }
             1 -> {
-                qwertyPage?.visibility = View.GONE
-                cursorNumpadPage?.visibility = View.VISIBLE
+                qwertyPanel?.visibility = View.GONE
+                cursorNumpadPanel?.visibility = View.VISIBLE
             }
         }
         DebugLog.d("DictationKeyboardService: Switched to keyboard tab $currentKeyboardTab")
@@ -921,7 +925,7 @@ class DictationKeyboardService : InputMethodService() {
      * Sets up the QWERTY keyboard key handlers.
      */
     private fun setupQwertyKeyboard() {
-        qwertyPage ?: return
+        qwertyPanel ?: return
 
         // Letter keys - map button IDs to characters
         val letterKeys = mapOf(
@@ -935,7 +939,7 @@ class DictationKeyboardService : InputMethodService() {
         )
 
         for ((id, _) in letterKeys) {
-            val button = qwertyPage?.findViewById<android.widget.Button>(id)
+            val button = qwertyPanel?.findViewById<android.widget.Button>(id)
             button?.setOnClickListener {
                 // Use the button's displayed text (works for both letters and numbers/symbols)
                 val textToCommit = button.text.toString()
@@ -950,30 +954,30 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         // Punctuation keys
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
         }
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_period)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)?.setOnClickListener {
             currentInputConnection?.commitText(".", 1)
         }
 
         // Space bar
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_space)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
         }
 
         // Enter key
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_enter)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
 
         // Backspace key
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         }
 
         // Shift key - tap for shift, double-tap for caps lock (or symbols toggle in numbers mode)
-        val shiftButton = qwertyPage?.findViewById<android.widget.Button>(R.id.key_shift)
+        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
         var lastShiftTapTime = 0L
         shiftButton?.setOnClickListener {
             if (isNumbersMode) {
@@ -1004,7 +1008,7 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         // 123/ABC key - toggle between letters and numbers/symbols
-        qwertyPage?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
         }
     }
@@ -1013,7 +1017,7 @@ class DictationKeyboardService : InputMethodService() {
      * Sets up the cursor/numpad panel key handlers.
      */
     private fun setupCursorNumpadPanel() {
-        cursorNumpadPage ?: return
+        cursorNumpadPanel ?: return
 
         // Number pad keys - commit text directly
         val numpadKeys = mapOf(
@@ -1024,56 +1028,56 @@ class DictationKeyboardService : InputMethodService() {
         )
 
         for ((id, char) in numpadKeys) {
-            cursorNumpadPage?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+            cursorNumpadPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
             }
         }
 
         // Cursor/navigation keys - send key events
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
         }
 
         // Navigation keys
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_home)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_home)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_HOME)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_end)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_end)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_END)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_pgup)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgup)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_UP)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_pgdn)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgdn)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_DOWN)
         }
 
         // Additional keys
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_tab)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_tab)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_del)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_del)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_esc)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_esc)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ESCAPE)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_space)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
         }
-        cursorNumpadPage?.findViewById<android.widget.Button>(R.id.cursor_enter)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
     }
@@ -1128,21 +1132,21 @@ class DictationKeyboardService : InputMethodService() {
         if (isNumbersMode) {
             // Update to numbers/symbols
             for ((id, char) in numbersRow1 + numbersRow2 + numbersRow3) {
-                qwertyPage?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
             }
             // Update mode switch button to "ABC"
-            qwertyPage?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "ABC"
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "ABC"
             // Hide shift key text (not applicable in numbers mode)
-            qwertyPage?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
         } else {
             // Update to letters
             val useUppercase = isShiftActive || isCapsLock
             for ((id, char) in lettersRow1 + lettersRow2 + lettersRow3) {
-                qwertyPage?.findViewById<android.widget.Button>(id)?.text =
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
                     if (useUppercase) char.uppercase() else char
             }
             // Update mode switch button to "123"
-            qwertyPage?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "123"
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "123"
             // Restore shift key
             updateShiftKeyDisplay()
         }
@@ -1186,14 +1190,14 @@ class DictationKeyboardService : InputMethodService() {
 
         if (isShiftActive) {
             for ((id, char) in secondaryRow1 + secondaryRow2 + secondaryRow3) {
-                qwertyPage?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
             }
-            qwertyPage?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "123"
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "123"
         } else {
             for ((id, char) in primaryRow1 + primaryRow2 + primaryRow3) {
-                qwertyPage?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
             }
-            qwertyPage?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
+            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
         }
     }
 
@@ -1201,7 +1205,7 @@ class DictationKeyboardService : InputMethodService() {
      * Updates the shift key display based on current state.
      */
     private fun updateShiftKeyDisplay() {
-        val shiftButton = qwertyPage?.findViewById<android.widget.Button>(R.id.key_shift)
+        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
         shiftButton?.text = when {
             isCapsLock -> "⇪"  // Caps lock indicator
             isShiftActive -> "⇧"  // Shift active (filled)
@@ -1228,7 +1232,7 @@ class DictationKeyboardService : InputMethodService() {
 
         val useUppercase = isShiftActive || isCapsLock
         for ((id, char) in letterKeys) {
-            qwertyPage?.findViewById<android.widget.Button>(id)?.text =
+            qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
                 if (useUppercase) char.uppercase() else char
         }
     }

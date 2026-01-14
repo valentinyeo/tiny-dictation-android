@@ -41,21 +41,17 @@
         android:layout_width="match_parent"
         android:layout_height="200dp">
 
-        <!-- Page 0: QWERTY keyboard -->
+        <!-- Page 0: QWERTY keyboard (uses qwertyPanel ID from included layout) -->
         <include
             layout="@layout/keyboard_qwerty_panel"
-            android:id="@+id/qwertyPage"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="visible" />
+            android:layout_height="match_parent" />
 
-        <!-- Page 1: Cursor/Numpad keyboard -->
+        <!-- Page 1: Cursor/Numpad keyboard (uses cursorNumpadPanel ID from included layout) -->
         <include
             layout="@layout/keyboard_cursor_numpad_panel"
-            android:id="@+id/cursorNumpadPage"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:visibility="gone" />
+            android:layout_height="match_parent" />
 
     </FrameLayout>
 
