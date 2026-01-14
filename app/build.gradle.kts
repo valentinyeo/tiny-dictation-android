@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 167
-        versionName = "1.11.60"
+        versionCode = 168
+        versionName = "1.11.61"
     }
 
     // Generate separate APKs per ABI to reduce size

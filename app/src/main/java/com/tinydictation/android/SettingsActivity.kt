@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.61:
+            • NEW: Cursor/Numpad keyboard panel - tap grid icon to toggle
+            • Left side: Calculator-style numpad (0-9, dot, equals)
+            • Right side: Arrow keys, Home/End, PgUp/PgDn, Tab, Del, Esc
+
             v1.11.60:
             • FIX: Restored Paste button to dictation bar
             • FIX: Reordered buttons - SelectAll/Paste now on left (visible by default)

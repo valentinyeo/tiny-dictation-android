@@ -94,6 +94,8 @@ class DictationKeyboardService : InputMethodService() {
     private var isEmojiPanelInflated = false
     private var qwertyPanel: View? = null
     private var isQwertyPanelVisible = false
+    private var cursorNumpadPanel: View? = null
+    private var isNumpadPanelVisible = false
     private var isShiftActive = false
     private var isCapsLock = false
     private var isNumbersMode = false  // Numbers/symbols keyboard mode
@@ -103,6 +105,8 @@ class DictationKeyboardService : InputMethodService() {
     private var keyboardIcon: ImageView? = null
     private var emojiButton: FrameLayout? = null
     private var emojiIcon: ImageView? = null
+    private var numpadButton: FrameLayout? = null
+    private var numpadIcon: ImageView? = null
 
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
@@ -323,14 +327,18 @@ class DictationKeyboardService : InputMethodService() {
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
             qwertyPanel = keyboardView?.findViewById(R.id.qwertyPanel)
+            cursorNumpadPanel = keyboardView?.findViewById(R.id.cursorNumpadPanel)
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
             emojiButton = keyboardView?.findViewById(R.id.btnEmoji)
             emojiIcon = keyboardView?.findViewById(R.id.ivEmoji)
+            numpadButton = keyboardView?.findViewById(R.id.btnNumpad)
+            numpadIcon = keyboardView?.findViewById(R.id.ivNumpad)
 
             setupButtonHandlers()
             // Note: Emoji panel is lazy-loaded on first use
             setupQwertyKeyboard()
+            setupCursorNumpadPanel()
             applyTheme()
             updateMicButton()
             updateLanguageButton()
@@ -405,6 +413,7 @@ class DictationKeyboardService : InputMethodService() {
         applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
+        applyButtonTheme(keyboardView?.findViewById(R.id.btnNumpad), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
         applyButtonTheme(keyboardView?.findViewById(R.id.btnPaste), buttonColor, iconColor)
@@ -494,6 +503,11 @@ class DictationKeyboardService : InputMethodService() {
         // Keyboard button - toggles QWERTY keyboard panel
         keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboard)?.setOnClickListener {
             toggleQwertyPanel()
+        }
+
+        // Numpad button - toggles cursor/numpad panel
+        keyboardView?.findViewById<FrameLayout>(R.id.btnNumpad)?.setOnClickListener {
+            toggleNumpadPanel()
         }
 
         // Switch back to previous keyboard button
@@ -716,6 +730,24 @@ class DictationKeyboardService : InputMethodService() {
         emojiIcon?.imageTintList = android.content.res.ColorStateList.valueOf(iconColor)
     }
 
+    /**
+     * Updates the numpad button visual state based on cursor/numpad panel visibility.
+     * When expanded: shows up-arrow icon variant and uses primary color for active look.
+     * When collapsed: shows normal icon with themed color.
+     */
+    private fun updateNumpadButtonState() {
+        val iconRes = if (isNumpadPanelVisible) R.drawable.ic_numpad_expanded else R.drawable.ic_numpad
+        numpadIcon?.setImageResource(iconRes)
+
+        // Apply active color (primary) when expanded, themed color when collapsed
+        val iconColor = if (isNumpadPanelVisible) {
+            ContextCompat.getColor(this, R.color.primary)
+        } else {
+            getThemedIconColor()
+        }
+        numpadIcon?.imageTintList = android.content.res.ColorStateList.valueOf(iconColor)
+    }
+
     private fun updateLanguageButton() {
         val prefs = PreferenceManager(this)
         val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
@@ -785,7 +817,7 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Toggles the emoji panel visibility.
-     * Hides QWERTY panel if visible.
+     * Hides QWERTY and numpad panels if visible.
      * Lazy-loads the panel on first use for fast keyboard startup.
      */
     private fun toggleEmojiPanel() {
@@ -794,6 +826,13 @@ class DictationKeyboardService : InputMethodService() {
             isQwertyPanelVisible = false
             qwertyPanel?.visibility = View.GONE
             updateKeyboardButtonState()
+        }
+
+        // Hide numpad panel if showing
+        if (isNumpadPanelVisible) {
+            isNumpadPanelVisible = false
+            cursorNumpadPanel?.visibility = View.GONE
+            updateNumpadButtonState()
         }
 
         // Lazy inflate the panel on first use
@@ -813,7 +852,7 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Toggles the QWERTY keyboard panel visibility.
-     * Hides emoji panel if visible.
+     * Hides emoji and numpad panels if visible.
      */
     private fun toggleQwertyPanel() {
         // Hide emoji panel if showing
@@ -821,6 +860,13 @@ class DictationKeyboardService : InputMethodService() {
             isEmojiPanelVisible = false
             emojiPanel?.visibility = View.GONE
             updateEmojiButtonState()
+        }
+
+        // Hide numpad panel if showing
+        if (isNumpadPanelVisible) {
+            isNumpadPanelVisible = false
+            cursorNumpadPanel?.visibility = View.GONE
+            updateNumpadButtonState()
         }
 
         isQwertyPanelVisible = !isQwertyPanelVisible
@@ -836,6 +882,33 @@ class DictationKeyboardService : InputMethodService() {
 
         Log.d(TAG, "QWERTY panel visibility: $isQwertyPanelVisible")
         DebugLog.i("DictationKeyboardService: QWERTY panel ${if (isQwertyPanelVisible) "shown" else "hidden"}")
+    }
+
+    /**
+     * Toggles the cursor/numpad panel visibility.
+     * Hides emoji and QWERTY panels if visible.
+     */
+    private fun toggleNumpadPanel() {
+        // Hide emoji panel if showing
+        if (isEmojiPanelVisible) {
+            isEmojiPanelVisible = false
+            emojiPanel?.visibility = View.GONE
+            updateEmojiButtonState()
+        }
+
+        // Hide QWERTY panel if showing
+        if (isQwertyPanelVisible) {
+            isQwertyPanelVisible = false
+            qwertyPanel?.visibility = View.GONE
+            updateKeyboardButtonState()
+        }
+
+        isNumpadPanelVisible = !isNumpadPanelVisible
+        cursorNumpadPanel?.visibility = if (isNumpadPanelVisible) View.VISIBLE else View.GONE
+        updateNumpadButtonState()
+
+        Log.d(TAG, "Cursor/numpad panel visibility: $isNumpadPanelVisible")
+        DebugLog.i("DictationKeyboardService: Cursor/numpad panel ${if (isNumpadPanelVisible) "shown" else "hidden"}")
     }
 
     /**
@@ -927,6 +1000,75 @@ class DictationKeyboardService : InputMethodService() {
         // 123/ABC key - toggle between letters and numbers/symbols
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
+        }
+    }
+
+    /**
+     * Sets up the cursor/numpad panel key handlers.
+     */
+    private fun setupCursorNumpadPanel() {
+        cursorNumpadPanel ?: return
+
+        // Number pad keys - commit text directly
+        val numpadKeys = mapOf(
+            R.id.numpad_0 to "0", R.id.numpad_1 to "1", R.id.numpad_2 to "2",
+            R.id.numpad_3 to "3", R.id.numpad_4 to "4", R.id.numpad_5 to "5",
+            R.id.numpad_6 to "6", R.id.numpad_7 to "7", R.id.numpad_8 to "8",
+            R.id.numpad_9 to "9", R.id.numpad_dot to ".", R.id.numpad_equals to "="
+        )
+
+        for ((id, char) in numpadKeys) {
+            cursorNumpadPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+                currentInputConnection?.commitText(char, 1)
+            }
+        }
+
+        // Cursor/navigation keys - send key events
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+        }
+
+        // Navigation keys
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_home)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_HOME)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_end)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_END)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgup)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_UP)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgdn)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_DOWN)
+        }
+
+        // Additional keys
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_tab)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_del)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_esc)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ESCAPE)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_space)?.setOnClickListener {
+            currentInputConnection?.commitText(" ", 1)
+        }
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_enter)?.setOnClickListener {
+            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
     }
 
@@ -1286,6 +1428,7 @@ class DictationKeyboardService : InputMethodService() {
         updateLanguageButton()
         updateKeyboardButtonState()
         updateEmojiButtonState()
+        updateNumpadButtonState()
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {

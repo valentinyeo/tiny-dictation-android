@@ -26,6 +26,14 @@
         android:layout_height="200dp"
         android:visibility="gone" />
 
+    <!-- Expandable cursor/numpad panel - hidden by default -->
+    <include
+        layout="@layout/keyboard_cursor_numpad_panel"
+        android:id="@+id/cursorNumpadPanel"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:visibility="gone" />
+
     <!-- Dictation bar wrapper (FrameLayout for version overlay) -->
     <FrameLayout
         android:layout_width="match_parent"
@@ -177,6 +185,24 @@
                         android:layout_height="24dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_emoji"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- Numpad button - toggles cursor/numpad panel -->
+                <FrameLayout
+                    android:id="@+id/btnNumpad"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Numpad and cursor keys">
+
+                    <ImageView
+                        android:id="@+id/ivNumpad"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_numpad"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
