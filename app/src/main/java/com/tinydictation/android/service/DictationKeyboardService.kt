@@ -355,11 +355,12 @@ class DictationKeyboardService : InputMethodService() {
             keyboardView!!
         } catch (e: Exception) {
             Log.e(TAG, "Error creating keyboard view", e)
-            DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}")
+            DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}\n${e.stackTraceToString()}")
             TextView(this).apply {
-                text = "Tiny Dictation Keyboard"
+                text = "Error: ${e.message}"
                 setPadding(16, 16, 16, 16)
-                textSize = 16f
+                textSize = 12f
+                setTextColor(android.graphics.Color.RED)
             }
         }
     }
