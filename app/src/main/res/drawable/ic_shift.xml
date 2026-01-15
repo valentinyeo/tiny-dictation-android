@@ -7,14 +7,14 @@
     <!-- Shift key icon - upward arrow matching enter/backspace style -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="M12,19V5" />
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

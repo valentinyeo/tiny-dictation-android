@@ -7,21 +7,21 @@
     <!-- Delete/backspace key icon -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="M21,4H8l-7,8 7,8h13a2,2 0,0 0,2 -2V6a2,2 0,0 0,-2 -2z" />
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
         android:pathData="M18,9l-6,6" />
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="@android:color/white"
+        android:strokeColor="#000000"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"

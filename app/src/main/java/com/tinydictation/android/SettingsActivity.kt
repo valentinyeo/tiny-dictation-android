@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.74:
+            • FIX: Icon colors for shift, backspace, enter now visible on keyboard
+            • Moved SelectAll to left of Emoji
+            • Button order: Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Language | Clipboard
+
             v1.11.73:
             • NEW: Icon-based shift, backspace, enter keys on QWERTY keyboard
             • NEW: Backspace hold-to-repeat on QWERTY and cursor/numpad panels

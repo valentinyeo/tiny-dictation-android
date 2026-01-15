@@ -62,15 +62,15 @@ The app uses keyboard-based dictation only:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | Emoji | Keyboard | SelectAll | Space | Backspace | MIC | Enter | Language | Clipboard
-         └──── scroll left to see ─────┘       └───── visible, MIC centered ────────────────┘
+Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Language | Clipboard
+         └───── scroll left to see ─────┘       └───── visible, MIC centered ───────────────┘
 ```
 
 **Button functions:**
 1. **Chevron** - Switch to previous keyboard
-2. **Emoji** - Toggle emoji picker panel
-3. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
-4. **SelectAll** - Select all text
+2. **SelectAll** - Select all text
+3. **Emoji** - Toggle emoji picker panel
+4. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
 5. **Space** - Insert space (useful during dictation)
 6. **Backspace** - Delete character
 7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)

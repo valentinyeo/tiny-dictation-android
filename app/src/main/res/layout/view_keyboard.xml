@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | Emoji | Keyboard | SelectAll | Space | Backspace | MIC | Enter | Language | Clipboard
+     Button order: Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Language | Clipboard
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -70,7 +70,25 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 2. Emoji button - toggles emoji panel -->
+                <!-- 2. Select All button -->
+                <FrameLayout
+                    android:id="@+id/btnSelectAll"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Select all">
+
+                    <ImageView
+                        android:id="@+id/ivSelectAll"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_select_all"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- 3. Emoji button - toggles emoji panel -->
                 <FrameLayout
                     android:id="@+id/btnEmoji"
                     android:layout_width="48dp"
@@ -88,7 +106,7 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 3. Keyboard button - toggles tabbed keyboard panel -->
+                <!-- 4. Keyboard button - toggles tabbed keyboard panel -->
                 <FrameLayout
                     android:id="@+id/btnKeyboard"
                     android:layout_width="48dp"
@@ -103,24 +121,6 @@
                         android:layout_height="24dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_keyboard"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- 4. Select All button -->
-                <FrameLayout
-                    android:id="@+id/btnSelectAll"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Select all">
-
-                    <ImageView
-                        android:id="@+id/ivSelectAll"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_select_all"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
