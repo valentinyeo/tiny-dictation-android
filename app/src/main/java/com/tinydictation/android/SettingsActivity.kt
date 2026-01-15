@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.68:
+            • NEW: Auto-start dictation when keyboard opens (mic red by default)
+            • Swapped Enter/Backspace positions for easier access
+            • Button order: Chevron | Emoji | Keyboard | Clipboard | Backspace | Space | MIC | Enter | Language | SelectAll
+
             v1.11.67:
             • NEW: Space button added for quick space insertion during dictation
             • Swapped Emoji/Keyboard order (Emoji first)

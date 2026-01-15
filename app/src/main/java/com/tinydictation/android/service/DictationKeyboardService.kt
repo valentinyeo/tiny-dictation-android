@@ -1491,6 +1491,35 @@ class DictationKeyboardService : InputMethodService() {
         updateLanguageButton()
         updateKeyboardButtonState()
         updateEmojiButtonState()
+
+        // Auto-start dictation when keyboard opens (mic red/active by default)
+        if (!isRecording && !isProcessing) {
+            // Small delay to let UI settle before starting audio
+            Handler(Looper.getMainLooper()).postDelayed({
+                if (!isRecording && !isProcessing) {
+                    Log.i(TAG, "Auto-starting dictation on keyboard open")
+                    DebugLog.i("DictationKeyboardService: Auto-starting dictation")
+
+                    // Initialize TranscriptionManager if needed
+                    if (transcriptionManager == null) {
+                        initializeTranscriptionManager()
+                    }
+
+                    transcriptionManager?.let { manager ->
+                        try {
+                            manager.startListening()
+                            updateMicButton()
+                        } catch (e: SecurityException) {
+                            Log.e(TAG, "Auto-start failed - mic permission denied", e)
+                            DebugLog.e("DictationKeyboardService: Auto-start failed - ${e.message}")
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Auto-start failed", e)
+                            DebugLog.e("DictationKeyboardService: Auto-start failed - ${e.message}")
+                        }
+                    }
+                }
+            }, 100)
+        }
     }
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {

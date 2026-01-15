@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | Emoji | Keyboard | Clipboard | Enter | Space | MIC | Backspace | Language | SelectAll
+     Button order: Chevron | Emoji | Keyboard | Clipboard | Backspace | Space | MIC | Enter | Language | SelectAll
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -124,21 +124,21 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 5. Enter button -->
+                <!-- 5. Backspace button -->
                 <FrameLayout
-                    android:id="@+id/btnEnter"
+                    android:id="@+id/btnBackspace"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Enter">
+                    android:contentDescription="Backspace">
 
                     <ImageView
-                        android:id="@+id/ivEnter"
+                        android:id="@+id/ivBackspace"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_enter"
+                        android:src="@drawable/ic_backspace"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
@@ -178,25 +178,25 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 7. Backspace button -->
+                <!-- 8. Enter button -->
                 <FrameLayout
-                    android:id="@+id/btnBackspace"
+                    android:id="@+id/btnEnter"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Backspace">
+                    android:contentDescription="Enter">
 
                     <ImageView
-                        android:id="@+id/ivBackspace"
+                        android:id="@+id/ivEnter"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_backspace"
+                        android:src="@drawable/ic_enter"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 8. Language switch button -->
+                <!-- 9. Language switch button -->
                 <FrameLayout
                     android:id="@+id/btnLanguage"
                     android:layout_width="48dp"
