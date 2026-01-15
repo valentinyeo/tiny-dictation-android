@@ -60,6 +60,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.69:
+            • Reordered buttons: MIC | Backspace | Space sequence for thumb access
+            • Button order: Chevron | Emoji | Keyboard | Clipboard | Enter | MIC | Backspace | Space | Language | SelectAll
+
             v1.11.68:
             • NEW: Auto-start dictation when keyboard opens (mic red by default)
             • Swapped Enter/Backspace positions for easier access
