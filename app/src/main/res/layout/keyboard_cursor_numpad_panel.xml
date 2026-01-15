@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- Cursor/Numpad keyboard panel - navigation keys and number pad -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/cursorNumpadPanel"
     android:layout_width="match_parent"
     android:layout_height="200dp"
@@ -116,7 +117,7 @@
             <Button android:id="@+id/cursor_tab" style="@style/KeyboardKey" android:text="Tab" android:textSize="11sp" />
             <Button android:id="@+id/cursor_down" style="@style/KeyboardKey" android:text="\u2193" android:textSize="20sp" />
             <Button android:id="@+id/cursor_del" style="@style/KeyboardKey" android:text="Del" android:textSize="11sp" />
-            <Button android:id="@+id/cursor_bksp" style="@style/KeyboardKey" android:text="\u232B" android:textSize="16sp" />
+            <Button android:id="@+id/cursor_bksp" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_backspace" />
         </LinearLayout>
 
         <!-- Row 4: Esc, Space, Enter -->
@@ -128,7 +129,7 @@
 
             <Button android:id="@+id/cursor_esc" style="@style/KeyboardKey" android:text="Esc" android:textSize="11sp" />
             <Button android:id="@+id/cursor_space" style="@style/KeyboardKeySpace" android:text=" " />
-            <Button android:id="@+id/cursor_enter" style="@style/KeyboardKey" android:text="\u23CE" android:textSize="16sp" />
+            <Button android:id="@+id/cursor_enter" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_enter" />
         </LinearLayout>
 
     </LinearLayout>

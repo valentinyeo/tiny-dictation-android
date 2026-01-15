@@ -24,6 +24,14 @@
         <item name="android:textSize">16sp</item>
     </style>
 
+    <!-- Icon-based wide keys (shift, backspace, enter) -->
+    <style name="KeyboardKeyIcon" parent="KeyboardKeyWide">
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">0dp</item>
+        <item name="iconSize">20dp</item>
+        <item name="iconTint">@color/on_surface</item>
+    </style>
+
     <!-- Space bar - extra wide -->
     <style name="KeyboardKeySpace" parent="KeyboardKey">
         <item name="android:layout_weight">4</item>

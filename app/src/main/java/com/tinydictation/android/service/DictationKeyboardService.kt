@@ -1039,9 +1039,9 @@ class DictationKeyboardService : InputMethodService() {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
 
-        // Backspace key
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        // Backspace key - with hold-to-repeat (same behavior as dictation bar backspace)
+        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnTouchListener { _, event ->
+            handleBackspaceTouch(event)
         }
 
         // Shift key - tap for shift, double-tap for caps lock (or symbols toggle in numbers mode)
@@ -1136,8 +1136,9 @@ class DictationKeyboardService : InputMethodService() {
         cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_del)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        // Backspace - with hold-to-repeat (same behavior as dictation bar backspace)
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnTouchListener { _, event ->
+            handleBackspaceTouch(event)
         }
         cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_esc)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ESCAPE)

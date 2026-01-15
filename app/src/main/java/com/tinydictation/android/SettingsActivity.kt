@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.73:
+            • NEW: Icon-based shift, backspace, enter keys on QWERTY keyboard
+            • NEW: Backspace hold-to-repeat on QWERTY and cursor/numpad panels
+            • Icons now match dictation bar style (enter, backspace, shift)
+
             v1.11.72:
             • FIX: History items now paste directly when tapped (not just copy to clipboard)
             • FIX: Multi-select items separated by space instead of newline
