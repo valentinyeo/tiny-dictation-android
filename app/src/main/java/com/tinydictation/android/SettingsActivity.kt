@@ -60,6 +60,13 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.12.5:
+            • NEW: Clipboard tab now shows clipboard history
+            • Copies are automatically captured and saved
+            • Tap any clipboard item to paste directly
+            • Reversed order: newest items now appear first (top left)
+            • Same change for History tab - scroll down to see older items
+
             v1.12.4:
             • FIX: Enable vertical scrolling in History/Clipboard tabs
             • Swipe overlay now passes through vertical gestures to RecyclerView

@@ -35,6 +35,7 @@ import android.widget.Toast
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
+import com.tinydictation.android.history.ClipboardHistoryManager
 import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
@@ -140,6 +141,9 @@ class DictationKeyboardService : InputMethodService() {
     private var isProcessing = false
     private var isStandby = false  // True when in standby/hibernation mode
 
+    // Clipboard history management
+    private var clipboardHistoryManager: ClipboardHistoryManager? = null
+
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -232,6 +236,10 @@ class DictationKeyboardService : InputMethodService() {
 
         // Initialize TranscriptionManager
         initializeTranscriptionManager()
+
+        // Initialize and start clipboard history manager
+        clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
+        clipboardHistoryManager?.startListening()
     }
 
     /**
@@ -333,6 +341,10 @@ class DictationKeyboardService : InputMethodService() {
         // Stop transcription if running
         transcriptionManager?.stopListening()
         transcriptionManager = null
+
+        // Stop clipboard listening
+        clipboardHistoryManager?.stopListening()
+        clipboardHistoryManager = null
 
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
@@ -1391,12 +1403,120 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Sets up the Clipboard panel - placeholder for Phase 3.
+     * Sets up the Clipboard panel with clipboard history.
      */
     private fun setupClipboardPanel() {
-        clipboardPanel ?: return
-        // TODO: Phase 3 - Set up clipboard RecyclerView with PIN feature
-        DebugLog.i("DictationKeyboardService: Clipboard panel set up (placeholder)")
+        try {
+            clipboardPanel ?: return
+
+            val recyclerView = clipboardPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboardRecyclerView)
+            val emptyState = clipboardPanel?.findViewById<View>(R.id.clipboardEmptyState)
+
+            if (recyclerView == null) {
+                DebugLog.e("DictationKeyboardService: clipboardRecyclerView not found!")
+                return
+            }
+
+            // Set up GridLayoutManager with 2 columns
+            recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+
+            // Load clipboard history and set up adapter
+            loadClipboardContent(recyclerView, emptyState)
+
+            DebugLog.i("DictationKeyboardService: Clipboard panel set up")
+        } catch (e: Exception) {
+            DebugLog.e("DictationKeyboardService: Failed to setup clipboard panel: ${e.message}")
+            Log.e(TAG, "Failed to setup clipboard panel", e)
+        }
+    }
+
+    /**
+     * Loads clipboard history into the Clipboard tab RecyclerView.
+     */
+    private fun loadClipboardContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
+        val clipboardManager = ClipboardHistoryManager.getInstance(this)
+        // Already sorted with newest first from ClipboardHistoryManager
+        val entries = clipboardManager.getAll()
+
+        if (entries.isEmpty()) {
+            emptyState?.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyState?.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+
+            recyclerView.adapter = ClipboardTabAdapter(entries) { entry ->
+                // Tap to paste directly
+                commitTextInternal(entry.text)
+            }
+        }
+    }
+
+    /**
+     * Simple adapter for Clipboard tab RecyclerView.
+     */
+    private inner class ClipboardTabAdapter(
+        private val entries: List<com.tinydictation.android.history.ClipboardEntry>,
+        private val onItemClick: (com.tinydictation.android.history.ClipboardEntry) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<ClipboardTabAdapter.ViewHolder>() {
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            // Use themed context for Material components
+            val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
+            val inflater = android.view.LayoutInflater.from(themedContext)
+            val view = inflater.inflate(R.layout.item_clipboard, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(entries[position])
+        }
+
+        override fun getItemCount(): Int = entries.size
+
+        inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            private val tvTimestamp: android.widget.TextView? = itemView.findViewById(R.id.tvTimestamp)
+            private val tvText: android.widget.TextView? = itemView.findViewById(R.id.tvText)
+            private val ivPinned: android.widget.ImageView? = itemView.findViewById(R.id.ivPinned)
+
+            fun bind(entry: com.tinydictation.android.history.ClipboardEntry) {
+                tvTimestamp?.text = formatTimestamp(entry.timestamp)
+                tvText?.text = entry.text
+                ivPinned?.visibility = if (entry.isPinned) View.VISIBLE else View.GONE
+
+                // Set click listener on the entire item view
+                itemView.setOnClickListener { onItemClick(entry) }
+            }
+
+            private fun formatTimestamp(timestamp: Long): String {
+                val date = java.util.Date(timestamp)
+                val now = java.util.Calendar.getInstance()
+                val then = java.util.Calendar.getInstance().apply { time = date }
+
+                return when {
+                    // Today - just show time
+                    now.get(java.util.Calendar.DATE) == then.get(java.util.Calendar.DATE) &&
+                    now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)
+                    }
+                    // Yesterday
+                    now.get(java.util.Calendar.DATE) - then.get(java.util.Calendar.DATE) == 1 &&
+                    now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        "Yest ${java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)}"
+                    }
+                    // Same year
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        java.text.SimpleDateFormat("M/d h:mm a", java.util.Locale.getDefault()).format(date)
+                    }
+                    // Different year
+                    else -> {
+                        java.text.SimpleDateFormat("M/d/yy", java.util.Locale.getDefault()).format(date)
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -1429,10 +1549,12 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Loads transcription history into the History tab RecyclerView.
+     * Newest entries are shown first (top left).
      */
     private fun loadHistoryTabContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
         val historyManager = com.tinydictation.android.history.TranscriptionHistoryManager.getInstance(this)
-        val entries = historyManager.getAll().sortedBy { it.timestamp }  // Oldest first
+        // Sort by timestamp descending (newest first) - scroll down to see older
+        val entries = historyManager.getAll().sortedByDescending { it.timestamp }
 
         if (entries.isEmpty()) {
             emptyState?.visibility = View.VISIBLE
@@ -1445,11 +1567,7 @@ class DictationKeyboardService : InputMethodService() {
                 // Tap to paste directly
                 commitTextInternal(entry.text)
             }
-
-            // Scroll to bottom to show newest items
-            recyclerView.post {
-                recyclerView.scrollToPosition(entries.size - 1)
-            }
+            // Start at position 0 which is now the newest item
         }
     }
 
