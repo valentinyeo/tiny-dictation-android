@@ -82,6 +82,13 @@ class DictationKeyboardService : InputMethodService() {
         fun pasteText(text: String): Boolean {
             return instance?.commitTextInternal(text) ?: false
         }
+
+        /**
+         * Pending text to paste when keyboard regains focus.
+         * Used when paste is requested while keyboard is hidden (e.g., from HistoryActivity).
+         */
+        @Volatile
+        var pendingPasteText: String? = null
     }
 
     private var keyboardView: View? = null
@@ -130,7 +137,15 @@ class DictationKeyboardService : InputMethodService() {
                 if (!text.isNullOrEmpty()) {
                     Log.i(TAG, "Received paste request: ${text.take(50)}...")
                     DebugLog.i("DictationKeyboardService: Pasting ${text.length} chars from history")
-                    commitTextInternal(text)
+                    // Try to paste immediately if input connection is available
+                    if (currentInputConnection != null) {
+                        commitTextInternal(text)
+                    } else {
+                        // Store for later - will paste when keyboard regains focus
+                        Log.i(TAG, "No input connection, storing for pending paste")
+                        DebugLog.i("DictationKeyboardService: Storing pending paste (keyboard hidden)")
+                        pendingPasteText = text
+                    }
                 }
             }
         }
@@ -1486,6 +1501,14 @@ class DictationKeyboardService : InputMethodService() {
         super.onStartInputView(info, restarting)
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: Started input for field: ${info?.fieldName}")
+
+        // Check for pending paste from HistoryActivity
+        pendingPasteText?.let { text ->
+            Log.i(TAG, "Pasting pending text: ${text.take(50)}...")
+            DebugLog.i("DictationKeyboardService: Pasting pending text (${text.length} chars)")
+            pendingPasteText = null  // Clear before pasting to avoid loops
+            commitTextInternal(text)
+        }
 
         updateMicButton()
         updateLanguageButton()

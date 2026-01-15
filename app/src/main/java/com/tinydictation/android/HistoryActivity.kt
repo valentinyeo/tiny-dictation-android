@@ -164,8 +164,8 @@ class HistoryActivity : AppCompatActivity() {
             .map { it.text }
 
         if (selectedTexts.isNotEmpty()) {
-            // Join with newlines between items
-            val combinedText = selectedTexts.joinToString("\n")
+            // Join with spaces between items
+            val combinedText = selectedTexts.joinToString(" ")
 
             // Copy to clipboard
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager

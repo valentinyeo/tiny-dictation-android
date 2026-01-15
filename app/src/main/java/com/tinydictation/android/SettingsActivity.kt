@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.72:
+            • FIX: History items now paste directly when tapped (not just copy to clipboard)
+            • FIX: Multi-select items separated by space instead of newline
+            • FIX: Pending paste handled when keyboard regains focus
+
             v1.11.71:
             • Swapped SelectAll and Clipboard positions
             • Button order: Chevron | Emoji | Keyboard | SelectAll | Space | Backspace | MIC | Enter | Language | Clipboard
