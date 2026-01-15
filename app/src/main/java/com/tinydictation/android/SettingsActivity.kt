@@ -60,6 +60,42 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.12.4:
+            • FIX: Enable vertical scrolling in History/Clipboard tabs
+            • Swipe overlay now passes through vertical gestures to RecyclerView
+            • Horizontal swipes still navigate between tabs
+
+            v1.12.3:
+            • FIX: History tab crash - use themed context for Material components
+            • Added try/catch and null safety to history panel setup
+            • Removed MaterialCardView cast that was causing ClassCastException
+
+            v1.12.2:
+            • FIX: History tab crash when pressing history button
+            • Fixed ViewHolder accessing root MaterialCardView correctly
+
+            v1.12.1:
+            • NEW: History tab now shows transcription history inline
+            • Tap any history item to paste directly
+            • Uses same layout as HistoryActivity (2-column grid)
+
+            v1.12.0:
+            • NEW: 5-tab keyboard system (ABC, 123, Shell, Clipboard, History)
+            • NEW: Shell tab with Ctrl combos, navigation keys, and symbols
+            • History button now opens History tab instead of separate activity
+            • Swipe between all 5 tabs
+
+            v1.11.77:
+            • FIX: Icons now use filled paths instead of strokes (Material Button compatible)
+            • Shift, backspace, enter icons should now be visible on keyboard
+
+            v1.11.76:
+            • FIX: Swipe gesture now works with transparent overlay approach
+            • FIX: Shift, backspace, enter icons now visible (removed iconTint override)
+
+            v1.11.75:
+            • NEW: Swipe left/right on keyboard to switch between ABC and 123 tabs
+
             v1.11.74:
             • FIX: Icon colors for shift, backspace, enter now visible on keyboard
             • Moved SelectAll to left of Emoji

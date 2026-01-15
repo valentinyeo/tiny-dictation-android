@@ -100,15 +100,26 @@ class DictationKeyboardService : InputMethodService() {
     private var isEmojiPanelVisible = false
     private var isEmojiPanelInflated = false
 
-    // Tabbed keyboard panel (QWERTY + Cursor/Numpad)
+    // Tabbed keyboard panel (5 tabs: ABC, 123, Shell, Clipboard, History)
     private var keyboardTabbedPanel: View? = null
     private var tabABC: TextView? = null
     private var tabNumpad: TextView? = null
+    private var tabShell: TextView? = null
+    private var tabClipboard: TextView? = null
+    private var tabHistory: TextView? = null
     private var tabIndicator: View? = null
     private var qwertyPanel: View? = null
     private var cursorNumpadPanel: View? = null
+    private var shellPanel: View? = null
+    private var clipboardPanel: View? = null
+    private var historyTabPanel: View? = null  // Named differently to avoid conflict with historyPanel
     private var isKeyboardPanelVisible = false
-    private var currentKeyboardTab = 0  // 0 = QWERTY, 1 = Cursor/Numpad
+    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Shell, 3=Clipboard, 4=History
+
+    // Lazy loading flags for new panels
+    private var isShellPanelInflated = false
+    private var isClipboardPanelInflated = false
+    private var isHistoryTabPanelInflated = false
 
     private var isShiftActive = false
     private var isCapsLock = false
@@ -347,13 +358,17 @@ class DictationKeyboardService : InputMethodService() {
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
-            // Tabbed keyboard panel
+            // Tabbed keyboard panel (5 tabs)
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
             tabABC = keyboardTabbedPanel?.findViewById(R.id.tabABC)
             tabNumpad = keyboardTabbedPanel?.findViewById(R.id.tabNumpad)
+            tabShell = keyboardTabbedPanel?.findViewById(R.id.tabShell)
+            tabClipboard = keyboardTabbedPanel?.findViewById(R.id.tabClipboard)
+            tabHistory = keyboardTabbedPanel?.findViewById(R.id.tabHistory)
             tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
+            // Shell, Clipboard, History panels are lazy-loaded via ViewStub
 
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
@@ -512,9 +527,13 @@ class DictationKeyboardService : InputMethodService() {
             selectAll()
         }
 
-        // History/Clipboard button - opens transcription history
+        // History button - shows keyboard panel and switches to History tab
         keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.setOnClickListener {
-            openTranscriptionHistory()
+            // Show keyboard panel if hidden, then switch to History tab
+            if (!isKeyboardPanelVisible) {
+                toggleKeyboardPanel()
+            }
+            switchToTab(4)  // History tab
         }
 
         // Enter button
@@ -890,98 +909,215 @@ class DictationKeyboardService : InputMethodService() {
      * Sets up the keyboard tab bar and swipe gestures.
      */
     private fun setupKeyboardTabs() {
-        // Set initial visibility - QWERTY visible, cursor/numpad hidden
+        // Set initial visibility - QWERTY visible, others hidden
         qwertyPanel?.visibility = View.VISIBLE
         cursorNumpadPanel?.visibility = View.GONE
+        shellPanel?.visibility = View.GONE
+        clipboardPanel?.visibility = View.GONE
+        historyTabPanel?.visibility = View.GONE
 
-        // Tab click listeners
-        tabABC?.setOnClickListener {
-            if (currentKeyboardTab != 0) {
-                currentKeyboardTab = 0
-                updateKeyboardTabContent()
+        // Tab click listeners for all 5 tabs
+        tabABC?.setOnClickListener { switchToTab(0) }
+        tabNumpad?.setOnClickListener { switchToTab(1) }
+        tabShell?.setOnClickListener { switchToTab(2) }
+        tabClipboard?.setOnClickListener { switchToTab(3) }
+        tabHistory?.setOnClickListener { switchToTab(4) }
+
+        // Set up swipe gesture detection on transparent overlay
+        var startX = 0f
+        var startY = 0f
+        var startTime = 0L
+        var isHorizontalSwipe = false
+        var isVerticalScroll = false
+        var hasDeterminedGesture = false
+
+        val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
+        swipeOverlay?.setOnTouchListener { view, event ->
+            // Get the target panel for passing through events
+            val targetPanel = when (currentKeyboardTab) {
+                0 -> qwertyPanel
+                1 -> cursorNumpadPanel
+                2 -> shellPanel
+                3 -> clipboardPanel
+                4 -> historyTabPanel
+                else -> null
             }
-        }
-        tabNumpad?.setOnClickListener {
-            if (currentKeyboardTab != 1) {
-                currentKeyboardTab = 1
-                updateKeyboardTabContent()
-            }
-        }
 
-        // Set up swipe gesture detection on the keyboard pages container
-        val gestureDetector = android.view.GestureDetector(this, object : android.view.GestureDetector.SimpleOnGestureListener() {
-            override fun onFling(e1: android.view.MotionEvent?, e2: android.view.MotionEvent, velocityX: Float, velocityY: Float): Boolean {
-                if (e1 == null) return false
-                val diffX = e2.x - e1.x
-                val diffY = e2.y - e1.y
-
-                // Horizontal swipe detection
-                if (kotlin.math.abs(diffX) > kotlin.math.abs(diffY) && kotlin.math.abs(diffX) > 100 && kotlin.math.abs(velocityX) > 100) {
-                    if (diffX > 0 && currentKeyboardTab > 0) {
-                        // Swipe right - go to previous tab
-                        currentKeyboardTab = 0
-                        updateKeyboardTabContent()
-                    } else if (diffX < 0 && currentKeyboardTab < 1) {
-                        // Swipe left - go to next tab
-                        currentKeyboardTab = 1
-                        updateKeyboardTabContent()
-                    }
-                    return true
+            when (event.action) {
+                android.view.MotionEvent.ACTION_DOWN -> {
+                    startX = event.x
+                    startY = event.y
+                    startTime = System.currentTimeMillis()
+                    isHorizontalSwipe = false
+                    isVerticalScroll = false
+                    hasDeterminedGesture = false
+                    // Pass down event to target panel
+                    targetPanel?.dispatchTouchEvent(event)
+                    true
                 }
-                return false
-            }
-        })
+                android.view.MotionEvent.ACTION_MOVE -> {
+                    val diffX = kotlin.math.abs(event.x - startX)
+                    val diffY = kotlin.math.abs(event.y - startY)
 
-        // Apply gesture detector to the pages container
-        keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)?.setOnTouchListener { _, event ->
-            gestureDetector.onTouchEvent(event)
-            false  // Allow child views to also handle touch events
+                    // Determine gesture type once we have enough movement
+                    if (!hasDeterminedGesture && (diffX > 20 || diffY > 20)) {
+                        hasDeterminedGesture = true
+                        if (diffX > diffY * 1.2) {
+                            // Horizontal swipe - we handle this
+                            isHorizontalSwipe = true
+                            // Cancel the touch on target panel
+                            val cancelEvent = android.view.MotionEvent.obtain(event)
+                            cancelEvent.action = android.view.MotionEvent.ACTION_CANCEL
+                            targetPanel?.dispatchTouchEvent(cancelEvent)
+                            cancelEvent.recycle()
+                        } else {
+                            // Vertical scroll - pass to target panel
+                            isVerticalScroll = true
+                        }
+                    }
+
+                    // If vertical scroll, pass move events to target
+                    if (isVerticalScroll) {
+                        targetPanel?.dispatchTouchEvent(event)
+                    }
+                    true
+                }
+                android.view.MotionEvent.ACTION_UP -> {
+                    val diffX = event.x - startX
+                    val diffTime = System.currentTimeMillis() - startTime
+
+                    when {
+                        // Horizontal swipe - navigate between tabs
+                        isHorizontalSwipe && diffTime < 500 && kotlin.math.abs(diffX) > 80 -> {
+                            if (diffX > 0 && currentKeyboardTab > 0) {
+                                switchToTab(currentKeyboardTab - 1)
+                                Log.d(TAG, "Swiped right to tab $currentKeyboardTab")
+                            } else if (diffX < 0 && currentKeyboardTab < 4) {
+                                switchToTab(currentKeyboardTab + 1)
+                                Log.d(TAG, "Swiped left to tab $currentKeyboardTab")
+                            }
+                        }
+                        // Vertical scroll or tap - pass through
+                        else -> {
+                            targetPanel?.dispatchTouchEvent(event)
+                        }
+                    }
+                    true
+                }
+                android.view.MotionEvent.ACTION_CANCEL -> {
+                    isHorizontalSwipe = false
+                    isVerticalScroll = false
+                    hasDeterminedGesture = false
+                    targetPanel?.dispatchTouchEvent(event)
+                    true
+                }
+                else -> {
+                    targetPanel?.dispatchTouchEvent(event)
+                    true
+                }
+            }
         }
 
-        // Update initial tab indicator
         updateTabIndicator()
     }
 
     /**
-     * Updates the visible keyboard tab content.
+     * Switches to the specified keyboard tab, inflating lazy panels if needed.
      */
-    private fun updateKeyboardTabContent() {
-        when (currentKeyboardTab) {
-            0 -> {
-                qwertyPanel?.visibility = View.VISIBLE
-                cursorNumpadPanel?.visibility = View.GONE
-            }
-            1 -> {
-                qwertyPanel?.visibility = View.GONE
-                cursorNumpadPanel?.visibility = View.VISIBLE
+    private fun switchToTab(tab: Int) {
+        if (tab == currentKeyboardTab) return
+        currentKeyboardTab = tab
+
+        // Lazy-inflate new panels if needed
+        when (tab) {
+            2 -> inflateShellPanelIfNeeded()
+            3 -> inflateClipboardPanelIfNeeded()
+            4 -> inflateHistoryTabPanelIfNeeded()
+        }
+
+        updateKeyboardTabContent()
+    }
+
+    private fun inflateShellPanelIfNeeded() {
+        if (!isShellPanelInflated) {
+            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.shellPanelStub)
+            shellPanel = stub?.inflate()
+            isShellPanelInflated = true
+            setupShellPanel()
+            DebugLog.i("DictationKeyboardService: Shell panel inflated")
+        }
+    }
+
+    private fun inflateClipboardPanelIfNeeded() {
+        if (!isClipboardPanelInflated) {
+            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.clipboardPanelStub)
+            clipboardPanel = stub?.inflate()
+            isClipboardPanelInflated = true
+            setupClipboardPanel()
+            DebugLog.i("DictationKeyboardService: Clipboard panel inflated")
+        }
+    }
+
+    private fun inflateHistoryTabPanelIfNeeded() {
+        if (!isHistoryTabPanelInflated) {
+            try {
+                val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.historyPanelStub)
+                if (stub == null) {
+                    DebugLog.e("DictationKeyboardService: historyPanelStub not found!")
+                    return
+                }
+                historyTabPanel = stub.inflate()
+                isHistoryTabPanelInflated = true
+                setupHistoryTabPanel()
+                DebugLog.i("DictationKeyboardService: History tab panel inflated")
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Failed to inflate history panel: ${e.message}")
+                Log.e(TAG, "Failed to inflate history panel", e)
             }
         }
+    }
+
+    /**
+     * Updates the visible keyboard tab content for all 5 tabs.
+     */
+    private fun updateKeyboardTabContent() {
+        // Hide all panels first
+        qwertyPanel?.visibility = View.GONE
+        cursorNumpadPanel?.visibility = View.GONE
+        shellPanel?.visibility = View.GONE
+        clipboardPanel?.visibility = View.GONE
+        historyTabPanel?.visibility = View.GONE
+
+        // Show the selected panel
+        when (currentKeyboardTab) {
+            0 -> qwertyPanel?.visibility = View.VISIBLE
+            1 -> cursorNumpadPanel?.visibility = View.VISIBLE
+            2 -> shellPanel?.visibility = View.VISIBLE
+            3 -> clipboardPanel?.visibility = View.VISIBLE
+            4 -> historyTabPanel?.visibility = View.VISIBLE
+        }
+
         updateTabIndicator()
         DebugLog.d("DictationKeyboardService: Switched to keyboard tab $currentKeyboardTab")
     }
 
     /**
-     * Updates the tab indicator position and colors.
+     * Updates the tab indicator position and colors for 5 tabs.
      */
     private fun updateTabIndicator() {
         val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
         val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
 
-        when (currentKeyboardTab) {
-            0 -> {
-                tabABC?.setTextColor(primaryColor)
-                tabNumpad?.setTextColor(inactiveColor)
-            }
-            1 -> {
-                tabABC?.setTextColor(inactiveColor)
-                tabNumpad?.setTextColor(primaryColor)
-            }
+        // Update tab colors - active tab gets primary color
+        val tabs = listOf(tabABC, tabNumpad, tabShell, tabClipboard, tabHistory)
+        tabs.forEachIndexed { index, tab ->
+            tab?.setTextColor(if (index == currentKeyboardTab) primaryColor else inactiveColor)
         }
 
-        // Update indicator position (half width, positioned under selected tab)
+        // Update indicator position (1/5 width, positioned under selected tab)
         tabIndicator?.post {
             val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
-            val indicatorWidth = parentWidth / 2
+            val indicatorWidth = parentWidth / 5
             tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
                 width = indicatorWidth
             }
@@ -1148,6 +1284,240 @@ class DictationKeyboardService : InputMethodService() {
         }
         cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+        }
+    }
+
+    /**
+     * Sets up the Shell commands panel with terminal control keys.
+     */
+    private fun setupShellPanel() {
+        shellPanel ?: return
+
+        // Map button tags to actions - Ctrl combos send special key events
+        val ctrlCombos = mapOf(
+            "ctrl_c" to 'c', "ctrl_u" to 'u', "ctrl_z" to 'z', "ctrl_d" to 'd',
+            "ctrl_l" to 'l', "ctrl_a" to 'a', "ctrl_e" to 'e', "ctrl_k" to 'k',
+            "ctrl_r" to 'r'
+        )
+
+        // Navigation keys
+        val navKeys = mapOf(
+            "up" to KeyEvent.KEYCODE_DPAD_UP,
+            "down" to KeyEvent.KEYCODE_DPAD_DOWN,
+            "left" to KeyEvent.KEYCODE_DPAD_LEFT,
+            "right" to KeyEvent.KEYCODE_DPAD_RIGHT,
+            "home" to KeyEvent.KEYCODE_MOVE_HOME,
+            "end" to KeyEvent.KEYCODE_MOVE_END,
+            "pgup" to KeyEvent.KEYCODE_PAGE_UP,
+            "pgdn" to KeyEvent.KEYCODE_PAGE_DOWN,
+            "tab" to KeyEvent.KEYCODE_TAB,
+            "esc" to KeyEvent.KEYCODE_ESCAPE
+        )
+
+        // Set up all buttons by iterating through shell panel children
+        fun setupButton(button: android.widget.Button) {
+            val tag = button.tag as? String ?: return
+
+            button.setOnClickListener {
+                when {
+                    tag.startsWith("ctrl_") -> {
+                        // Send Ctrl+key combination
+                        val char = ctrlCombos[tag] ?: return@setOnClickListener
+                        sendCtrlKey(char)
+                    }
+                    tag == "shift_tab" -> {
+                        // Send Shift+Tab
+                        sendShiftTab()
+                    }
+                    navKeys.containsKey(tag) -> {
+                        // Send navigation key
+                        sendDownUpKeyEvents(navKeys[tag]!!)
+                    }
+                    else -> {
+                        // Send as literal text (symbols)
+                        currentInputConnection?.commitText(tag, 1)
+                    }
+                }
+            }
+        }
+
+        // Find all buttons and set them up
+        val shellPanelLayout = shellPanel as? android.view.ViewGroup ?: return
+        for (i in 0 until shellPanelLayout.childCount) {
+            val row = shellPanelLayout.getChildAt(i) as? android.view.ViewGroup ?: continue
+            for (j in 0 until row.childCount) {
+                val button = row.getChildAt(j) as? android.widget.Button ?: continue
+                setupButton(button)
+            }
+        }
+
+        DebugLog.i("DictationKeyboardService: Shell panel set up")
+    }
+
+    /**
+     * Sends a Ctrl+key combination.
+     */
+    private fun sendCtrlKey(char: Char) {
+        val keyCode = when (char) {
+            'a' -> KeyEvent.KEYCODE_A
+            'b' -> KeyEvent.KEYCODE_B
+            'c' -> KeyEvent.KEYCODE_C
+            'd' -> KeyEvent.KEYCODE_D
+            'e' -> KeyEvent.KEYCODE_E
+            'k' -> KeyEvent.KEYCODE_K
+            'l' -> KeyEvent.KEYCODE_L
+            'r' -> KeyEvent.KEYCODE_R
+            'u' -> KeyEvent.KEYCODE_U
+            'z' -> KeyEvent.KEYCODE_Z
+            else -> return
+        }
+
+        val now = android.os.SystemClock.uptimeMillis()
+        val downEvent = KeyEvent(now, now, KeyEvent.ACTION_DOWN, keyCode, 0, KeyEvent.META_CTRL_ON)
+        val upEvent = KeyEvent(now, now, KeyEvent.ACTION_UP, keyCode, 0, KeyEvent.META_CTRL_ON)
+        currentInputConnection?.sendKeyEvent(downEvent)
+        currentInputConnection?.sendKeyEvent(upEvent)
+    }
+
+    /**
+     * Sends Shift+Tab key combination.
+     */
+    private fun sendShiftTab() {
+        val now = android.os.SystemClock.uptimeMillis()
+        val downEvent = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB, 0, KeyEvent.META_SHIFT_ON)
+        val upEvent = KeyEvent(now, now, KeyEvent.ACTION_UP, KeyEvent.KEYCODE_TAB, 0, KeyEvent.META_SHIFT_ON)
+        currentInputConnection?.sendKeyEvent(downEvent)
+        currentInputConnection?.sendKeyEvent(upEvent)
+    }
+
+    /**
+     * Sets up the Clipboard panel - placeholder for Phase 3.
+     */
+    private fun setupClipboardPanel() {
+        clipboardPanel ?: return
+        // TODO: Phase 3 - Set up clipboard RecyclerView with PIN feature
+        DebugLog.i("DictationKeyboardService: Clipboard panel set up (placeholder)")
+    }
+
+    /**
+     * Sets up the History tab panel with transcription history.
+     */
+    private fun setupHistoryTabPanel() {
+        try {
+            historyTabPanel ?: return
+
+            val recyclerView = historyTabPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.historyRecyclerView)
+            val emptyState = historyTabPanel?.findViewById<View>(R.id.historyEmptyState)
+
+            if (recyclerView == null) {
+                DebugLog.e("DictationKeyboardService: historyRecyclerView not found!")
+                return
+            }
+
+            // Set up GridLayoutManager with 2 columns
+            recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+
+            // Load history and set up adapter
+            loadHistoryTabContent(recyclerView, emptyState)
+
+            DebugLog.i("DictationKeyboardService: History tab panel set up")
+        } catch (e: Exception) {
+            DebugLog.e("DictationKeyboardService: Failed to setup history panel: ${e.message}")
+            Log.e(TAG, "Failed to setup history panel", e)
+        }
+    }
+
+    /**
+     * Loads transcription history into the History tab RecyclerView.
+     */
+    private fun loadHistoryTabContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
+        val historyManager = com.tinydictation.android.history.TranscriptionHistoryManager.getInstance(this)
+        val entries = historyManager.getAll().sortedBy { it.timestamp }  // Oldest first
+
+        if (entries.isEmpty()) {
+            emptyState?.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyState?.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+
+            recyclerView.adapter = HistoryTabAdapter(entries) { entry ->
+                // Tap to paste directly
+                commitTextInternal(entry.text)
+            }
+
+            // Scroll to bottom to show newest items
+            recyclerView.post {
+                recyclerView.scrollToPosition(entries.size - 1)
+            }
+        }
+    }
+
+    /**
+     * Simple adapter for History tab RecyclerView.
+     */
+    private inner class HistoryTabAdapter(
+        private val entries: List<com.tinydictation.android.history.TranscriptionEntry>,
+        private val onItemClick: (com.tinydictation.android.history.TranscriptionEntry) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<HistoryTabAdapter.ViewHolder>() {
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            // Use themed context for Material components
+            val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
+            val inflater = android.view.LayoutInflater.from(themedContext)
+            val view = inflater.inflate(R.layout.item_history, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(entries[position])
+        }
+
+        override fun getItemCount(): Int = entries.size
+
+        inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            // itemView IS the root element - use safe access
+            private val tvTimestamp: android.widget.TextView? = itemView.findViewById(R.id.tvTimestamp)
+            private val tvLanguage: android.widget.TextView? = itemView.findViewById(R.id.tvLanguage)
+            private val tvText: android.widget.TextView? = itemView.findViewById(R.id.tvText)
+
+            fun bind(entry: com.tinydictation.android.history.TranscriptionEntry) {
+                tvTimestamp?.text = formatTimestamp(entry.timestamp)
+                tvLanguage?.text = entry.language.uppercase()
+                tvText?.text = entry.text
+
+                // Set click listener on the entire item view
+                itemView.setOnClickListener { onItemClick(entry) }
+            }
+
+            private fun formatTimestamp(timestamp: Long): String {
+                val date = java.util.Date(timestamp)
+                val now = java.util.Calendar.getInstance()
+                val then = java.util.Calendar.getInstance().apply { time = date }
+
+                return when {
+                    // Today - just show time
+                    now.get(java.util.Calendar.DATE) == then.get(java.util.Calendar.DATE) &&
+                    now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)
+                    }
+                    // Yesterday
+                    now.get(java.util.Calendar.DATE) - then.get(java.util.Calendar.DATE) == 1 &&
+                    now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        "Yest ${java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)}"
+                    }
+                    // Same year
+                    now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
+                        java.text.SimpleDateFormat("M/d h:mm a", java.util.Locale.getDefault()).format(date)
+                    }
+                    // Different year
+                    else -> {
+                        java.text.SimpleDateFormat("M/d/yy", java.util.Locale.getDefault()).format(date)
+                    }
+                }
+            }
         }
     }
 

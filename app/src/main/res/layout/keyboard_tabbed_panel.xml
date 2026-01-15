@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tabbed keyboard panel with QWERTY and Cursor/Numpad tabs -->
+<!-- Tabbed keyboard panel with 5 tabs: ABC, 123, Shell, Clipboard, History -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/keyboardTabbedPanel"
     android:layout_width="match_parent"
@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:background="@color/surface_variant">
 
-    <!-- Simple tab bar using LinearLayout (Material TabLayout fails in IME context) -->
+    <!-- 5-tab bar: ABC | 123 | Shell | Clip | Hist -->
     <LinearLayout
         android:id="@+id/keyboardTabBar"
         android:layout_width="match_parent"
@@ -22,7 +22,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="ABC"
-            android:textSize="14sp"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/primary"
             android:background="?android:attr/selectableItemBackground" />
@@ -33,8 +33,44 @@
             android:layout_height="match_parent"
             android:layout_weight="1"
             android:gravity="center"
-            android:text="123↑"
-            android:textSize="14sp"
+            android:text="123"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface_variant"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/tabShell"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Shell"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface_variant"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/tabClipboard"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Clip"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface_variant"
+            android:background="?android:attr/selectableItemBackground" />
+
+        <TextView
+            android:id="@+id/tabHistory"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Hist"
+            android:textSize="12sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="?android:attr/selectableItemBackground" />
@@ -62,15 +98,42 @@
         android:layout_width="match_parent"
         android:layout_height="200dp">
 
-        <!-- Page 0: QWERTY keyboard (uses qwertyPanel ID from included layout) -->
+        <!-- Page 0: QWERTY keyboard -->
         <include
             layout="@layout/keyboard_qwerty_panel"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- Page 1: Cursor/Numpad keyboard (uses cursorNumpadPanel ID from included layout) -->
+        <!-- Page 1: Cursor/Numpad keyboard -->
         <include
             layout="@layout/keyboard_cursor_numpad_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Page 2: Shell commands (lazy loaded) -->
+        <ViewStub
+            android:id="@+id/shellPanelStub"
+            android:layout="@layout/keyboard_shell_panel"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Page 3: Clipboard history (lazy loaded) -->
+        <ViewStub
+            android:id="@+id/clipboardPanelStub"
+            android:layout="@layout/panel_clipboard"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Page 4: Transcription history (lazy loaded) -->
+        <ViewStub
+            android:id="@+id/historyPanelStub"
+            android:layout="@layout/panel_history"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Transparent swipe gesture overlay - intercepts swipes, passes through clicks -->
+        <View
+            android:id="@+id/swipeOverlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
