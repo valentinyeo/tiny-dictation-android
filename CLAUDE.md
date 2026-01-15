@@ -62,7 +62,7 @@ The app uses keyboard-based dictation only:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Language | SelectAll
+Chevron | Emoji | Keyboard | SelectAll | Space | Backspace | MIC | Enter | Language | Clipboard
          └──── scroll left to see ─────┘       └───── visible, MIC centered ────────────────┘
 ```
 
@@ -70,13 +70,13 @@ Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Langu
 1. **Chevron** - Switch to previous keyboard
 2. **Emoji** - Toggle emoji picker panel
 3. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
-4. **Clipboard** - Open transcription history (icon: ic_history)
+4. **SelectAll** - Select all text
 5. **Space** - Insert space (useful during dictation)
 6. **Backspace** - Delete character
 7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
 8. **Enter** - Send enter key
 9. **Language** - Switch transcription language
-10. **SelectAll** - Select all text
+10. **Clipboard** - Open transcription history (icon: ic_history)
 
 **Layout file:** `app/src/main/res/layout/view_keyboard.xml`
 

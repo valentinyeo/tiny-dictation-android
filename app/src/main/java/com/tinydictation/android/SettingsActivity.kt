@@ -60,6 +60,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.71:
+            • Swapped SelectAll and Clipboard positions
+            • Button order: Chevron | Emoji | Keyboard | SelectAll | Space | Backspace | MIC | Enter | Language | Clipboard
+
             v1.11.70:
             • FIX: Correct button order - Space to the left of Backspace
             • Button order: Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Language | SelectAll
