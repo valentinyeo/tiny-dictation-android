@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | Emoji | Keyboard | Clipboard | Enter | MIC | Backspace | Space | Language | SelectAll
+     Button order: Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Language | SelectAll
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -124,43 +124,25 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 5. Enter button -->
+                <!-- 5. Space button - insert space -->
                 <FrameLayout
-                    android:id="@+id/btnEnter"
+                    android:id="@+id/btnSpace"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Enter">
+                    android:contentDescription="Space">
 
                     <ImageView
-                        android:id="@+id/ivEnter"
+                        android:id="@+id/ivSpace"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_enter"
+                        android:src="@drawable/ic_space_bar"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 6. MIC button - toggle dictation (CENTERED, long press = settings) -->
-                <FrameLayout
-                    android:id="@+id/btnKeyboardMic"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Toggle dictation">
-
-                    <ImageView
-                        android:id="@+id/ivKeyboardMic"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_mic"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- 7. Backspace button -->
+                <!-- 6. Backspace button -->
                 <FrameLayout
                     android:id="@+id/btnBackspace"
                     android:layout_width="48dp"
@@ -178,21 +160,39 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 8. Space button - insert space -->
+                <!-- 7. MIC button - toggle dictation (CENTERED, long press = settings) -->
                 <FrameLayout
-                    android:id="@+id/btnSpace"
+                    android:id="@+id/btnKeyboardMic"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Space">
+                    android:contentDescription="Toggle dictation">
 
                     <ImageView
-                        android:id="@+id/ivSpace"
+                        android:id="@+id/ivKeyboardMic"
                         android:layout_width="24dp"
                         android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:src="@drawable/ic_space_bar"
+                        android:src="@drawable/ic_mic"
+                        app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- 8. Enter button -->
+                <FrameLayout
+                    android:id="@+id/btnEnter"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Enter">
+
+                    <ImageView
+                        android:id="@+id/ivEnter"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_enter"
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 

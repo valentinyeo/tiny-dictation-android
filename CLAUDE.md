@@ -62,8 +62,8 @@ The app uses keyboard-based dictation only:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | Emoji | Keyboard | Clipboard | Enter | MIC | Backspace | Space | Language | SelectAll
-         └──── scroll left to see ─────┘       └───── visible, MIC centered ─────────────────┘
+Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Language | SelectAll
+         └──── scroll left to see ─────┘       └───── visible, MIC centered ────────────────┘
 ```
 
 **Button functions:**
@@ -71,15 +71,21 @@ Chevron | Emoji | Keyboard | Clipboard | Enter | MIC | Backspace | Space | Langu
 2. **Emoji** - Toggle emoji picker panel
 3. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
 4. **Clipboard** - Open transcription history (icon: ic_history)
-5. **Enter** - Send enter key
-6. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
-7. **Backspace** - Delete character
-8. **Space** - Insert space (useful during dictation)
+5. **Space** - Insert space (useful during dictation)
+6. **Backspace** - Delete character
+7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
+8. **Enter** - Send enter key
 9. **Language** - Switch transcription language
 10. **SelectAll** - Select all text
 
 **Layout file:** `app/src/main/res/layout/view_keyboard.xml`
-**Scroll behavior:** Centers on MIC button by default
+
+**Scroll behavior:**
+- The HorizontalScrollView MUST center on the MIC button when keyboard opens
+- MIC button MUST remain visually centered on screen for thumb access
+- `scrollDictationBarToDefault()` in DictationKeyboardService.kt handles this
+- Buttons to the left of MIC (Chevron, Emoji, Keyboard, Clipboard, Space, Backspace) are hidden by scroll
+- Buttons to the right of MIC (Enter, Language, SelectAll) are visible by default
 
 ### Archived Modes (in `archived/` directory)
 The following experimental modes have been archived but preserved for reference:

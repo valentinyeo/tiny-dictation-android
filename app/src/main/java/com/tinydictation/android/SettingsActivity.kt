@@ -60,6 +60,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.11.70:
+            • FIX: Correct button order - Space to the left of Backspace
+            • Button order: Chevron | Emoji | Keyboard | Clipboard | Space | Backspace | MIC | Enter | Language | SelectAll
+
             v1.11.69:
             • Reordered buttons: MIC | Backspace | Space sequence for thumb access
             • Button order: Chevron | Emoji | Keyboard | Clipboard | Enter | MIC | Backspace | Space | Language | SelectAll
