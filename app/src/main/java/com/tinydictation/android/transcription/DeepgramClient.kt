@@ -87,11 +87,13 @@ class DeepgramClient {
         language: String = "en",
         model: String = "nova-2"
     ) {
-        if (isConnected) {
-            Log.d(TAG, "DeepgramClient already connected")
-            DebugLog.d("DeepgramClient: Already connected")
-            onError("Already connected")
-            return
+        // Force-close any existing connection to avoid race conditions
+        // This makes connect() idempotent and prevents "Already connected" errors
+        // when rapid start/stop cycles occur (e.g., pause mode toggling)
+        if (isConnected || webSocket != null) {
+            Log.d(TAG, "DeepgramClient: Cleaning up existing connection before reconnecting")
+            DebugLog.d("DeepgramClient: Cleaning up existing connection")
+            forceCleanup()
         }
 
         if (apiKey.isBlank()) {
@@ -310,6 +312,34 @@ class DeepgramClient {
             onErrorCallback?.invoke("Failed to send audio: ${e.message}")
             false
         }
+    }
+
+    /**
+     * Force cleanup of existing connection without waiting for callbacks.
+     * Used internally to ensure clean state before reconnecting.
+     */
+    private fun forceCleanup() {
+        isConnected = false
+
+        try {
+            webSocket?.cancel()  // Immediate cancellation, no close handshake
+        } catch (e: Exception) {
+            Log.d(TAG, "Error during force cleanup: ${e.message}")
+        }
+        webSocket = null
+
+        try {
+            okHttpClient?.dispatcher?.executorService?.shutdown()
+            okHttpClient?.connectionPool?.evictAll()
+        } catch (e: Exception) {
+            Log.d(TAG, "Error cleaning up OkHttp client: ${e.message}")
+        }
+        okHttpClient = null
+
+        // Clear callbacks from previous connection
+        onInterimCallback = null
+        onFinalCallback = null
+        onErrorCallback = null
     }
 
     /**

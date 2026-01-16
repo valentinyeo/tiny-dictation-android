@@ -60,6 +60,11 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.12.6:
+            • FIX: App no longer freezes when toggling pause mode
+            • Fixed race condition in Deepgram connection state management
+            • connect() now properly cleans up stale connections before reconnecting
+
             v1.12.5:
             • NEW: Clipboard tab now shows clipboard history
             • Copies are automatically captured and saved
