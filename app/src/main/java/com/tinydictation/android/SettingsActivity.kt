@@ -60,6 +60,10 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.13.1:
+            • FIX: Voice commands now work with trailing punctuation
+            • "Scratch that." now properly detected (period stripped)
+
             v1.13.0:
             • NEW: Voice commands for hands-free control
             • Say "scratch that" or "delete that" to clear all text

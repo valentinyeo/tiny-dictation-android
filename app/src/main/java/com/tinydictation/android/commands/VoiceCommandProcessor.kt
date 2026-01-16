@@ -191,7 +191,8 @@ object VoiceCommandProcessor {
             return CommandResult.Failed("No input connection")
         }
 
-        val normalizedText = text.trim().lowercase()
+        // Normalize text: lowercase and strip trailing punctuation
+        val normalizedText = text.trim().lowercase().trimEnd('.', ',', '!', '?', ';', ':')
 
         // Find matching command
         for (command in commands) {
