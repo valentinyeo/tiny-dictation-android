@@ -60,6 +60,14 @@ class SettingsActivity : AppCompatActivity() {
 
         // Changelog - update this with each version
         private val CHANGELOG = """
+            v1.13.0:
+            • NEW: Voice commands for hands-free control
+            • Say "scratch that" or "delete that" to clear all text
+            • Say "undo that" to delete the last word
+            • Say "new line" or "new paragraph" for line breaks
+            • Punctuation: "period", "comma", "question mark", etc.
+            • Quotes/brackets: "open quote", "close paren", etc.
+
             v1.12.6:
             • FIX: App no longer freezes when toggling pause mode
             • Fixed race condition in Deepgram connection state management

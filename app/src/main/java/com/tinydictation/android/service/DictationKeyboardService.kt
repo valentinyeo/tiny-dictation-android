@@ -35,6 +35,7 @@ import android.widget.Toast
 import com.tinydictation.android.HistoryActivity
 import com.tinydictation.android.R
 import com.tinydictation.android.SettingsActivity
+import com.tinydictation.android.commands.VoiceCommandProcessor
 import com.tinydictation.android.history.ClipboardHistoryManager
 import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
@@ -262,18 +263,35 @@ class DictationKeyboardService : InputMethodService() {
             onTranscript = { text, isFinal ->
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 if (isFinal && text.isNotBlank()) {
-                    // Commit text to the current input field
                     Handler(Looper.getMainLooper()).post {
-                        // Apply word replacements before committing
-                        val processedText = com.tinydictation.android.dictionary.WordReplacementManager
-                            .getInstance(this@DictationKeyboardService)
-                            .applyReplacements(text)
-                        commitTextInternal(processedText + " ")
+                        // Check for voice commands first
+                        val commandResult = VoiceCommandProcessor.process(
+                            text,
+                            currentInputConnection
+                        ) { keyCode -> sendDownUpKeyEvents(keyCode) }
+
+                        when (commandResult) {
+                            is VoiceCommandProcessor.CommandResult.Executed -> {
+                                DebugLog.i("DictationKeyboardService: Voice command executed for '$text'")
+                                // Don't save commands to history
+                            }
+                            is VoiceCommandProcessor.CommandResult.Failed -> {
+                                DebugLog.w("DictationKeyboardService: Voice command failed - ${commandResult.reason}")
+                            }
+                            is VoiceCommandProcessor.CommandResult.NotACommand -> {
+                                // Normal text - apply word replacements and commit
+                                val processedText = com.tinydictation.android.dictionary.WordReplacementManager
+                                    .getInstance(this@DictationKeyboardService)
+                                    .applyReplacements(text)
+                                commitTextInternal(processedText + " ")
+
+                                // Save to transcription history
+                                val language = prefs.getLanguage()
+                                TranscriptionHistoryManager.getInstance(this@DictationKeyboardService).save(text, language)
+                                DebugLog.i("DictationKeyboardService: Saved transcription to history")
+                            }
+                        }
                     }
-                    // Save original text to transcription history
-                    val language = prefs.getLanguage()
-                    TranscriptionHistoryManager.getInstance(this).save(text, language)
-                    DebugLog.i("DictationKeyboardService: Saved transcription to history")
                 }
             },
             onError = { error ->
