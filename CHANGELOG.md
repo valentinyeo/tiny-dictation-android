@@ -2,6 +2,29 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.14.0] - 2026-01-16
+
+### Added
+- **Redesigned Settings screen** - Big headline with clean list of 9 settings categories
+- **Voice Commands screen** - New screen showing all available voice commands organized by category
+- **Dedicated sub-screens** - Each settings category now opens its own dedicated screen:
+  - Transcription (Engine, language, model, API keys)
+  - Voice Commands (All 30+ commands with descriptions)
+  - Audio (Microphone, silence detection, auto-punctuation)
+  - Offline Models (Download/delete Vosk and Whisper models)
+  - Appearance (Keyboard theme, Giphy API)
+  - Permissions (Microphone, accessibility, keyboard setup)
+  - History (existing)
+  - Word Dictionary (existing)
+  - About (Version, changelog, debug logs)
+
+### Changed
+- Settings navigation now uses SEAL-downloader style with icon + title + subtitle
+- Each settings item shows chevron to indicate it opens a sub-screen
+- Better organization makes it easier to find and change settings
+
+---
+
 ## [1.1.2] - 2026-01-08
 
 ### Fixed
