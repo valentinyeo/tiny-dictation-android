@@ -41,6 +41,9 @@ import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 
 /**
  * Input Method Service (IME) for Tiny Dictation.
@@ -144,6 +147,13 @@ class DictationKeyboardService : InputMethodService() {
 
     // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
+
+    // Prediction management
+    private var predictionManager: com.tinydictation.android.prediction.PredictionManager? = null
+    private var prediction1: TextView? = null
+    private var prediction2: TextView? = null
+    private var prediction3: TextView? = null
+    private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
 
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
@@ -276,6 +286,12 @@ class DictationKeyboardService : InputMethodService() {
         // Initialize and start clipboard history manager
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
         clipboardHistoryManager?.startListening()
+
+        // Initialize prediction manager
+        predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
+        CoroutineScope(Dispatchers.Main).launch {
+            predictionManager?.initialize("ngram")
+        }
     }
 
     /**
@@ -410,6 +426,11 @@ class DictationKeyboardService : InputMethodService() {
         cursorHandler.removeCallbacksAndMessages(null)
         pulseAnimator?.cancel()
         pulseAnimator = null
+
+        // Release prediction manager
+        predictionManager?.release()
+        predictionManager = null
+
         super.onDestroy()
     }
 
@@ -978,6 +999,13 @@ class DictationKeyboardService : InputMethodService() {
             updateKeyboardMode()
         }
 
+        // Update predictions when showing QWERTY panel, clear when hiding
+        if (isKeyboardPanelVisible && currentKeyboardTab == 0) {
+            updatePredictions()
+        } else if (!isKeyboardPanelVisible) {
+            displayPredictions(emptyList())
+        }
+
         Log.d(TAG, "Keyboard panel visibility: $isKeyboardPanelVisible")
         DebugLog.i("DictationKeyboardService: Keyboard panel ${if (isKeyboardPanelVisible) "shown" else "hidden"}")
     }
@@ -1113,6 +1141,11 @@ class DictationKeyboardService : InputMethodService() {
         }
 
         updateKeyboardTabContent()
+
+        // Update predictions when switching to QWERTY tab
+        if (tab == 0) {
+            updatePredictions()
+        }
     }
 
     private fun inflateShellPanelIfNeeded() {
@@ -1208,6 +1241,16 @@ class DictationKeyboardService : InputMethodService() {
     private fun setupQwertyKeyboard() {
         qwertyPanel ?: return
 
+        // Set up prediction strip
+        prediction1 = qwertyPanel?.findViewById(R.id.prediction1)
+        prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
+        prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
+
+        // Prediction tap handlers
+        prediction1?.setOnClickListener { onPredictionTapped(0) }
+        prediction2?.setOnClickListener { onPredictionTapped(1) }
+        prediction3?.setOnClickListener { onPredictionTapped(2) }
+
         // Letter keys - map button IDs to characters
         val letterKeys = mapOf(
             R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
@@ -1231,20 +1274,26 @@ class DictationKeyboardService : InputMethodService() {
                     isShiftActive = false
                     updateShiftKeyDisplay()
                 }
+
+                // Update predictions after typing
+                updatePredictions()
             }
         }
 
         // Punctuation keys
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
+            updatePredictions()
         }
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)?.setOnClickListener {
             currentInputConnection?.commitText(".", 1)
+            updatePredictions()
         }
 
-        // Space bar
+        // Space bar - triggers next-word prediction
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
+            updatePredictions()
         }
 
         // Enter key
@@ -1292,6 +1341,59 @@ class DictationKeyboardService : InputMethodService() {
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
         }
+    }
+
+    /**
+     * Request updated predictions based on current input.
+     */
+    private fun updatePredictions() {
+        val textBefore = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString() ?: ""
+
+        predictionManager?.requestPredictions(textBefore) { predictions ->
+            currentPredictions = predictions
+            displayPredictions(predictions)
+        }
+    }
+
+    /**
+     * Display predictions in the prediction strip.
+     */
+    private fun displayPredictions(predictions: List<com.tinydictation.android.prediction.Prediction>) {
+        prediction1?.text = predictions.getOrNull(0)?.word ?: ""
+        prediction2?.text = predictions.getOrNull(1)?.word ?: ""
+        prediction3?.text = predictions.getOrNull(2)?.word ?: ""
+    }
+
+    /**
+     * Handle tap on a prediction to insert it.
+     */
+    private fun onPredictionTapped(index: Int) {
+        val prediction = currentPredictions.getOrNull(index) ?: return
+        val ic = currentInputConnection ?: return
+
+        if (prediction.isCompletion) {
+            // Complete the partial word - delete it first, then insert the full word
+            val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
+            val partialWord = textBefore.split(Regex("\\s+")).lastOrNull() ?: ""
+
+            if (partialWord.isNotEmpty()) {
+                ic.deleteSurroundingText(partialWord.length, 0)
+            }
+            ic.commitText(prediction.word + " ", 1)
+        } else {
+            // Insert next word
+            ic.commitText(prediction.word + " ", 1)
+        }
+
+        // Let the engine learn from this selection
+        val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
+        val words = textBefore.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(3)
+        predictionManager?.onWordsConfirmed(words)
+
+        // Clear and refresh predictions
+        updatePredictions()
+
+        DebugLog.d("DictationKeyboardService: Inserted prediction '${prediction.word}' (completion=${prediction.isCompletion})")
     }
 
     /**

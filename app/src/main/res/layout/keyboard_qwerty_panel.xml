@@ -4,11 +4,67 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/qwertyPanel"
     android:layout_width="match_parent"
-    android:layout_height="200dp"
+    android:layout_height="240dp"
     android:orientation="vertical"
     android:background="@android:color/black"
     android:paddingHorizontal="4dp"
     android:paddingVertical="4dp">
+
+    <!-- Prediction strip -->
+    <LinearLayout
+        android:id="@+id/predictionStrip"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="4dp"
+        android:layout_marginBottom="2dp">
+
+        <TextView
+            android:id="@+id/prediction1"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:textColor="@color/keyboard_key_text"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="8dp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:background="@color/keyboard_key_border" />
+
+        <TextView
+            android:id="@+id/prediction2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:textStyle="bold"
+            android:textColor="@color/keyboard_key_text"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="8dp" />
+
+        <View
+            android:layout_width="1dp"
+            android:layout_height="20dp"
+            android:background="@color/keyboard_key_border" />
+
+        <TextView
+            android:id="@+id/prediction3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textSize="14sp"
+            android:textColor="@color/keyboard_key_text"
+            android:background="?attr/selectableItemBackground"
+            android:paddingHorizontal="8dp" />
+
+    </LinearLayout>
 
     <!-- Row 1: Q W E R T Y U I O P -->
     <LinearLayout

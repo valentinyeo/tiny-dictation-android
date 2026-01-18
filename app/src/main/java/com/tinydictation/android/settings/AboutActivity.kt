@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.15.0:
+            • NEW: Word prediction for QWERTY keyboard
+            • Predictions appear above keyboard while typing
+            • Tap a suggestion to insert it
+            • Swappable engine architecture for future upgrades
+
             v1.14.10:
             • FIX: Keyboard keys now have visible borders
             • Added 1dp stroke around each key (#4D4D4D)
