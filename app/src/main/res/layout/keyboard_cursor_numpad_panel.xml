@@ -117,7 +117,7 @@
             <Button android:id="@+id/cursor_tab" style="@style/KeyboardKey" android:text="Tab" android:textSize="11sp" />
             <Button android:id="@+id/cursor_down" style="@style/KeyboardKey" android:text="\u2193" android:textSize="20sp" />
             <Button android:id="@+id/cursor_del" style="@style/KeyboardKey" android:text="Del" android:textSize="11sp" />
-            <Button android:id="@+id/cursor_bksp" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_backspace" />
+            <Button android:id="@+id/cursor_bksp" style="@style/KeyboardKey" android:text="⌫" android:textSize="18sp" />
         </LinearLayout>
 
         <!-- Row 4: Esc, Space, Enter -->
@@ -129,7 +129,7 @@
 
             <Button android:id="@+id/cursor_esc" style="@style/KeyboardKey" android:text="Esc" android:textSize="11sp" />
             <Button android:id="@+id/cursor_space" style="@style/KeyboardKeySpace" android:text=" " />
-            <Button android:id="@+id/cursor_enter" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_enter" />
+            <Button android:id="@+id/cursor_enter" style="@style/KeyboardKey" android:text="↵" android:textSize="18sp" />
         </LinearLayout>
 
     </LinearLayout>

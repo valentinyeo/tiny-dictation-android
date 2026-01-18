@@ -55,7 +55,7 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/key_shift" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_shift" />
+        <Button android:id="@+id/key_shift" style="@style/KeyboardKeyWide" android:text="⇧" android:textSize="20sp" />
         <Button android:id="@+id/key_z" style="@style/KeyboardKey" android:text="z" />
         <Button android:id="@+id/key_x" style="@style/KeyboardKey" android:text="x" />
         <Button android:id="@+id/key_c" style="@style/KeyboardKey" android:text="c" />
@@ -63,7 +63,7 @@
         <Button android:id="@+id/key_b" style="@style/KeyboardKey" android:text="b" />
         <Button android:id="@+id/key_n" style="@style/KeyboardKey" android:text="n" />
         <Button android:id="@+id/key_m" style="@style/KeyboardKey" android:text="m" />
-        <Button android:id="@+id/key_backspace" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_backspace" />
+        <Button android:id="@+id/key_backspace" style="@style/KeyboardKeyWide" android:text="⌫" android:textSize="20sp" />
     </LinearLayout>
 
     <!-- Row 4: 123 , Space . Enter -->
@@ -77,7 +77,7 @@
         <Button android:id="@+id/key_comma" style="@style/KeyboardKey" android:text="," />
         <Button android:id="@+id/key_space" style="@style/KeyboardKeySpace" android:text=" " />
         <Button android:id="@+id/key_period" style="@style/KeyboardKey" android:text="." />
-        <Button android:id="@+id/key_enter" style="@style/KeyboardKeyIcon" app:icon="@drawable/ic_enter" />
+        <Button android:id="@+id/key_enter" style="@style/KeyboardKeyWide" android:text="↵" android:textSize="20sp" />
     </LinearLayout>
 
 </LinearLayout>
