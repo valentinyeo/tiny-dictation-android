@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | SelectAll | Emoji | Space | Backspace | Language | MIC | Enter | Keyboard | History
+     Button order: Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -124,25 +124,7 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 5. Backspace button -->
-                <FrameLayout
-                    android:id="@+id/btnBackspace"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Backspace">
-
-                    <ImageView
-                        android:id="@+id/ivBackspace"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_backspace"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- 6. Language switch button -->
+                <!-- 5. Language switch button -->
                 <FrameLayout
                     android:id="@+id/btnLanguage"
                     android:layout_width="48dp"
@@ -160,6 +142,24 @@
                         android:textSize="14sp"
                         android:textColor="@color/on_surface"
                         android:textStyle="bold" />
+                </FrameLayout>
+
+                <!-- 6. Backspace button -->
+                <FrameLayout
+                    android:id="@+id/btnBackspace"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Backspace">
+
+                    <ImageView
+                        android:id="@+id/ivBackspace"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_backspace"
+                        app:tint="@color/on_surface" />
                 </FrameLayout>
 
                 <!-- 7. MIC button - toggle dictation (CENTERED, long press = settings) -->

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.1:
+            • FIX: Dictation bar button order corrected
+            • New order: Language | Backspace | MIC (left to right from center)
+            • QWERTY Enter key symbol made larger (28sp)
+
             v1.17.0:
             • NEW: Claude commands tab on keyboard
             • Quick access to Claude Code commands (/continue, /skip-permissions, etc.)

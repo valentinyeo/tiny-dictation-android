@@ -62,7 +62,7 @@ The app uses keyboard-based dictation only:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | SelectAll | Emoji | Space | Backspace | Language | MIC | Enter | Keyboard | History
+Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History
          └───── scroll left to see ──────┘        └───── visible, MIC centered ──────────────┘
 ```
 
@@ -71,8 +71,8 @@ Chevron | SelectAll | Emoji | Space | Backspace | Language | MIC | Enter | Keybo
 2. **SelectAll** - Select all text
 3. **Emoji** - Toggle emoji picker panel
 4. **Space** - Insert space (useful during dictation)
-5. **Backspace** - Delete character
-6. **Language** - Switch transcription language
+5. **Language** - Switch transcription language
+6. **Backspace** - Delete character
 7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
 8. **Enter** - Send enter key
 9. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
