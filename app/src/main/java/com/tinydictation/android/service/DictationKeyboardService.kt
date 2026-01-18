@@ -691,12 +691,22 @@ class DictationKeyboardService : InputMethodService() {
             transcriptionManager?.stopListening()
             isRecording = false
             isProcessing = false
+            isStandby = false
             updateMicButton()
 
             // Brief delay then restart with new language
             Handler(Looper.getMainLooper()).postDelayed({
-                transcriptionManager?.startListening()
-            }, 100)
+                try {
+                    transcriptionManager?.startListening()
+                    isRecording = true
+                    isStandby = true
+                    updateMicButton()
+                    DebugLog.i("DictationKeyboardService: Restarted after language change")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to restart after language change", e)
+                    DebugLog.e("DictationKeyboardService: Restart failed - ${e.message}")
+                }
+            }, 150)
         } else {
             // Not recording, just update the engine's language setting
             transcriptionManager?.setLanguage(newLang)

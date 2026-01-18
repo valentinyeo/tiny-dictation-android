@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.14.6:
+            • FIX: Language switching no longer causes app freeze
+            • Fixed state sync when restarting mic for language change
+
             v1.14.0:
             • NEW: Redesigned Settings screen with clean category list
             • NEW: Voice Commands screen showing all available commands
