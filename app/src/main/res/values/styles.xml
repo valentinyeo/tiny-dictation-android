@@ -26,7 +26,7 @@
 
     <!-- Icon-based wide keys (shift, backspace, enter) -->
     <style name="KeyboardKeyIcon" parent="KeyboardKeyWide">
-        <item name="iconGravity">textStart</item>
+        <item name="iconGravity">textTop</item>
         <item name="iconPadding">0dp</item>
         <item name="iconSize">20dp</item>
         <item name="iconTint">@color/on_surface</item>
