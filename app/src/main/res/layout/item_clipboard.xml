@@ -55,11 +55,14 @@
 
             <ImageView
                 android:id="@+id/ivPinned"
-                android:layout_width="14dp"
-                android:layout_height="14dp"
-                android:src="@drawable/ic_pin"
-                app:tint="?attr/colorPrimary"
-                android:visibility="gone"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:padding="3dp"
+                android:src="@drawable/ic_pin_outline"
+                app:tint="?attr/colorOnSurfaceVariant"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:visibility="visible"
+                android:contentDescription="@string/pin_toggle"
                 tools:visibility="visible" />
 
         </LinearLayout>

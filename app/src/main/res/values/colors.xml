@@ -40,4 +40,5 @@
     <color name="keyboard_key_background">#2D2D2D</color>
     <color name="keyboard_key_text">#FFFFFF</color>
     <color name="keyboard_key_accent">#3D3D3D</color>
+    <color name="keyboard_key_border">#4D4D4D</color>
 </resources>

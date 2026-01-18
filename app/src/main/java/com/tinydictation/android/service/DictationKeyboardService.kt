@@ -1500,7 +1500,7 @@ class DictationKeyboardService : InputMethodService() {
      */
     private fun loadClipboardContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
         val clipboardManager = ClipboardHistoryManager.getInstance(this)
-        // Already sorted with newest first from ClipboardHistoryManager
+        // Returns pinned first, then by recency
         val entries = clipboardManager.getAll()
 
         if (entries.isEmpty()) {
@@ -1510,19 +1510,43 @@ class DictationKeyboardService : InputMethodService() {
             emptyState?.visibility = View.GONE
             recyclerView.visibility = View.VISIBLE
 
-            recyclerView.adapter = ClipboardTabAdapter(entries) { entry ->
-                // Tap to paste directly
-                commitTextInternal(entry.text)
-            }
+            recyclerView.adapter = ClipboardTabAdapter(
+                entries = entries,
+                onItemClick = { entry ->
+                    // Tap to paste directly
+                    commitTextInternal(entry.text)
+                },
+                onPinToggle = { entry ->
+                    clipboardManager.togglePin(entry.id)
+                    refreshClipboardPanel()
+                    val message = if (entry.isPinned) R.string.item_unpinned else R.string.item_pinned
+                    android.widget.Toast.makeText(this, message, android.widget.Toast.LENGTH_SHORT).show()
+                },
+                onItemDelete = { entry ->
+                    clipboardManager.delete(entry.id)
+                    refreshClipboardPanel()
+                }
+            )
         }
     }
 
     /**
-     * Simple adapter for Clipboard tab RecyclerView.
+     * Refreshes the clipboard panel content.
+     */
+    private fun refreshClipboardPanel() {
+        val recyclerView = clipboardPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboardRecyclerView)
+        val emptyState = clipboardPanel?.findViewById<View>(R.id.clipboardEmptyState)
+        recyclerView?.let { loadClipboardContent(it, emptyState) }
+    }
+
+    /**
+     * Adapter for Clipboard tab RecyclerView with pin toggle support.
      */
     private inner class ClipboardTabAdapter(
         private val entries: List<com.tinydictation.android.history.ClipboardEntry>,
-        private val onItemClick: (com.tinydictation.android.history.ClipboardEntry) -> Unit
+        private val onItemClick: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
+        private val onPinToggle: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
+        private val onItemDelete: (com.tinydictation.android.history.ClipboardEntry) -> Unit
     ) : androidx.recyclerview.widget.RecyclerView.Adapter<ClipboardTabAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
@@ -1547,10 +1571,49 @@ class DictationKeyboardService : InputMethodService() {
             fun bind(entry: com.tinydictation.android.history.ClipboardEntry) {
                 tvTimestamp?.text = formatTimestamp(entry.timestamp)
                 tvText?.text = entry.text
-                ivPinned?.visibility = if (entry.isPinned) View.VISIBLE else View.GONE
 
-                // Set click listener on the entire item view
+                // Pin icon state - filled when pinned, outline when not
+                if (entry.isPinned) {
+                    ivPinned?.setImageResource(R.drawable.ic_pin)
+                    ivPinned?.setColorFilter(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary))
+                } else {
+                    ivPinned?.setImageResource(R.drawable.ic_pin_outline)
+                    ivPinned?.setColorFilter(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.on_surface_variant))
+                }
+
+                // Tap item to paste
                 itemView.setOnClickListener { onItemClick(entry) }
+
+                // Tap pin icon to toggle pin
+                ivPinned?.setOnClickListener { onPinToggle(entry) }
+
+                // Long-press for options menu
+                itemView.setOnLongClickListener { view ->
+                    showClipboardItemMenu(view, entry)
+                    true
+                }
+            }
+
+            private fun showClipboardItemMenu(anchor: View, entry: com.tinydictation.android.history.ClipboardEntry) {
+                val popup = android.widget.PopupMenu(anchor.context, anchor)
+                popup.menu.add(if (entry.isPinned) R.string.unpin else R.string.pin)
+                popup.menu.add(R.string.delete)
+
+                popup.setOnMenuItemClickListener { item ->
+                    when (item.title) {
+                        anchor.context.getString(R.string.pin),
+                        anchor.context.getString(R.string.unpin) -> {
+                            onPinToggle(entry)
+                            true
+                        }
+                        anchor.context.getString(R.string.delete) -> {
+                            onItemDelete(entry)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
             }
 
             private fun formatTimestamp(timestamp: Long): String {

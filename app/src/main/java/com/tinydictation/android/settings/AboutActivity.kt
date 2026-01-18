@@ -35,6 +35,17 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.14.10:
+            • FIX: Keyboard keys now have visible borders
+            • Added 1dp stroke around each key (#4D4D4D)
+            • Keys are now clearly distinguishable on black background
+
+            v1.14.9:
+            • NEW: Clipboard pin feature
+            • Tap the pin icon to pin/unpin clipboard items
+            • Pinned items appear at the top and never auto-delete
+            • Long-press for pin/delete options menu
+
             v1.14.8:
             • NEW: Keyboard keys now have visible boundaries
             • Dark gray key backgrounds (#2D2D2D) on black background

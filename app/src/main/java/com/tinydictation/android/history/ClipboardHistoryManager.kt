@@ -143,12 +143,15 @@ class ClipboardHistoryManager(private val context: Context) {
     }
 
     /**
-     * Gets all clipboard entries, most recent first.
+     * Gets all clipboard entries with pinned items first, then by recency.
      *
-     * @return List of clipboard entries
+     * @return List of clipboard entries (pinned first, then most recent)
      */
     fun getAll(): List<ClipboardEntry> {
-        return getAllMutable().toList()
+        val all = getAllMutable()
+        // Partition: pinned first (sorted by timestamp desc), then unpinned (sorted by timestamp desc)
+        val (pinned, unpinned) = all.partition { it.isPinned }
+        return pinned.sortedByDescending { it.timestamp } + unpinned.sortedByDescending { it.timestamp }
     }
 
     /**
@@ -193,6 +196,17 @@ class ClipboardHistoryManager(private val context: Context) {
     fun clear() {
         prefs.edit().remove(KEY_HISTORY).apply()
         DebugLog.i("ClipboardHistoryManager: Cleared all history")
+    }
+
+    /**
+     * Clears only non-pinned clipboard entries, preserving pinned items.
+     */
+    fun clearNonPinned() {
+        val entries = getAllMutable()
+        val pinnedCount = entries.count { it.isPinned }
+        entries.removeAll { !it.isPinned }
+        saveEntries(entries)
+        DebugLog.i("ClipboardHistoryManager: Cleared non-pinned items, kept $pinnedCount pinned")
     }
 
     /**

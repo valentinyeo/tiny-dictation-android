@@ -88,6 +88,13 @@
     <string name="view_history">History</string>
     <string name="back">Back</string>
 
+    <!-- Clipboard pinning -->
+    <string name="pin_toggle">Toggle pin</string>
+    <string name="pin">Pin</string>
+    <string name="unpin">Unpin</string>
+    <string name="item_pinned">Pinned</string>
+    <string name="item_unpinned">Unpinned</string>
+
     <!-- Plurals for multi-select -->
     <plurals name="history_selected_count">
         <item quantity="one">%d selected</item>
