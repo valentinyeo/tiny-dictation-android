@@ -19,9 +19,8 @@ class PredictionManager(private val context: Context) {
 
     // Available engines
     private val engines = mapOf(
-        "ngram" to { NGramPredictionEngine() }
-        // Future: "cloud_openai" to { OpenAIPredictionEngine() }
-        // Future: "tflite" to { TFLitePredictionEngine() }
+        "ngram" to { NGramPredictionEngine() },
+        "groq" to { GroqPredictionEngine() }
     )
 
     /**

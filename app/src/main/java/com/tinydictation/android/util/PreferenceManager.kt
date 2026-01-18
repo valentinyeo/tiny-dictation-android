@@ -40,6 +40,11 @@ class PreferenceManager(context: Context) {
         private const val KEY_BAR_TRANSPARENCY = "bar_transparency"
         private const val KEY_SILENCE_AUTO_STOP_MS = "silence_auto_stop_ms"
         private const val KEY_GIPHY_API_KEY = "giphy_api_key"
+        private const val KEY_PREDICTION_ENGINE = "prediction_engine"
+
+        // Prediction Engine IDs
+        const val PREDICTION_ENGINE_NGRAM = "ngram"
+        const val PREDICTION_ENGINE_GROQ = "groq"
 
         // Default values
         const val DEFAULT_SILENCE_AUTO_STOP_MS = 3000  // 3 seconds default, 0 = disabled
@@ -977,5 +982,21 @@ class PreferenceManager(context: Context) {
      */
     fun hasGiphyApiKey(): Boolean {
         return !getGiphyApiKey().isNullOrBlank()
+    }
+
+    /**
+     * Gets the prediction engine to use.
+     * @return Engine ID ("ngram" or "groq")
+     */
+    fun getPredictionEngine(): String {
+        return prefs.getString(KEY_PREDICTION_ENGINE, PREDICTION_ENGINE_NGRAM) ?: PREDICTION_ENGINE_NGRAM
+    }
+
+    /**
+     * Sets the prediction engine to use.
+     * @param engineId Engine ID ("ngram" or "groq")
+     */
+    fun setPredictionEngine(engineId: String) {
+        prefs.edit().putString(KEY_PREDICTION_ENGINE, engineId).apply()
     }
 }

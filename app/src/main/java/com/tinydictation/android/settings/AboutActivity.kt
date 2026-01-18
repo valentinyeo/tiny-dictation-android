@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.16.0:
+            • NEW: Groq AI prediction engine (ultra-fast cloud predictions)
+            • Set Groq API key in Settings to enable AI predictions
+            • Auto-detects API key and switches engine automatically
+            • Increased keyboard height for prediction strip
+            • Added more common words to offline predictions
+
             v1.15.2:
             • Added copy button to keyboard error screen
             • Makes it easier to share error details for debugging

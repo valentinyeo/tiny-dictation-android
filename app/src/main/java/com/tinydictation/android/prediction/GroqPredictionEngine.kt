@@ -1,0 +1,158 @@
+package com.tinydictation.android.prediction
+
+import android.content.Context
+import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONArray
+import org.json.JSONObject
+import java.util.concurrent.TimeUnit
+
+/**
+ * Cloud-based prediction engine using Groq's ultra-fast LLM API.
+ * Groq typically responds in <100ms, making it viable for real-time predictions.
+ */
+class GroqPredictionEngine : PredictionEngine {
+
+    override val engineId = "groq"
+    override val displayName = "Groq Cloud (Fast AI)"
+    override val requiresInternet = true
+
+    private var apiKey: String? = null
+    private var isInitialized = false
+
+    private val httpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
+
+    override suspend fun initialize(context: Context): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Get API key from preferences
+            val prefs = PreferenceManager(context)
+            apiKey = prefs.getGroqApiKey()
+
+            if (apiKey.isNullOrBlank()) {
+                DebugLog.w("GroqPredictionEngine: No API key configured")
+                return@withContext Result.failure(IllegalStateException("Groq API key not configured. Set it in Settings."))
+            }
+
+            isInitialized = true
+            DebugLog.i("GroqPredictionEngine: Initialized")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            DebugLog.e("GroqPredictionEngine: Init failed - ${e.message}")
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun predict(
+        contextWords: List<String>,
+        partialWord: String
+    ): List<Prediction> = withContext(Dispatchers.IO) {
+        if (!isInitialized || apiKey.isNullOrBlank()) {
+            return@withContext emptyList()
+        }
+
+        val startTime = System.nanoTime()
+
+        try {
+            val context = contextWords.takeLast(5).joinToString(" ")
+            val prompt = buildPrompt(context, partialWord)
+
+            val response = callGroqApi(prompt)
+            val predictions = parseResponse(response, partialWord.isNotEmpty())
+
+            val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
+            DebugLog.i("GroqPrediction: '$partialWord' after '$context' -> ${predictions.map { it.word }} in ${String.format("%.0f", elapsedMs)}ms")
+
+            predictions
+        } catch (e: Exception) {
+            val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
+            DebugLog.e("GroqPrediction: Failed after ${String.format("%.0f", elapsedMs)}ms - ${e.message}")
+            emptyList()
+        }
+    }
+
+    private fun buildPrompt(context: String, partialWord: String): String {
+        return if (partialWord.isNotEmpty()) {
+            """Complete this partial word. Context: "$context" Partial: "$partialWord"
+Return exactly 3 word completions, one per line, nothing else. Just the complete words."""
+        } else {
+            """Predict the next word. Context: "$context"
+Return exactly 3 likely next words, one per line, nothing else. Just single words."""
+        }
+    }
+
+    private fun callGroqApi(prompt: String): String {
+        val jsonBody = JSONObject().apply {
+            put("model", "llama-3.1-8b-instant") // Fast model
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "system")
+                    put("content", "You are a word prediction assistant. Return only the requested words, one per line, no explanations.")
+                })
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", prompt)
+                })
+            })
+            put("temperature", 0.3)
+            put("max_tokens", 30)
+        }
+
+        val request = Request.Builder()
+            .url("https://api.groq.com/openai/v1/chat/completions")
+            .addHeader("Authorization", "Bearer $apiKey")
+            .addHeader("Content-Type", "application/json")
+            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = httpClient.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            throw Exception("Groq API error: ${response.code} - ${response.body?.string()}")
+        }
+
+        val responseBody = response.body?.string() ?: throw Exception("Empty response")
+        val json = JSONObject(responseBody)
+
+        return json
+            .getJSONArray("choices")
+            .getJSONObject(0)
+            .getJSONObject("message")
+            .getString("content")
+    }
+
+    private fun parseResponse(response: String, isCompletion: Boolean): List<Prediction> {
+        return response
+            .split("\n")
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it.matches(Regex("^[a-zA-Z']+$")) }
+            .take(3)
+            .mapIndexed { index, word ->
+                Prediction(
+                    word = word.lowercase(),
+                    confidence = 1f - (index * 0.2f),
+                    isCompletion = isCompletion
+                )
+            }
+    }
+
+    override fun release() {
+        isInitialized = false
+        DebugLog.i("GroqPredictionEngine: Released")
+    }
+
+    override fun learn(words: List<String>) {
+        // Cloud API doesn't support learning
+    }
+}

@@ -287,10 +287,19 @@ class DictationKeyboardService : InputMethodService() {
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
         clipboardHistoryManager?.startListening()
 
-        // Initialize prediction manager
+        // Initialize prediction manager - auto-detect engine based on API key availability
         predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
         CoroutineScope(Dispatchers.Main).launch {
-            predictionManager?.initialize("ngram")
+            val prefs = com.tinydictation.android.util.PreferenceManager(this@DictationKeyboardService)
+            // Use Groq if API key is configured, otherwise fall back to local ngram
+            val engineId = if (prefs.hasGroqApiKey()) "groq" else "ngram"
+            DebugLog.i("DictationKeyboardService: Using prediction engine '$engineId'")
+            val result = predictionManager?.initialize(engineId)
+            if (result?.isFailure == true && engineId == "groq") {
+                // Fall back to ngram if Groq fails
+                DebugLog.w("DictationKeyboardService: Groq engine failed, falling back to ngram")
+                predictionManager?.initialize("ngram")
+            }
         }
     }
 

@@ -178,7 +178,27 @@ class NGramPredictionEngine : PredictionEngine {
             "friend", "family", "mother", "father", "brother", "sister", "son", "daughter",
             "email", "phone", "call", "text", "message", "send", "reply", "forward",
             "meeting", "schedule", "appointment", "reminder", "note", "task", "project",
-            "address", "number", "name", "date", "time", "location", "direction"
+            "address", "number", "name", "date", "time", "location", "direction",
+            // Common words for typing
+            "test", "testing", "try", "trying", "check", "checking", "start", "stop",
+            "open", "close", "save", "delete", "edit", "copy", "paste", "cut",
+            "search", "find", "help", "support", "question", "answer", "problem", "issue",
+            "working", "works", "work", "done", "finish", "finished", "complete", "completed",
+            "wait", "waiting", "ready", "set", "setting", "settings", "option", "options",
+            "button", "click", "tap", "press", "type", "typing", "write", "writing",
+            "read", "reading", "look", "looking", "watch", "watching", "listen", "listening",
+            "talk", "talking", "speak", "speaking", "tell", "telling", "ask", "asking",
+            "give", "giving", "take", "taking", "put", "putting", "keep", "keeping",
+            "show", "showing", "hide", "hiding", "turn", "turning", "change", "changing",
+            "add", "adding", "remove", "removing", "move", "moving", "update", "updating",
+            "create", "creating", "build", "building", "run", "running", "install", "installing",
+            "download", "downloading", "upload", "uploading", "share", "sharing",
+            "login", "logout", "sign", "signup", "password", "username", "account",
+            "file", "folder", "document", "image", "photo", "video", "music", "audio",
+            "app", "application", "website", "page", "link", "url", "browser", "internet",
+            "computer", "laptop", "desktop", "mobile", "tablet", "device", "screen", "display",
+            "keyboard", "mouse", "touch", "scroll", "zoom", "rotate", "resize",
+            "error", "warning", "success", "failed", "loading", "processing", "complete"
         )
 
         // Common next words when no context
