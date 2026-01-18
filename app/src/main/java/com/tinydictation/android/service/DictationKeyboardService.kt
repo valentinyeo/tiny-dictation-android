@@ -186,6 +186,41 @@ class DictationKeyboardService : InputMethodService() {
     // Counter to track how many backspaces have been sent (for debugging)
     private var backspaceCount = 0
 
+    // Cursor key repeat handling - similar to backspace but without word deletion
+    private val cursorHandler = Handler(Looper.getMainLooper())
+    @Volatile private var isCursorKeyHeld = false
+    private var cursorStartTime = 0L
+    private var cursorKeyCode = 0  // The key code of the currently held cursor key
+    private var cursorKeyCount = 0
+
+    // Single runnable for cursor key repeat
+    private val cursorRepeatRunnable = object : Runnable {
+        override fun run() {
+            if (!isCursorKeyHeld) {
+                DebugLog.d("DictationKeyboardService: Cursor key released after $cursorKeyCount presses, stopping repeat")
+                return
+            }
+
+            val holdDuration = System.currentTimeMillis() - cursorStartTime
+
+            // Send the cursor key event
+            sendDownUpKeyEvents(cursorKeyCode)
+            cursorKeyCount++
+
+            // Calculate accelerated delay (same as backspace)
+            val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
+            val currentDelay = (BACKSPACE_REPEAT_DELAY_START -
+                (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
+
+            // Log every 10 presses
+            if (cursorKeyCount % 10 == 0) {
+                DebugLog.d("DictationKeyboardService: Cursor key count=$cursorKeyCount, delay=${currentDelay}ms, held=${holdDuration}ms")
+            }
+
+            cursorHandler.postDelayed(this, currentDelay)
+        }
+    }
+
     // Single runnable instance that checks the flag to decide whether to continue
     private val backspaceRepeatRunnable = object : Runnable {
         override fun run() {
@@ -371,6 +406,8 @@ class DictationKeyboardService : InputMethodService() {
         longPressHandler?.removeCallbacksAndMessages(null)
         isBackspaceHeld = false
         backspaceHandler.removeCallbacksAndMessages(null)
+        isCursorKeyHeld = false
+        cursorHandler.removeCallbacksAndMessages(null)
         pulseAnimator?.cancel()
         pulseAnimator = null
         super.onDestroy()
@@ -1277,18 +1314,18 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
 
-        // Cursor/navigation keys - send key events
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_UP)
+        // Cursor/navigation keys - with hold-to-repeat (same acceleration as backspace)
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnTouchListener { _, event ->
+            handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_UP)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_DOWN)
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnTouchListener { _, event ->
+            handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_DOWN)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnTouchListener { _, event ->
+            handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_LEFT)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnClickListener {
-            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnTouchListener { _, event ->
+            handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_RIGHT)
         }
 
         // Navigation keys
@@ -1865,6 +1902,54 @@ class DictationKeyboardService : InputMethodService() {
 
                 // Also remove pending callbacks immediately for faster response
                 backspaceHandler.removeCallbacks(backspaceRepeatRunnable)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Handles touch events for cursor keys (up, down, left, right) with hold-to-repeat.
+     *
+     * Behavior:
+     * - Tap: send one cursor key event
+     * - Hold: send cursor key events with accelerating speed (same acceleration as backspace)
+     *
+     * Uses the same timing constants as backspace for consistent feel.
+     */
+    private fun handleCursorKeyTouch(event: MotionEvent, keyCode: Int): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                DebugLog.d("DictationKeyboardService: Cursor key $keyCode ACTION_DOWN")
+
+                // Reset counter for this hold session
+                cursorKeyCount = 0
+                cursorKeyCode = keyCode
+
+                // Send first key event immediately
+                sendDownUpKeyEvents(keyCode)
+                cursorKeyCount++
+
+                // Record start time and set flag
+                cursorStartTime = System.currentTimeMillis()
+                isCursorKeyHeld = true
+
+                // Remove any pending callbacks
+                cursorHandler.removeCallbacks(cursorRepeatRunnable)
+
+                // Start the repeat loop after initial delay
+                cursorHandler.postDelayed(cursorRepeatRunnable, BACKSPACE_INITIAL_DELAY)
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                val holdDuration = System.currentTimeMillis() - cursorStartTime
+                DebugLog.d("DictationKeyboardService: Cursor key $cursorKeyCode ACTION_UP/CANCEL after ${holdDuration}ms, $cursorKeyCount presses")
+
+                // Clear the flag
+                isCursorKeyHeld = false
+
+                // Remove pending callbacks
+                cursorHandler.removeCallbacks(cursorRepeatRunnable)
                 return true
             }
         }

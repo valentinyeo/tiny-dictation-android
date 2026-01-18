@@ -34,4 +34,10 @@
     <color name="text_secondary">#49454F</color>
     <color name="text_tertiary">#79747E</color>
     <color name="bubble_text">#FFFFFF</color>
+
+    <!-- Keyboard colors (dark theme) -->
+    <color name="keyboard_background">#000000</color>
+    <color name="keyboard_key_background">#2D2D2D</color>
+    <color name="keyboard_key_text">#FFFFFF</color>
+    <color name="keyboard_key_accent">#3D3D3D</color>
 </resources>

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.14.7:
+            • NEW: Cursor keys now support hold-to-repeat
+            • Same acceleration behavior as backspace
+            • Hold arrow keys to move cursor continuously
+
             v1.14.6:
             • FIX: Language switching no longer causes app freeze
             • Fixed state sync when restarting mic for language change
