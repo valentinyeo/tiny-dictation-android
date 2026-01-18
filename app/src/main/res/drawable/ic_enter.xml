@@ -4,8 +4,8 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Enter/return key - Material Design keyboard_return icon -->
+    <!-- Enter/return key - subdirectory_arrow_left style -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M19,7v4H5.83l3.58,-3.59L8,6l-6,6 6,6 1.41,-1.41L5.83,13H21V7h-2z" />
+        android:pathData="M19,15l-6,6l-1.42,-1.42L15.17,16H4V4h2v10h9.17l-3.59,-3.58L13,9l6,6z" />
 </vector>
