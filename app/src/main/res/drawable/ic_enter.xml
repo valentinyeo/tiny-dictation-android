@@ -4,8 +4,8 @@
     android:height="24dp"
     android:viewportWidth="24"
     android:viewportHeight="24">
-    <!-- Enter/return key - filled arrow for Material Button compatibility -->
+    <!-- Enter/return key - Material Design keyboard_return icon -->
     <path
-        android:fillColor="#000000"
-        android:pathData="M19,6c0,-1.1 -0.9,-2 -2,-2h-3v2h3v7h-10.17l3.59,-3.59L9,8l-6,6 6,6 1.41,-1.41L6.83,15H17c1.1,0 2,-0.9 2,-2V6z" />
+        android:fillColor="#FFFFFF"
+        android:pathData="M19,7v4H5.83l3.58,-3.59L8,6l-6,6 6,6 1.41,-1.41L5.83,13H21V7h-2z" />
 </vector>
