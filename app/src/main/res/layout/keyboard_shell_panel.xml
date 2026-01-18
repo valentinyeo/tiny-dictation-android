@@ -16,14 +16,14 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/shell_ctrl_c" style="@style/ShellKey" android:text="^C" android:tag="ctrl_c" />
-        <Button android:id="@+id/shell_ctrl_u" style="@style/ShellKey" android:text="^U" android:tag="ctrl_u" />
-        <Button android:id="@+id/shell_ctrl_z" style="@style/ShellKey" android:text="^Z" android:tag="ctrl_z" />
-        <Button android:id="@+id/shell_ctrl_d" style="@style/ShellKey" android:text="^D" android:tag="ctrl_d" />
-        <Button android:id="@+id/shell_ctrl_l" style="@style/ShellKey" android:text="^L" android:tag="ctrl_l" />
-        <Button android:id="@+id/shell_ctrl_a" style="@style/ShellKey" android:text="^A" android:tag="ctrl_a" />
-        <Button android:id="@+id/shell_ctrl_e" style="@style/ShellKey" android:text="^E" android:tag="ctrl_e" />
-        <Button android:id="@+id/shell_ctrl_k" style="@style/ShellKey" android:text="^K" android:tag="ctrl_k" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_c" style="@style/ShellKey" android:text="^C" android:tag="ctrl_c" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_u" style="@style/ShellKey" android:text="^U" android:tag="ctrl_u" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_z" style="@style/ShellKey" android:text="^Z" android:tag="ctrl_z" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_d" style="@style/ShellKey" android:text="^D" android:tag="ctrl_d" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_l" style="@style/ShellKey" android:text="^L" android:tag="ctrl_l" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_a" style="@style/ShellKey" android:text="^A" android:tag="ctrl_a" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_e" style="@style/ShellKey" android:text="^E" android:tag="ctrl_e" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_k" style="@style/ShellKey" android:text="^K" android:tag="ctrl_k" />
     </LinearLayout>
 
     <!-- Row 2: Navigation keys (arrows, home, end, pgup, pgdn) -->
@@ -33,14 +33,14 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/shell_up" style="@style/ShellKey" android:text="↑" android:tag="up" />
-        <Button android:id="@+id/shell_down" style="@style/ShellKey" android:text="↓" android:tag="down" />
-        <Button android:id="@+id/shell_left" style="@style/ShellKey" android:text="←" android:tag="left" />
-        <Button android:id="@+id/shell_right" style="@style/ShellKey" android:text="→" android:tag="right" />
-        <Button android:id="@+id/shell_home" style="@style/ShellKey" android:text="Home" android:tag="home" android:textSize="10sp" />
-        <Button android:id="@+id/shell_end" style="@style/ShellKey" android:text="End" android:tag="end" android:textSize="10sp" />
-        <Button android:id="@+id/shell_pgup" style="@style/ShellKey" android:text="PgUp" android:tag="pgup" android:textSize="9sp" />
-        <Button android:id="@+id/shell_pgdn" style="@style/ShellKey" android:text="PgDn" android:tag="pgdn" android:textSize="9sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_up" style="@style/ShellKey" android:text="↑" android:tag="up" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_down" style="@style/ShellKey" android:text="↓" android:tag="down" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_left" style="@style/ShellKey" android:text="←" android:tag="left" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_right" style="@style/ShellKey" android:text="→" android:tag="right" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_home" style="@style/ShellKey" android:text="Home" android:tag="home" android:textSize="10sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_end" style="@style/ShellKey" android:text="End" android:tag="end" android:textSize="10sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_pgup" style="@style/ShellKey" android:text="PgUp" android:tag="pgup" android:textSize="9sp" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_pgdn" style="@style/ShellKey" android:text="PgDn" android:tag="pgdn" android:textSize="9sp" />
     </LinearLayout>
 
     <!-- Row 3: Tab, Shift+Tab, Esc, Ctrl+R -->
@@ -50,10 +50,10 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/shell_tab" style="@style/ShellKeyWide" android:text="Tab" android:tag="tab" />
-        <Button android:id="@+id/shell_shift_tab" style="@style/ShellKeyWide" android:text="⇧Tab" android:tag="shift_tab" />
-        <Button android:id="@+id/shell_esc" style="@style/ShellKeyWide" android:text="Esc" android:tag="esc" />
-        <Button android:id="@+id/shell_ctrl_r" style="@style/ShellKeyWide" android:text="^R" android:tag="ctrl_r" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_tab" style="@style/ShellKeyWide" android:text="Tab" android:tag="tab" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_shift_tab" style="@style/ShellKeyWide" android:text="⇧Tab" android:tag="shift_tab" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_esc" style="@style/ShellKeyWide" android:text="Esc" android:tag="esc" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_ctrl_r" style="@style/ShellKeyWide" android:text="^R" android:tag="ctrl_r" />
     </LinearLayout>
 
     <!-- Row 4: Symbols row 1 -->
@@ -63,14 +63,14 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/shell_at" style="@style/ShellKey" android:text="@" android:tag="@" />
-        <Button android:id="@+id/shell_pipe" style="@style/ShellKey" android:text="|" android:tag="|" />
-        <Button android:id="@+id/shell_tilde" style="@style/ShellKey" android:text="~" android:tag="~" />
-        <Button android:id="@+id/shell_backtick" style="@style/ShellKey" android:text="`" android:tag="`" />
-        <Button android:id="@+id/shell_dollar" style="@style/ShellKey" android:text="$" android:tag="$" />
-        <Button android:id="@+id/shell_hash" style="@style/ShellKey" android:text="#" android:tag="#" />
-        <Button android:id="@+id/shell_percent" style="@style/ShellKey" android:text="%" android:tag="%" />
-        <Button android:id="@+id/shell_caret" style="@style/ShellKey" android:text="^" android:tag="^" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_at" style="@style/ShellKey" android:text="@" android:tag="@" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_pipe" style="@style/ShellKey" android:text="|" android:tag="|" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_tilde" style="@style/ShellKey" android:text="~" android:tag="~" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_backtick" style="@style/ShellKey" android:text="`" android:tag="`" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_dollar" style="@style/ShellKey" android:text="$" android:tag="$" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_hash" style="@style/ShellKey" android:text="#" android:tag="#" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_percent" style="@style/ShellKey" android:text="%" android:tag="%" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_caret" style="@style/ShellKey" android:text="^" android:tag="^" />
     </LinearLayout>
 
     <!-- Row 5: Symbols row 2 -->
@@ -80,14 +80,14 @@
         android:layout_weight="1"
         android:orientation="horizontal">
 
-        <Button android:id="@+id/shell_amp" style="@style/ShellKey" android:text="&amp;" android:tag="&amp;" />
-        <Button android:id="@+id/shell_star" style="@style/ShellKey" android:text="*" android:tag="*" />
-        <Button android:id="@+id/shell_backslash" style="@style/ShellKey" android:text="\\" android:tag="\\" />
-        <Button android:id="@+id/shell_slash" style="@style/ShellKey" android:text="/" android:tag="/" />
-        <Button android:id="@+id/shell_lt" style="@style/ShellKey" android:text="&lt;" android:tag="&lt;" />
-        <Button android:id="@+id/shell_gt" style="@style/ShellKey" android:text="&gt;" android:tag="&gt;" />
-        <Button android:id="@+id/shell_lbracket" style="@style/ShellKey" android:text="[" android:tag="[" />
-        <Button android:id="@+id/shell_rbracket" style="@style/ShellKey" android:text="]" android:tag="]" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_amp" style="@style/ShellKey" android:text="&amp;" android:tag="&amp;" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_star" style="@style/ShellKey" android:text="*" android:tag="*" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_backslash" style="@style/ShellKey" android:text="\\" android:tag="\\" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_slash" style="@style/ShellKey" android:text="/" android:tag="/" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_lt" style="@style/ShellKey" android:text="&lt;" android:tag="&lt;" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_gt" style="@style/ShellKey" android:text="&gt;" android:tag="&gt;" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_lbracket" style="@style/ShellKey" android:text="[" android:tag="[" />
+        <com.google.android.material.button.MaterialButton android:id="@+id/shell_rbracket" style="@style/ShellKey" android:text="]" android:tag="]" />
     </LinearLayout>
 
 </LinearLayout>

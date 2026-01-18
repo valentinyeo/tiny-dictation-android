@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.15.1:
+            • FIX: Keyboard keys now have visible borders
+            • Fixed MaterialButton inflation in IME context
+            • Applied stroke styling to all keyboard panels
+
             v1.15.0:
             • NEW: Word prediction for QWERTY keyboard
             • Predictions appear above keyboard while typing
