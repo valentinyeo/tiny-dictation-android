@@ -62,21 +62,21 @@ The app uses keyboard-based dictation only:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Language | Clipboard
-         └───── scroll left to see ─────┘       └───── visible, MIC centered ───────────────┘
+Chevron | SelectAll | Emoji | Space | Backspace | Language | MIC | Enter | Keyboard | History
+         └───── scroll left to see ──────┘        └───── visible, MIC centered ──────────────┘
 ```
 
 **Button functions:**
 1. **Chevron** - Switch to previous keyboard
 2. **SelectAll** - Select all text
 3. **Emoji** - Toggle emoji picker panel
-4. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
-5. **Space** - Insert space (useful during dictation)
-6. **Backspace** - Delete character
+4. **Space** - Insert space (useful during dictation)
+5. **Backspace** - Delete character
+6. **Language** - Switch transcription language
 7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
 8. **Enter** - Send enter key
-9. **Language** - Switch transcription language
-10. **Clipboard** - Open transcription history (icon: ic_history)
+9. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
+10. **History** - Open transcription history (icon: ic_history)
 
 **Layout file:** `app/src/main/res/layout/view_keyboard.xml`
 
@@ -84,8 +84,8 @@ Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Langu
 - The HorizontalScrollView MUST center on the MIC button when keyboard opens
 - MIC button MUST remain visually centered on screen for thumb access
 - `scrollDictationBarToDefault()` in DictationKeyboardService.kt handles this
-- Buttons to the left of MIC (Chevron, Emoji, Keyboard, Clipboard, Space, Backspace) are hidden by scroll
-- Buttons to the right of MIC (Enter, Language, SelectAll) are visible by default
+- Buttons to the left of MIC (Chevron, SelectAll, Emoji, Space, Backspace, Language) are hidden by scroll
+- Buttons to the right of MIC (Enter, Keyboard, History) are visible by default
 
 ### Archived Modes (in `archived/` directory)
 The following experimental modes have been archived but preserved for reference:

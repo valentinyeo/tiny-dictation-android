@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | SelectAll | Emoji | Keyboard | Space | Backspace | MIC | Enter | Language | Clipboard
+     Button order: Chevron | SelectAll | Emoji | Space | Backspace | Language | MIC | Enter | Keyboard | History
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -106,25 +106,7 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 4. Keyboard button - toggles tabbed keyboard panel -->
-                <FrameLayout
-                    android:id="@+id/btnKeyboard"
-                    android:layout_width="48dp"
-                    android:layout_height="48dp"
-                    android:layout_marginStart="6dp"
-                    android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Keyboard">
-
-                    <ImageView
-                        android:id="@+id/ivKeyboard"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:layout_gravity="center"
-                        android:src="@drawable/ic_keyboard"
-                        app:tint="@color/on_surface" />
-                </FrameLayout>
-
-                <!-- 5. Space button - insert space -->
+                <!-- 4. Space button - insert space -->
                 <FrameLayout
                     android:id="@+id/btnSpace"
                     android:layout_width="48dp"
@@ -142,7 +124,7 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 6. Backspace button -->
+                <!-- 5. Backspace button -->
                 <FrameLayout
                     android:id="@+id/btnBackspace"
                     android:layout_width="48dp"
@@ -158,6 +140,26 @@
                         android:layout_gravity="center"
                         android:src="@drawable/ic_backspace"
                         app:tint="@color/on_surface" />
+                </FrameLayout>
+
+                <!-- 6. Language switch button -->
+                <FrameLayout
+                    android:id="@+id/btnLanguage"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Switch language">
+
+                    <TextView
+                        android:id="@+id/tvLanguage"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center"
+                        android:text="EN"
+                        android:textSize="14sp"
+                        android:textColor="@color/on_surface"
+                        android:textStyle="bold" />
                 </FrameLayout>
 
                 <!-- 7. MIC button - toggle dictation (CENTERED, long press = settings) -->
@@ -196,24 +198,22 @@
                         app:tint="@color/on_surface" />
                 </FrameLayout>
 
-                <!-- 9. Language switch button -->
+                <!-- 9. Keyboard button - toggles tabbed keyboard panel -->
                 <FrameLayout
-                    android:id="@+id/btnLanguage"
+                    android:id="@+id/btnKeyboard"
                     android:layout_width="48dp"
                     android:layout_height="48dp"
                     android:layout_marginStart="6dp"
                     android:background="@drawable/keyboard_button_background"
-                    android:contentDescription="Switch language">
+                    android:contentDescription="Keyboard">
 
-                    <TextView
-                        android:id="@+id/tvLanguage"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
+                    <ImageView
+                        android:id="@+id/ivKeyboard"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
                         android:layout_gravity="center"
-                        android:text="EN"
-                        android:textSize="14sp"
-                        android:textColor="@color/on_surface"
-                        android:textStyle="bold" />
+                        android:src="@drawable/ic_keyboard"
+                        app:tint="@color/on_surface" />
                 </FrameLayout>
 
                 <!-- 10. Clipboard/History button - opens transcription history -->

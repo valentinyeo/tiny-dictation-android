@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.16.2:
+            • Reordered dictation bar buttons
+            • New order: ... | Language | MIC | Enter | Keyboard | History
+            • Keyboard button moved next to History for easier access
+
             v1.16.1:
             • FIX: QWERTY keyboard buttons now match dictation bar colors
             • FIX: Best prediction now centered, secondary on sides
