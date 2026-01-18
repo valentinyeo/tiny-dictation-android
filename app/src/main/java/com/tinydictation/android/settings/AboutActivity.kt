@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.16.1:
+            • FIX: QWERTY keyboard buttons now match dictation bar colors
+            • FIX: Best prediction now centered, secondary on sides
+            • Single prediction shows in center only
+
             v1.16.0:
             • NEW: Groq AI prediction engine (ultra-fast cloud predictions)
             • Set Groq API key in Settings to enable AI predictions

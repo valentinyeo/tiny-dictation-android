@@ -588,6 +588,9 @@ class DictationKeyboardService : InputMethodService() {
             textView?.setTextColor(iconColor)
         }
 
+        // Apply theme to QWERTY keyboard buttons
+        applyQwertyTheme(buttonColor, iconColor, backgroundColor)
+
         DebugLog.d("DictationKeyboardService: Applied theme - $themeSetting")
     }
 
@@ -620,6 +623,74 @@ class DictationKeyboardService : InputMethodService() {
             val child = button.getChildAt(i)
             if (child is ImageView) {
                 child.imageTintList = iconColorStateList
+            }
+        }
+    }
+
+    /**
+     * Applies theme colors to QWERTY keyboard buttons.
+     */
+    private fun applyQwertyTheme(buttonColor: Int, textColor: Int, backgroundColor: Int) {
+        // Apply to QWERTY panel background
+        qwertyPanel?.setBackgroundColor(backgroundColor)
+
+        // Apply to cursor/numpad panel background
+        cursorNumpadPanel?.setBackgroundColor(backgroundColor)
+
+        // Get all Button views in the keyboard panels and apply theme
+        val buttonIds = listOf(
+            // QWERTY keys
+            R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
+            R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p,
+            R.id.key_a, R.id.key_s, R.id.key_d, R.id.key_f, R.id.key_g,
+            R.id.key_h, R.id.key_j, R.id.key_k, R.id.key_l,
+            R.id.key_z, R.id.key_x, R.id.key_c, R.id.key_v, R.id.key_b,
+            R.id.key_n, R.id.key_m,
+            R.id.key_shift, R.id.key_backspace, R.id.key_numbers,
+            R.id.key_comma, R.id.key_space, R.id.key_period, R.id.key_enter
+        )
+
+        for (id in buttonIds) {
+            qwertyPanel?.findViewById<android.widget.Button>(id)?.let { button ->
+                // Create themed background
+                val backgroundDrawable = GradientDrawable().apply {
+                    setColor(buttonColor)
+                    cornerRadius = 12 * resources.displayMetrics.density
+                }
+                val rippleDrawable = RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
+                    backgroundDrawable,
+                    null
+                ).mutate()
+                button.background = rippleDrawable
+                button.setTextColor(textColor)
+            }
+        }
+
+        // Apply to numpad/cursor keys
+        val numpadIds = listOf(
+            R.id.numpad_0, R.id.numpad_1, R.id.numpad_2, R.id.numpad_3,
+            R.id.numpad_4, R.id.numpad_5, R.id.numpad_6, R.id.numpad_7,
+            R.id.numpad_8, R.id.numpad_9, R.id.numpad_dot, R.id.numpad_equals,
+            R.id.cursor_up, R.id.cursor_down, R.id.cursor_left, R.id.cursor_right,
+            R.id.cursor_home, R.id.cursor_end, R.id.cursor_pgup, R.id.cursor_pgdn,
+            R.id.cursor_tab, R.id.cursor_del, R.id.cursor_bksp, R.id.cursor_esc,
+            R.id.cursor_space, R.id.cursor_enter
+        )
+
+        for (id in numpadIds) {
+            cursorNumpadPanel?.findViewById<android.widget.Button>(id)?.let { button ->
+                val backgroundDrawable = GradientDrawable().apply {
+                    setColor(buttonColor)
+                    cornerRadius = 12 * resources.displayMetrics.density
+                }
+                val rippleDrawable = RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
+                    backgroundDrawable,
+                    null
+                ).mutate()
+                button.background = rippleDrawable
+                button.setTextColor(textColor)
             }
         }
     }
@@ -1387,18 +1458,52 @@ class DictationKeyboardService : InputMethodService() {
 
     /**
      * Display predictions in the prediction strip.
+     * Best prediction goes in CENTER (prediction2), others on sides.
+     * Layout: [LEFT: 2nd best] [CENTER: BEST] [RIGHT: 3rd best]
      */
     private fun displayPredictions(predictions: List<com.tinydictation.android.prediction.Prediction>) {
-        prediction1?.text = predictions.getOrNull(0)?.word ?: ""
-        prediction2?.text = predictions.getOrNull(1)?.word ?: ""
-        prediction3?.text = predictions.getOrNull(2)?.word ?: ""
+        when (predictions.size) {
+            0 -> {
+                prediction1?.text = ""
+                prediction2?.text = ""
+                prediction3?.text = ""
+            }
+            1 -> {
+                // Only one prediction - show in center only
+                prediction1?.text = ""
+                prediction2?.text = predictions[0].word
+                prediction3?.text = ""
+            }
+            2 -> {
+                // Two predictions - best in center, second on left
+                prediction1?.text = predictions[1].word
+                prediction2?.text = predictions[0].word
+                prediction3?.text = ""
+            }
+            else -> {
+                // Three+ predictions - best in center, others on sides
+                prediction1?.text = predictions[1].word  // 2nd best on left
+                prediction2?.text = predictions[0].word  // BEST in center
+                prediction3?.text = predictions[2].word  // 3rd best on right
+            }
+        }
     }
 
     /**
      * Handle tap on a prediction to insert it.
+     * Maps UI position to prediction index: center=0, left=1, right=2
      */
     private fun onPredictionTapped(index: Int) {
-        val prediction = currentPredictions.getOrNull(index) ?: return
+        // Map UI index to actual prediction index
+        // UI: 0=left, 1=center, 2=right
+        // Predictions: 0=best(center), 1=2nd(left), 2=3rd(right)
+        val predictionIndex = when (index) {
+            0 -> 1  // Left tapped -> 2nd best prediction
+            1 -> 0  // Center tapped -> best prediction
+            2 -> 2  // Right tapped -> 3rd best prediction
+            else -> return
+        }
+        val prediction = currentPredictions.getOrNull(predictionIndex) ?: return
         val ic = currentInputConnection ?: return
 
         if (prediction.isCompletion) {
