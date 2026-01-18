@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.14.8:
+            • NEW: Keyboard keys now have visible boundaries
+            • Dark gray key backgrounds (#2D2D2D) on black background
+            • Improved visual clarity for touch targets
+
             v1.14.7:
             • NEW: Cursor keys now support hold-to-repeat
             • Same acceleration behavior as backspace
