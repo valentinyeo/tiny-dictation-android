@@ -6,14 +6,13 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="4dp"
-    app:cardBackgroundColor="?attr/colorSurfaceVariant"
+    app:cardBackgroundColor="@color/keyboard_key_background"
     app:cardElevation="1dp"
     app:cardCornerRadius="12dp"
-    style="@style/Widget.Material3.CardView.Filled"
     android:clickable="true"
     android:focusable="true"
     android:checkable="true"
-    app:checkedIconTint="?attr/colorPrimary"
+    app:checkedIconTint="@color/primary"
     app:checkedIcon="@drawable/ic_check">
 
     <LinearLayout
@@ -32,7 +31,7 @@
             android:ellipsize="end"
             android:textSize="12sp"
             android:lineSpacingMultiplier="1.1"
-            android:textColor="?attr/colorOnSurface"
+            android:textColor="@color/keyboard_key_text"
             tools:text="This is an example of transcribed text that could span multiple lines." />
 
         <!-- Footer row: timestamp and language badge -->
@@ -49,7 +48,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:textSize="10sp"
-                android:textColor="?attr/colorOnSurfaceVariant"
+                android:textColor="@color/keyboard_key_text"
                 android:alpha="0.8"
                 tools:text="2:30 PM" />
 
@@ -61,7 +60,7 @@
                 android:paddingVertical="1dp"
                 android:background="@drawable/language_badge_background"
                 android:textSize="9sp"
-                android:textColor="?attr/colorOnPrimaryContainer"
+                android:textColor="@color/keyboard_key_text"
                 tools:text="EN" />
 
         </LinearLayout>

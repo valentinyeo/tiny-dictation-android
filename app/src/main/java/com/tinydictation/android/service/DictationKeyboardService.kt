@@ -1161,13 +1161,14 @@ class DictationKeyboardService : InputMethodService() {
 
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
         swipeOverlay?.setOnTouchListener { view, event ->
-            // Get the target panel for passing through events
+            // Get the target panel for passing through events (6 tabs)
             val targetPanel = when (currentKeyboardTab) {
                 0 -> qwertyPanel
                 1 -> cursorNumpadPanel
-                2 -> shellPanel
-                3 -> clipboardPanel
-                4 -> historyTabPanel
+                2 -> claudePanel
+                3 -> shellPanel
+                4 -> clipboardPanel
+                5 -> historyTabPanel
                 else -> null
             }
 

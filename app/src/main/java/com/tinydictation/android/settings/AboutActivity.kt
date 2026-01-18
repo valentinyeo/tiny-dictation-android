@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.2:
+            • FIX: Claude tab buttons now tappable and scrollable
+            • Added Claude shell launch commands (--dangerously-skip-permissions, --continue)
+            • Added /model opus, /model sonnet, /model haiku shortcuts
+            • Added more commands: /terminal, /vim, /doctor, /pr, /bug, /init, /login
+            • FIX: Normalized background colors across all keyboard tabs
+            • Clipboard and History items now match dark keyboard theme
+
             v1.17.1:
             • FIX: Dictation bar button order corrected
             • New order: Language | Backspace | MIC (left to right from center)

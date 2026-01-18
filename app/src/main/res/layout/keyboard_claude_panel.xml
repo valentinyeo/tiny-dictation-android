@@ -14,11 +14,11 @@
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp">
 
-        <!-- Section: Permission Commands (most important) -->
+        <!-- Section: Shell Launch Commands -->
         <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Permissions"
+            android:text="Launch"
             android:textSize="11sp"
             android:textColor="@color/primary"
             android:textStyle="bold"
@@ -30,12 +30,67 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
+            <Button android:id="@+id/claude_launch_skip"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="claude --dangerously-skip-permissions"
+                android:textSize="8sp"
+                android:tag="claude --dangerously-skip-permissions" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_launch_continue"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="claude --continue"
+                android:textSize="9sp"
+                android:tag="claude --continue" />
+
+            <Button android:id="@+id/claude_launch_both"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="claude -d -c"
+                android:textSize="9sp"
+                android:tag="claude --dangerously-skip-permissions --continue" />
+        </LinearLayout>
+
+        <!-- Section: Permission Commands -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Permissions"
+            android:textSize="11sp"
+            android:textColor="@color/primary"
+            android:textStyle="bold"
+            android:paddingTop="8dp"
+            android:paddingBottom="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
             <Button android:id="@+id/claude_skip_permissions"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/dangerously-skip-permissions"
-                android:textSize="9sp"
-                android:tag="/dangerously-skip-permissions" />
+                android:text="/permissions"
+                android:tag="/permissions" />
+
+            <Button android:id="@+id/claude_yes"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="y"
+                android:tag="y" />
+
+            <Button android:id="@+id/claude_no"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="n"
+                android:tag="n" />
         </LinearLayout>
 
         <LinearLayout
@@ -49,17 +104,17 @@
                 android:text="/continue"
                 android:tag="/continue" />
 
-            <Button android:id="@+id/claude_yes"
+            <Button android:id="@+id/claude_resume"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="y"
-                android:tag="y" />
+                android:text="/resume"
+                android:tag="/resume" />
 
-            <Button android:id="@+id/claude_no"
+            <Button android:id="@+id/claude_stop"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="n"
-                android:tag="n" />
+                android:text="Esc"
+                android:tag="\u001b" />
         </LinearLayout>
 
         <!-- Section: Session Commands -->
@@ -156,6 +211,33 @@
                 android:tag="/config" />
         </LinearLayout>
 
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_model_opus"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/model opus"
+                android:textSize="9sp"
+                android:tag="/model opus" />
+
+            <Button android:id="@+id/claude_model_sonnet"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/model sonnet"
+                android:textSize="9sp"
+                android:tag="/model sonnet" />
+
+            <Button android:id="@+id/claude_model_haiku"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/model haiku"
+                android:textSize="9sp"
+                android:tag="/model haiku" />
+        </LinearLayout>
+
         <!-- Section: File Commands -->
         <TextView
             android:layout_width="match_parent"
@@ -248,17 +330,76 @@
                 android:text="/review"
                 android:tag="/review" />
 
-            <Button android:id="@+id/claude_resume"
+            <Button android:id="@+id/claude_pr"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/resume"
-                android:tag="/resume" />
+                android:text="/pr"
+                android:tag="/pr" />
 
-            <Button android:id="@+id/claude_stop"
+            <Button android:id="@+id/claude_bug"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/stop"
-                android:tag="/stop" />
+                android:text="/bug"
+                android:tag="/bug" />
+        </LinearLayout>
+
+        <!-- Section: Tools -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tools"
+            android:textSize="11sp"
+            android:textColor="@color/primary"
+            android:textStyle="bold"
+            android:paddingTop="8dp"
+            android:paddingBottom="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_terminal"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/terminal"
+                android:tag="/terminal" />
+
+            <Button android:id="@+id/claude_vim"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/vim"
+                android:tag="/vim" />
+
+            <Button android:id="@+id/claude_doctor"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/doctor"
+                android:tag="/doctor" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_init"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/init"
+                android:tag="/init" />
+
+            <Button android:id="@+id/claude_login"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/login"
+                android:tag="/login" />
+
+            <Button android:id="@+id/claude_logout"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/logout"
+                android:tag="/logout" />
         </LinearLayout>
 
     </LinearLayout>
