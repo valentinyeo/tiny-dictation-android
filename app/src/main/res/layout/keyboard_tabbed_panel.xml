@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@color/surface_variant">
+    android:background="@android:color/black">
 
     <!-- 5-tab bar: ABC | 123 | Shell | Clip | Hist -->
     <LinearLayout
@@ -13,7 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="36dp"
         android:orientation="horizontal"
-        android:background="@color/surface_variant">
+        android:background="@android:color/black">
 
         <TextView
             android:id="@+id/tabABC"

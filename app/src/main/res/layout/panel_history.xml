@@ -5,7 +5,7 @@
     android:id="@+id/historyPanel"
     android:layout_width="match_parent"
     android:layout_height="200dp"
-    android:background="@color/surface_variant">
+    android:background="@android:color/black">
 
     <!-- History items list -->
     <androidx.recyclerview.widget.RecyclerView
