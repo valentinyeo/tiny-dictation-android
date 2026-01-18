@@ -24,6 +24,7 @@ import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.FrameLayout
 import android.widget.HorizontalScrollView
+import android.widget.ScrollView
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -105,23 +106,26 @@ class DictationKeyboardService : InputMethodService() {
     private var isEmojiPanelVisible = false
     private var isEmojiPanelInflated = false
 
-    // Tabbed keyboard panel (5 tabs: ABC, 123, Shell, Clipboard, History)
+    // Tabbed keyboard panel (6 tabs: ABC, 123, Claude, Shell, Clipboard, History)
     private var keyboardTabbedPanel: View? = null
     private var tabABC: TextView? = null
     private var tabNumpad: TextView? = null
+    private var tabClaude: TextView? = null
     private var tabShell: TextView? = null
     private var tabClipboard: TextView? = null
     private var tabHistory: TextView? = null
     private var tabIndicator: View? = null
     private var qwertyPanel: View? = null
     private var cursorNumpadPanel: View? = null
+    private var claudePanel: View? = null
     private var shellPanel: View? = null
     private var clipboardPanel: View? = null
     private var historyTabPanel: View? = null  // Named differently to avoid conflict with historyPanel
     private var isKeyboardPanelVisible = false
-    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Shell, 3=Clipboard, 4=History
+    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Claude, 3=Shell, 4=Clipboard, 5=History
 
     // Lazy loading flags for new panels
+    private var isClaudePanelInflated = false
     private var isShellPanelInflated = false
     private var isClipboardPanelInflated = false
     private var isHistoryTabPanelInflated = false
@@ -154,6 +158,19 @@ class DictationKeyboardService : InputMethodService() {
     private var prediction2: TextView? = null
     private var prediction3: TextView? = null
     private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
+
+    // Period key long-press punctuation popup
+    private var punctuationPopup: View? = null
+    private var isPunctuationPopupShowing = false
+    private var periodButton: android.widget.Button? = null
+    private var selectedPunctuation: String? = null
+    private var punctuationTouchStartX = 0f
+    private var punctuationTouchStartY = 0f
+    private var punctuationExclamationView: TextView? = null
+    private var punctuationQuestionView: TextView? = null
+    private val PUNCTUATION_LONG_PRESS_THRESHOLD = 200L
+    private val PUNCTUATION_MOVE_THRESHOLD_DP = 20f
+    private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
@@ -433,6 +450,8 @@ class DictationKeyboardService : InputMethodService() {
         backspaceHandler.removeCallbacksAndMessages(null)
         isCursorKeyHeld = false
         cursorHandler.removeCallbacksAndMessages(null)
+        punctuationLongPressHandler.removeCallbacksAndMessages(null)
+        hidePunctuationPopup()
         pulseAnimator?.cancel()
         pulseAnimator = null
 
@@ -455,17 +474,18 @@ class DictationKeyboardService : InputMethodService() {
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
-            // Tabbed keyboard panel (5 tabs)
+            // Tabbed keyboard panel (6 tabs)
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
             tabABC = keyboardTabbedPanel?.findViewById(R.id.tabABC)
             tabNumpad = keyboardTabbedPanel?.findViewById(R.id.tabNumpad)
+            tabClaude = keyboardTabbedPanel?.findViewById(R.id.tabClaude)
             tabShell = keyboardTabbedPanel?.findViewById(R.id.tabShell)
             tabClipboard = keyboardTabbedPanel?.findViewById(R.id.tabClipboard)
             tabHistory = keyboardTabbedPanel?.findViewById(R.id.tabHistory)
             tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
-            // Shell, Clipboard, History panels are lazy-loaded via ViewStub
+            // Claude, Shell, Clipboard, History panels are lazy-loaded via ViewStub
 
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
@@ -1118,16 +1138,18 @@ class DictationKeyboardService : InputMethodService() {
         // Set initial visibility - QWERTY visible, others hidden
         qwertyPanel?.visibility = View.VISIBLE
         cursorNumpadPanel?.visibility = View.GONE
+        claudePanel?.visibility = View.GONE
         shellPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
-        // Tab click listeners for all 5 tabs
+        // Tab click listeners for all 6 tabs
         tabABC?.setOnClickListener { switchToTab(0) }
         tabNumpad?.setOnClickListener { switchToTab(1) }
-        tabShell?.setOnClickListener { switchToTab(2) }
-        tabClipboard?.setOnClickListener { switchToTab(3) }
-        tabHistory?.setOnClickListener { switchToTab(4) }
+        tabClaude?.setOnClickListener { switchToTab(2) }
+        tabShell?.setOnClickListener { switchToTab(3) }
+        tabClipboard?.setOnClickListener { switchToTab(4) }
+        tabHistory?.setOnClickListener { switchToTab(5) }
 
         // Set up swipe gesture detection on transparent overlay
         var startX = 0f
@@ -1192,16 +1214,19 @@ class DictationKeyboardService : InputMethodService() {
                     val diffX = event.x - startX
                     val diffTime = System.currentTimeMillis() - startTime
 
+                    val totalTabs = 6  // ABC, 123, Claude, Shell, Clip, Hist
                     when {
-                        // Horizontal swipe - navigate between tabs
+                        // Horizontal swipe - navigate between tabs (with wraparound)
                         isHorizontalSwipe && diffTime < 500 && kotlin.math.abs(diffX) > 80 -> {
-                            if (diffX > 0 && currentKeyboardTab > 0) {
-                                switchToTab(currentKeyboardTab - 1)
-                                Log.d(TAG, "Swiped right to tab $currentKeyboardTab")
-                            } else if (diffX < 0 && currentKeyboardTab < 4) {
-                                switchToTab(currentKeyboardTab + 1)
-                                Log.d(TAG, "Swiped left to tab $currentKeyboardTab")
+                            val newTab = if (diffX > 0) {
+                                // Swipe right - go to previous tab (wrap from 0 to last)
+                                if (currentKeyboardTab > 0) currentKeyboardTab - 1 else totalTabs - 1
+                            } else {
+                                // Swipe left - go to next tab (wrap from last to 0)
+                                if (currentKeyboardTab < totalTabs - 1) currentKeyboardTab + 1 else 0
                             }
+                            switchToTab(newTab)
+                            Log.d(TAG, "Swiped ${if (diffX > 0) "right" else "left"} to tab $newTab")
                         }
                         // Vertical scroll or tap - pass through
                         else -> {
@@ -1236,9 +1261,10 @@ class DictationKeyboardService : InputMethodService() {
 
         // Lazy-inflate new panels if needed
         when (tab) {
-            2 -> inflateShellPanelIfNeeded()
-            3 -> inflateClipboardPanelIfNeeded()
-            4 -> inflateHistoryTabPanelIfNeeded()
+            2 -> inflateClaudePanelIfNeeded()
+            3 -> inflateShellPanelIfNeeded()
+            4 -> inflateClipboardPanelIfNeeded()
+            5 -> inflateHistoryTabPanelIfNeeded()
         }
 
         updateKeyboardTabContent()
@@ -1246,6 +1272,16 @@ class DictationKeyboardService : InputMethodService() {
         // Update predictions when switching to QWERTY tab
         if (tab == 0) {
             updatePredictions()
+        }
+    }
+
+    private fun inflateClaudePanelIfNeeded() {
+        if (!isClaudePanelInflated) {
+            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.claudePanelStub)
+            claudePanel = stub?.inflate()
+            isClaudePanelInflated = true
+            setupClaudePanel()
+            DebugLog.i("DictationKeyboardService: Claude panel inflated")
         }
     }
 
@@ -1289,12 +1325,13 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Updates the visible keyboard tab content for all 5 tabs.
+     * Updates the visible keyboard tab content for all 6 tabs.
      */
     private fun updateKeyboardTabContent() {
         // Hide all panels first
         qwertyPanel?.visibility = View.GONE
         cursorNumpadPanel?.visibility = View.GONE
+        claudePanel?.visibility = View.GONE
         shellPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
@@ -1303,9 +1340,10 @@ class DictationKeyboardService : InputMethodService() {
         when (currentKeyboardTab) {
             0 -> qwertyPanel?.visibility = View.VISIBLE
             1 -> cursorNumpadPanel?.visibility = View.VISIBLE
-            2 -> shellPanel?.visibility = View.VISIBLE
-            3 -> clipboardPanel?.visibility = View.VISIBLE
-            4 -> historyTabPanel?.visibility = View.VISIBLE
+            2 -> claudePanel?.visibility = View.VISIBLE
+            3 -> shellPanel?.visibility = View.VISIBLE
+            4 -> clipboardPanel?.visibility = View.VISIBLE
+            5 -> historyTabPanel?.visibility = View.VISIBLE
         }
 
         updateTabIndicator()
@@ -1313,22 +1351,22 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Updates the tab indicator position and colors for 5 tabs.
+     * Updates the tab indicator position and colors for 6 tabs.
      */
     private fun updateTabIndicator() {
         val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
         val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
 
         // Update tab colors - active tab gets primary color
-        val tabs = listOf(tabABC, tabNumpad, tabShell, tabClipboard, tabHistory)
+        val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabClipboard, tabHistory)
         tabs.forEachIndexed { index, tab ->
             tab?.setTextColor(if (index == currentKeyboardTab) primaryColor else inactiveColor)
         }
 
-        // Update indicator position (1/5 width, positioned under selected tab)
+        // Update indicator position (1/6 width, positioned under selected tab)
         tabIndicator?.post {
             val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
-            val indicatorWidth = parentWidth / 5
+            val indicatorWidth = parentWidth / 6
             tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
                 width = indicatorWidth
             }
@@ -1386,9 +1424,10 @@ class DictationKeyboardService : InputMethodService() {
             currentInputConnection?.commitText(",", 1)
             updatePredictions()
         }
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)?.setOnClickListener {
-            currentInputConnection?.commitText(".", 1)
-            updatePredictions()
+        // Period key - tap for ".", long press for punctuation popup (! and ?)
+        periodButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)
+        periodButton?.setOnTouchListener { view, event ->
+            handlePeriodTouch(view, event)
         }
 
         // Space bar - triggers next-word prediction
@@ -1602,8 +1641,40 @@ class DictationKeyboardService : InputMethodService() {
     }
 
     /**
-     * Sets up the Shell commands panel with terminal control keys.
+     * Sets up the Claude commands panel - buttons insert their tag text as commands.
      */
+    private fun setupClaudePanel() {
+        claudePanel ?: return
+
+        // Find all buttons and set them up to insert their tag as text
+        fun setupButtonsInViewGroup(viewGroup: android.view.ViewGroup) {
+            for (i in 0 until viewGroup.childCount) {
+                val child = viewGroup.getChildAt(i)
+                when (child) {
+                    is android.widget.Button -> {
+                        val tag = child.tag as? String ?: return
+                        child.setOnClickListener {
+                            // Insert the command text followed by Enter to execute
+                            currentInputConnection?.commitText(tag, 1)
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                            DebugLog.d("DictationKeyboardService: Claude command '$tag' inserted")
+                        }
+                    }
+                    is android.view.ViewGroup -> {
+                        setupButtonsInViewGroup(child)
+                    }
+                }
+            }
+        }
+
+        // The panel has a ScrollView as root, get its child LinearLayout
+        val scrollView = claudePanel as? ScrollView
+        val contentLayout = scrollView?.getChildAt(0) as? android.view.ViewGroup ?: return
+        setupButtonsInViewGroup(contentLayout)
+
+        DebugLog.i("DictationKeyboardService: Claude panel set up")
+    }
+
     private fun setupShellPanel() {
         shellPanel ?: return
 
@@ -2254,6 +2325,264 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
         return false
+    }
+
+    // Runnable for punctuation popup long-press
+    private val punctuationLongPressRunnable = Runnable {
+        showPunctuationPopup()
+    }
+
+    /**
+     * Handles touch events for the period key with long-press punctuation popup.
+     * - Tap: insert "."
+     * - Long press: show popup with ! (upper-left) and ? (upper-right)
+     * - Drag: select punctuation based on finger position
+     * - Release: commit selected punctuation or "." if no selection
+     */
+    private fun handlePeriodTouch(view: View, event: MotionEvent): Boolean {
+        val moveThreshold = PUNCTUATION_MOVE_THRESHOLD_DP * resources.displayMetrics.density
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Reset state
+                selectedPunctuation = null
+                isPunctuationPopupShowing = false
+
+                // Record initial touch position
+                punctuationTouchStartX = event.rawX
+                punctuationTouchStartY = event.rawY
+
+                // Start long-press timer
+                punctuationLongPressHandler.postDelayed(
+                    punctuationLongPressRunnable,
+                    PUNCTUATION_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isPunctuationPopupShowing) {
+                    // Update selection based on drag position
+                    updatePunctuationSelection(event.rawX, event.rawY)
+                } else {
+                    // Check if moved too far before long press triggered - cancel
+                    val dx = event.rawX - punctuationTouchStartX
+                    val dy = event.rawY - punctuationTouchStartY
+                    if (Math.sqrt((dx * dx + dy * dy).toDouble()) > moveThreshold) {
+                        punctuationLongPressHandler.removeCallbacks(punctuationLongPressRunnable)
+                    }
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                punctuationLongPressHandler.removeCallbacks(punctuationLongPressRunnable)
+
+                if (isPunctuationPopupShowing) {
+                    // Commit selected punctuation
+                    val char = selectedPunctuation ?: "."
+                    currentInputConnection?.commitText(char, 1)
+                    updatePredictions()
+                    hidePunctuationPopup()
+                    DebugLog.d("DictationKeyboardService: Punctuation popup selected '$char'")
+                } else {
+                    // Short tap - insert period
+                    currentInputConnection?.commitText(".", 1)
+                    updatePredictions()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                punctuationLongPressHandler.removeCallbacks(punctuationLongPressRunnable)
+                hidePunctuationPopup()
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Shows the punctuation popup above the period key.
+     */
+    private fun showPunctuationPopup() {
+        isPunctuationPopupShowing = true
+        selectedPunctuation = null
+
+        periodButton ?: return
+        val density = resources.displayMetrics.density
+
+        // Create popup view programmatically
+        punctuationPopup = createPunctuationPopupView()
+
+        // Measure popup
+        punctuationPopup?.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val popupWidth = punctuationPopup?.measuredWidth ?: 0
+        val popupHeight = punctuationPopup?.measuredHeight ?: 0
+
+        // Get button position relative to keyboardTabbedPanel
+        val buttonLocation = IntArray(2)
+        val panelLocation = IntArray(2)
+        periodButton?.getLocationInWindow(buttonLocation)
+        keyboardTabbedPanel?.getLocationInWindow(panelLocation)
+
+        val relativeX = buttonLocation[0] - panelLocation[0]
+        val relativeY = buttonLocation[1] - panelLocation[1]
+        val buttonWidth = periodButton?.width ?: 0
+
+        // Position centered above button
+        val params = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = relativeX + (buttonWidth / 2) - (popupWidth / 2)
+            topMargin = relativeY - popupHeight - (8 * density).toInt()
+        }
+
+        // Add to keyboardPagesContainer (FrameLayout)
+        val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
+        container?.addView(punctuationPopup, params)
+
+        // Haptic feedback
+        periodButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+
+        DebugLog.d("DictationKeyboardService: Showing punctuation popup")
+    }
+
+    /**
+     * Creates the punctuation popup view with ! and ? options.
+     */
+    private fun createPunctuationPopupView(): View {
+        val density = resources.displayMetrics.density
+        val popupWidth = (120 * density).toInt()  // 60dp per option
+        val popupHeight = (56 * density).toInt()
+
+        // Root container
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(popupWidth, popupHeight)
+            gravity = android.view.Gravity.CENTER
+
+            // Dark background with rounded corners
+            background = GradientDrawable().apply {
+                setColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.surface))
+                cornerRadius = 12 * density
+                setStroke((1 * density).toInt(), ContextCompat.getColor(this@DictationKeyboardService, R.color.outline))
+            }
+            elevation = 8 * density
+        }
+
+        // Exclamation mark (left)
+        val exclamationText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (60 * density).toInt(),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+            text = "!"
+            textSize = 24f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.on_surface))
+            tag = "!"
+            id = View.generateViewId()
+        }
+
+        // Question mark (right)
+        val questionText = TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (60 * density).toInt(),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+            text = "?"
+            textSize = 24f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.on_surface))
+            tag = "?"
+            id = View.generateViewId()
+        }
+
+        container.addView(exclamationText)
+        container.addView(questionText)
+
+        // Store references for highlighting
+        punctuationExclamationView = exclamationText
+        punctuationQuestionView = questionText
+
+        return container
+    }
+
+    /**
+     * Updates the selected punctuation based on finger position.
+     */
+    private fun updatePunctuationSelection(rawX: Float, rawY: Float) {
+        punctuationPopup ?: return
+
+        // Get popup position on screen
+        val location = IntArray(2)
+        punctuationPopup?.getLocationOnScreen(location)
+        val popupX = location[0]
+        val popupCenterX = popupX + (punctuationPopup?.width ?: 0) / 2
+
+        // Determine selection based on X position relative to popup center
+        val newSelection = if (rawX < popupCenterX) "!" else "?"
+
+        if (newSelection != selectedPunctuation) {
+            selectedPunctuation = newSelection
+            updatePunctuationHighlight()
+            // Haptic feedback on selection change
+            periodButton?.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
+        }
+    }
+
+    /**
+     * Updates visual highlighting of the selected punctuation option.
+     */
+    private fun updatePunctuationHighlight() {
+        val density = resources.displayMetrics.density
+        val highlightColor = ContextCompat.getColor(this, R.color.primary)
+        val normalColor = ContextCompat.getColor(this, R.color.on_surface)
+        val highlightBgColor = ContextCompat.getColor(this, R.color.primary_container)
+
+        punctuationExclamationView?.let { view ->
+            if (selectedPunctuation == "!") {
+                view.setTextColor(highlightColor)
+                view.background = GradientDrawable().apply {
+                    setColor(highlightBgColor)
+                    cornerRadius = 8 * density
+                }
+            } else {
+                view.setTextColor(normalColor)
+                view.background = null
+            }
+        }
+
+        punctuationQuestionView?.let { view ->
+            if (selectedPunctuation == "?") {
+                view.setTextColor(highlightColor)
+                view.background = GradientDrawable().apply {
+                    setColor(highlightBgColor)
+                    cornerRadius = 8 * density
+                }
+            } else {
+                view.setTextColor(normalColor)
+                view.background = null
+            }
+        }
+    }
+
+    /**
+     * Hides and cleans up the punctuation popup.
+     */
+    private fun hidePunctuationPopup() {
+        isPunctuationPopupShowing = false
+        selectedPunctuation = null
+
+        punctuationPopup?.let { popup ->
+            // Remove from parent
+            (popup.parent as? android.view.ViewGroup)?.removeView(popup)
+        }
+        punctuationPopup = null
+        punctuationExclamationView = null
+        punctuationQuestionView = null
     }
 
     /**

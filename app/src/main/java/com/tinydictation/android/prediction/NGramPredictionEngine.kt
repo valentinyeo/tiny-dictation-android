@@ -24,12 +24,19 @@ class NGramPredictionEngine : PredictionEngine {
     // Trie for fast prefix matching
     private val trie = Trie()
 
+    // User's personalized word frequency (persisted to SharedPreferences)
+    private val userWordFrequency = mutableMapOf<String, Int>()
+    private var appContext: Context? = null
+    private val USER_WORDS_KEY = "user_word_frequency"
+    private val MAX_USER_WORDS = 500
+
     private var isInitialized = false
 
     override suspend fun initialize(context: Context): Result<Unit> = withContext(Dispatchers.Default) {
         try {
             if (isInitialized) return@withContext Result.success(Unit)
 
+            appContext = context.applicationContext
             val startTime = System.currentTimeMillis()
 
             // Load common English words with frequencies
@@ -41,9 +48,12 @@ class NGramPredictionEngine : PredictionEngine {
             // Build trie for prefix matching
             wordFrequency.keys.forEach { trie.insert(it) }
 
+            // Load user's personalized word frequency
+            loadUserWordFrequency()
+
             isInitialized = true
             val elapsed = System.currentTimeMillis() - startTime
-            DebugLog.i("NGramPredictionEngine: Initialized in ${elapsed}ms, ${wordFrequency.size} words, ${bigrams.size} bigrams")
+            DebugLog.i("NGramPredictionEngine: Initialized in ${elapsed}ms, ${wordFrequency.size} words, ${bigrams.size} bigrams, ${userWordFrequency.size} user words")
 
             Result.success(Unit)
         } catch (e: Exception) {
@@ -104,6 +114,17 @@ class NGramPredictionEngine : PredictionEngine {
                     )
                 })
             }
+        } else {
+            // No context at all - show default starting words (like SwiftKey)
+            // Prioritize user's frequently used words, then fall back to common starters
+            val defaultWords = getDefaultPredictions()
+            results.addAll(defaultWords.take(3).mapIndexed { index, word ->
+                Prediction(
+                    word = word,
+                    confidence = 0.4f - (index * 0.1f),
+                    isCompletion = false
+                )
+            })
         }
 
         val elapsed = (System.nanoTime() - startTime) / 1_000_000.0
@@ -115,15 +136,25 @@ class NGramPredictionEngine : PredictionEngine {
     }
 
     override fun release() {
+        // Save user word frequency before releasing
+        saveUserWordFrequency()
         wordFrequency.clear()
         bigrams.clear()
+        userWordFrequency.clear()
         isInitialized = false
         DebugLog.i("NGramPredictionEngine: Released")
     }
 
     override fun learn(words: List<String>) {
-        // Could implement learning by updating bigram frequencies
-        // For now, just log
+        // Track word frequency for personalization
+        for (word in words) {
+            val cleanWord = word.lowercase().trim()
+            if (cleanWord.length >= 2) {  // Only track words with 2+ chars
+                userWordFrequency[cleanWord] = (userWordFrequency[cleanWord] ?: 0) + 1
+            }
+        }
+
+        // Update bigrams
         if (words.size >= 2) {
             val prev = words[words.size - 2].lowercase()
             val curr = words[words.size - 1].lowercase()
@@ -133,6 +164,11 @@ class NGramPredictionEngine : PredictionEngine {
                     if (it.size > 10) it.removeLast()
                 }
             }
+        }
+
+        // Periodically save user words (every 10 learns)
+        if (userWordFrequency.size % 10 == 0) {
+            saveUserWordFrequency()
         }
     }
 
@@ -151,7 +187,86 @@ class NGramPredictionEngine : PredictionEngine {
         }
     }
 
+    /**
+     * Load user's personalized word frequency from SharedPreferences.
+     */
+    private fun loadUserWordFrequency() {
+        try {
+            val prefs = appContext?.getSharedPreferences("prediction_prefs", Context.MODE_PRIVATE) ?: return
+            val stored = prefs.getString(USER_WORDS_KEY, null) ?: return
+
+            // Format: "word1:count1,word2:count2,..."
+            stored.split(",").forEach { entry ->
+                val parts = entry.split(":")
+                if (parts.size == 2) {
+                    val word = parts[0]
+                    val count = parts[1].toIntOrNull() ?: 0
+                    if (word.isNotEmpty() && count > 0) {
+                        userWordFrequency[word] = count
+                    }
+                }
+            }
+            DebugLog.d("NGramPredictionEngine: Loaded ${userWordFrequency.size} user words")
+        } catch (e: Exception) {
+            DebugLog.e("NGramPredictionEngine: Error loading user words - ${e.message}")
+        }
+    }
+
+    /**
+     * Save user's personalized word frequency to SharedPreferences.
+     */
+    private fun saveUserWordFrequency() {
+        try {
+            val prefs = appContext?.getSharedPreferences("prediction_prefs", Context.MODE_PRIVATE) ?: return
+
+            // Keep only top N words by frequency to prevent unbounded growth
+            val topWords = userWordFrequency.entries
+                .sortedByDescending { it.value }
+                .take(MAX_USER_WORDS)
+
+            // Format: "word1:count1,word2:count2,..."
+            val serialized = topWords.joinToString(",") { "${it.key}:${it.value}" }
+
+            prefs.edit().putString(USER_WORDS_KEY, serialized).apply()
+            DebugLog.d("NGramPredictionEngine: Saved ${topWords.size} user words")
+        } catch (e: Exception) {
+            DebugLog.e("NGramPredictionEngine: Error saving user words - ${e.message}")
+        }
+    }
+
+    /**
+     * Get default predictions when no text is typed.
+     * Prioritizes user's frequently typed words, falls back to common starters.
+     */
+    private fun getDefaultPredictions(): List<String> {
+        // Get user's most frequent words
+        val userTopWords = userWordFrequency.entries
+            .sortedByDescending { it.value }
+            .take(5)
+            .map { it.key }
+
+        // Common starting words (I, The, Hello, etc.)
+        val commonStarters = DEFAULT_STARTING_WORDS
+
+        // Blend: prioritize user words, fill with common starters
+        val result = mutableListOf<String>()
+        result.addAll(userTopWords)
+
+        // Add common starters that aren't already in the list
+        for (word in commonStarters) {
+            if (!result.contains(word) && result.size < 6) {
+                result.add(word)
+            }
+        }
+
+        return result.take(6)
+    }
+
     companion object {
+        // Default starting words (when nothing is typed) - common sentence starters
+        private val DEFAULT_STARTING_WORDS = listOf(
+            "I", "The", "Hello", "Hey", "Thanks", "Hi", "Yes", "No", "OK", "Sure"
+        )
         // Top common words for completion
         private val COMMON_WORDS = listOf(
             "the", "be", "to", "of", "and", "a", "in", "that", "have", "i",

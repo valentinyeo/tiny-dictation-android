@@ -35,6 +35,15 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.0:
+            • NEW: Claude commands tab on keyboard
+            • Quick access to Claude Code commands (/continue, /skip-permissions, etc.)
+            • NEW: Long-press period key for ! and ? punctuation popup
+            • NEW: Default predictions shown when nothing is typed
+            • Personalized predictions based on your word usage
+            • Tab wraparound - swipe from ABC to reach History and vice versa
+            • Consistent button styling across all keyboard panels
+
             v1.16.2:
             • Reordered dictation bar buttons
             • New order: ... | Language | MIC | Enter | Keyboard | History
