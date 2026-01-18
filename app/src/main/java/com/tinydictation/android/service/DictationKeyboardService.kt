@@ -477,12 +477,33 @@ class DictationKeyboardService : InputMethodService() {
             keyboardView!!
         } catch (e: Exception) {
             Log.e(TAG, "Error creating keyboard view", e)
+            val errorDetails = "Error: ${e.message}\n\n${e.stackTraceToString()}"
             DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}\n${e.stackTraceToString()}")
-            TextView(this).apply {
-                text = "Error: ${e.message}"
+
+            // Create error view with copy button
+            LinearLayout(this).apply {
+                orientation = LinearLayout.VERTICAL
                 setPadding(16, 16, 16, 16)
-                textSize = 12f
-                setTextColor(android.graphics.Color.RED)
+                setBackgroundColor(android.graphics.Color.BLACK)
+
+                // Error message
+                addView(TextView(this@DictationKeyboardService).apply {
+                    text = "Error: ${e.message}"
+                    textSize = 12f
+                    setTextColor(android.graphics.Color.RED)
+                    setPadding(0, 0, 0, 16)
+                })
+
+                // Copy button
+                addView(android.widget.Button(this@DictationKeyboardService).apply {
+                    text = "Copy Error Details"
+                    setOnClickListener {
+                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                        val clip = android.content.ClipData.newPlainText("Keyboard Error", errorDetails)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(this@DictationKeyboardService, "Error copied to clipboard", Toast.LENGTH_SHORT).show()
+                    }
+                })
             }
         }
     }

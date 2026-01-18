@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.15.2:
+            • Added copy button to keyboard error screen
+            • Makes it easier to share error details for debugging
+
             v1.15.1:
             • FIX: Keyboard keys now have visible borders
             • Fixed MaterialButton inflation in IME context
