@@ -172,6 +172,18 @@ class DictationKeyboardService : InputMethodService() {
     private val PUNCTUATION_MOVE_THRESHOLD_DP = 20f
     private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
+    // 'A' key long-press for @ symbol
+    private var aKeyButton: android.widget.Button? = null
+    private var isAKeyLongPressTriggered = false
+    private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
+    private val aKeyLongPressRunnable = Runnable {
+        // Insert @ on long press
+        isAKeyLongPressTriggered = true
+        currentInputConnection?.commitText("@", 1)
+        aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        updatePredictions()
+    }
+
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -451,6 +463,7 @@ class DictationKeyboardService : InputMethodService() {
         isCursorKeyHeld = false
         cursorHandler.removeCallbacksAndMessages(null)
         punctuationLongPressHandler.removeCallbacksAndMessages(null)
+        aKeyLongPressHandler.removeCallbacksAndMessages(null)
         hidePunctuationPopup()
         pulseAnimator?.cancel()
         pulseAnimator = null
@@ -1420,6 +1433,12 @@ class DictationKeyboardService : InputMethodService() {
             }
         }
 
+        // 'A' key - tap for 'a', long press for '@' (like iOS)
+        aKeyButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_a)
+        aKeyButton?.setOnTouchListener { _, event ->
+            handleAKeyTouch(event)
+        }
+
         // Punctuation keys
         qwertyPanel?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
@@ -2331,6 +2350,47 @@ class DictationKeyboardService : InputMethodService() {
     // Runnable for punctuation popup long-press
     private val punctuationLongPressRunnable = Runnable {
         showPunctuationPopup()
+    }
+
+    /**
+     * Handles touch events for the 'a' key with long-press for @ symbol.
+     * - Tap: insert 'a' (or 'A' if shifted)
+     * - Long press (200ms): insert '@'
+     */
+    private fun handleAKeyTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isAKeyLongPressTriggered = false
+                // Start long-press timer
+                aKeyLongPressHandler.postDelayed(
+                    aKeyLongPressRunnable,
+                    PUNCTUATION_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
+
+                if (!isAKeyLongPressTriggered) {
+                    // Short tap - insert 'a' or 'A' based on shift state
+                    val char = if (isShiftActive || isCapsLock) "A" else "a"
+                    currentInputConnection?.commitText(char, 1)
+
+                    // Turn off shift after one character (unless caps lock)
+                    if (!isNumbersMode && isShiftActive && !isCapsLock) {
+                        isShiftActive = false
+                        updateShiftKeyDisplay()
+                    }
+                    updatePredictions()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
+                return true
+            }
+        }
+        return false
     }
 
     /**

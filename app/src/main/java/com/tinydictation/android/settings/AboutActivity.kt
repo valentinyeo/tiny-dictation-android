@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.3:
+            • NEW: Long-press 'a' key to insert @ (like iOS)
+            • Quick access for @mentions in ticketing/chat apps
+
             v1.17.2:
             • FIX: Claude tab buttons now tappable and scrollable
             • Added Claude shell launch commands (--dangerously-skip-permissions, --continue)
