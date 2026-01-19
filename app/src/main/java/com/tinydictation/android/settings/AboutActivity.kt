@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.6:
+            • NEW: Clipboard panel updates in real-time
+            • New items appear instantly when copied to clipboard
+            • No need to close/reopen the panel to see new entries
+
             v1.17.5:
             • FIX: QWERTY keyboard layout no longer has extra blank space
             • Fixed row height calculation to fill available space

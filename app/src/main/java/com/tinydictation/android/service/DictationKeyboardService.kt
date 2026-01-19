@@ -52,7 +52,7 @@ import kotlinx.coroutines.launch
  * This provides a keyboard bar with action buttons for dictation and text manipulation.
  * Buttons: Chevron, Language, Mic, Enter, Backspace, History, Select All
  */
-class DictationKeyboardService : InputMethodService() {
+class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.OnClipboardHistoryChangedListener {
 
     companion object {
         private const val TAG = "TinyDictation"
@@ -449,7 +449,8 @@ class DictationKeyboardService : InputMethodService() {
         transcriptionManager?.stopListening()
         transcriptionManager = null
 
-        // Stop clipboard listening
+        // Stop clipboard listening and unregister from updates
+        clipboardHistoryManager?.removeOnHistoryChangedListener(this)
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
 
@@ -1833,6 +1834,9 @@ class DictationKeyboardService : InputMethodService() {
                 return
             }
 
+            // Register for real-time clipboard updates
+            clipboardHistoryManager?.addOnHistoryChangedListener(this)
+
             // Set up GridLayoutManager with 2 columns
             recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
 
@@ -1888,6 +1892,20 @@ class DictationKeyboardService : InputMethodService() {
         val recyclerView = clipboardPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboardRecyclerView)
         val emptyState = clipboardPanel?.findViewById<View>(R.id.clipboardEmptyState)
         recyclerView?.let { loadClipboardContent(it, emptyState) }
+    }
+
+    /**
+     * Called when clipboard history changes (new item copied).
+     * Updates the clipboard panel in real-time if it's visible.
+     */
+    override fun onClipboardHistoryChanged() {
+        // Run on main thread since this may be called from a background context
+        Handler(Looper.getMainLooper()).post {
+            if (isClipboardPanelInflated && clipboardPanel?.visibility == View.VISIBLE) {
+                refreshClipboardPanel()
+                DebugLog.d("DictationKeyboardService: Clipboard panel refreshed (real-time update)")
+            }
+        }
     }
 
     /**

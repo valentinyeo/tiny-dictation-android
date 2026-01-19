@@ -14,6 +14,14 @@ import com.tinydictation.android.util.DebugLog
  */
 class ClipboardHistoryManager(private val context: Context) {
 
+    /**
+     * Listener interface for clipboard history changes.
+     * Implement this to receive notifications when clipboard content is updated.
+     */
+    interface OnClipboardHistoryChangedListener {
+        fun onClipboardHistoryChanged()
+    }
+
     companion object {
         private const val PREFS_NAME = "clipboard_history"
         private const val KEY_HISTORY = "clipboard_entries"
@@ -35,6 +43,7 @@ class ClipboardHistoryManager(private val context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
     private var clipboardListener: ClipboardManager.OnPrimaryClipChangedListener? = null
+    private val historyChangeListeners = mutableListOf<OnClipboardHistoryChangedListener>()
 
     /**
      * Starts listening to clipboard changes.
@@ -71,6 +80,35 @@ class ClipboardHistoryManager(private val context: Context) {
             clipboardListener = null
         }
         DebugLog.i("ClipboardHistoryManager: Stopped listening to clipboard changes")
+    }
+
+    /**
+     * Registers a listener to receive clipboard history change notifications.
+     */
+    fun addOnHistoryChangedListener(listener: OnClipboardHistoryChangedListener) {
+        if (!historyChangeListeners.contains(listener)) {
+            historyChangeListeners.add(listener)
+        }
+    }
+
+    /**
+     * Unregisters a clipboard history change listener.
+     */
+    fun removeOnHistoryChangedListener(listener: OnClipboardHistoryChangedListener) {
+        historyChangeListeners.remove(listener)
+    }
+
+    /**
+     * Notifies all registered listeners that clipboard history has changed.
+     */
+    private fun notifyHistoryChanged() {
+        historyChangeListeners.forEach { listener ->
+            try {
+                listener.onClipboardHistoryChanged()
+            } catch (e: Exception) {
+                DebugLog.e("ClipboardHistoryManager: Error notifying listener: ${e.message}")
+            }
+        }
     }
 
     /**
@@ -140,6 +178,7 @@ class ClipboardHistoryManager(private val context: Context) {
 
         saveEntries(entries)
         DebugLog.i("ClipboardHistoryManager: Saved clipboard entry, total: ${entries.size}")
+        notifyHistoryChanged()
     }
 
     /**
