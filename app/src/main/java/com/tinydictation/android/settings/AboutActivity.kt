@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.5:
+            • FIX: QWERTY keyboard layout no longer has extra blank space
+            • Fixed row height calculation to fill available space
+            • Number row toggle now works correctly
+
             v1.17.4:
             • NEW: Optional number row on QWERTY keyboard
             • Toggle in Settings > Appearance > Number Row

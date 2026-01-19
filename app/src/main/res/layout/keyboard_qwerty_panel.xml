@@ -4,7 +4,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/qwertyPanel"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="@android:color/black"
     android:paddingHorizontal="4dp"
@@ -95,7 +95,8 @@
     <!-- Row 1: Q W E R T Y U I O P -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal">
 
         <Button android:id="@+id/key_q" style="@style/KeyboardKey" android:text="q" />
@@ -113,7 +114,8 @@
     <!-- Row 2: A S D F G H J K L -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
 
@@ -131,7 +133,8 @@
     <!-- Row 3: Shift Z X C V B N M Backspace -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal">
 
         <Button android:id="@+id/key_shift" style="@style/KeyboardKeyWide" android:text="⇧" android:textSize="20sp" />
@@ -148,7 +151,8 @@
     <!-- Row 4: 123 , Space . Enter -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="42dp"
+        android:layout_height="0dp"
+        android:layout_weight="1"
         android:orientation="horizontal">
 
         <Button android:id="@+id/key_numbers" style="@style/KeyboardKeyWide" android:text="123" android:textSize="12sp" />

@@ -49,15 +49,60 @@ Previous sessions skipped commits and lost 8 versions of work. Another session c
 - **Minor (1.x.0)**: New features, significant changes
 - **Major (x.0.0)**: Breaking changes, major rewrites
 
-## Dictation Mode
+## UI Architecture - IMPORTANT TERMINOLOGY
 
-The app uses keyboard-based dictation only:
+⚠️ **Read this section carefully to avoid confusion when discussing UI changes.**
 
-**Full Keyboard (IME)** (`DictationKeyboardService.kt`)
-- Complete replacement keyboard with dictation and action buttons
-- Chevron switches back to previous keyboard
-- Long-press mic opens Settings
-- Clipboard button opens transcription history (select & paste past transcriptions)
+The keyboard has TWO distinct UI components:
+
+### 1. DICTATION BAR (always visible)
+- **File:** `app/src/main/res/layout/view_keyboard.xml`
+- **Description:** The horizontal bar at the bottom with action buttons
+- **Key element:** The MIC button (centered for thumb access)
+- **Contains:** Chevron, SelectAll, Emoji, Space, Language, Backspace, **MIC**, Enter, Keyboard, History buttons
+- **Behavior:** Always visible when keyboard is open; scrollable horizontally
+
+### 2. TABBED PANEL (slide-out, hidden by default)
+- **File:** `app/src/main/res/layout/keyboard_tabbed_panel.xml`
+- **Description:** The expandable panel that appears ABOVE the dictation bar
+- **Triggered by:** Tapping the Keyboard button in the dictation bar
+- **Container height:** 250dp (fixed in `keyboardPagesContainer`)
+- **Contains 6 tabs/sub-panels:**
+
+| Tab | Panel Name | Layout File | Description |
+|-----|------------|-------------|-------------|
+| ABC | QWERTY Panel | `keyboard_qwerty_panel.xml` | Standard QWERTY keyboard + optional number row |
+| 123 | Cursor/Numpad Panel | `keyboard_cursor_numpad_panel.xml` | Arrow keys + numeric keypad |
+| Claude | Claude Panel | `keyboard_claude_panel.xml` | Claude Code slash commands |
+| Shell | Shell Panel | `keyboard_shell_panel.xml` | Shell/terminal commands |
+| Clip | Clipboard Panel | `panel_clipboard.xml` | Clipboard history (copied items) |
+| Hist | History Panel | `panel_history.xml` | Transcription history (dictated text) |
+
+```
+┌─────────────────────────────────────┐
+│  ┌─────────────────────────────────┐│
+│  │      TABBED PANEL               ││  ← Hidden by default
+│  │  (QWERTY, Numpad, Claude, etc.) ││    Shows when Keyboard button tapped
+│  │                                 ││
+│  └─────────────────────────────────┘│
+│  ┌─────────────────────────────────┐│
+│  │       DICTATION BAR             ││  ← Always visible
+│  │  ... [MIC] Enter Keyboard Hist  ││    MIC button centered
+│  └─────────────────────────────────┘│
+└─────────────────────────────────────┘
+```
+
+### Terminology Quick Reference:
+| Term | What it means | Layout file |
+|------|---------------|-------------|
+| "Dictation bar" | Bottom button bar with MIC | `view_keyboard.xml` |
+| "QWERTY panel/keyboard" | Typing keyboard in tabbed panel | `keyboard_qwerty_panel.xml` |
+| "Tabbed panel" | Entire slide-out area above dictation bar | `keyboard_tabbed_panel.xml` |
+| "Number row" | Optional 1-0 row above QWERTY letters | Inside `keyboard_qwerty_panel.xml` |
+
+---
+
+## Dictation Bar Details
 
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
@@ -75,10 +120,8 @@ Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keybo
 6. **Backspace** - Delete character
 7. **MIC** - Toggle dictation (CENTERED for thumb access, auto-starts on keyboard open)
 8. **Enter** - Send enter key
-9. **Keyboard** - Toggle tabbed keyboard (QWERTY + Cursor/Numpad)
+9. **Keyboard** - Toggle tabbed panel (QWERTY + Cursor/Numpad + other tabs)
 10. **History** - Open transcription history (icon: ic_history)
-
-**Layout file:** `app/src/main/res/layout/view_keyboard.xml`
 
 **Scroll behavior:**
 - The HorizontalScrollView MUST center on the MIC button when keyboard opens
