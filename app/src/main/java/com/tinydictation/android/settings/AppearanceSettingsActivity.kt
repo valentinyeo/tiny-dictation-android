@@ -5,6 +5,7 @@ import android.widget.ArrayAdapter
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
+import com.google.android.material.materialswitch.MaterialSwitch
 import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.R
 import com.tinydictation.android.service.DictationKeyboardService
@@ -20,6 +21,7 @@ class AppearanceSettingsActivity : AppCompatActivity() {
 
     private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var giphyApiKeyInput: TextInputEditText
+    private lateinit var numberRowSwitch: MaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -38,15 +40,24 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private fun initViews() {
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         giphyApiKeyInput = findViewById(R.id.etGiphyApiKey)
+        numberRowSwitch = findViewById(R.id.switchNumberRow)
 
         setupKeyboardThemeDropdown()
     }
 
     private fun loadSettings() {
         preferenceManager.getGiphyApiKey()?.let { giphyApiKeyInput.setText(it) }
+        numberRowSwitch.isChecked = preferenceManager.getShowNumberRow()
     }
 
     private fun setupClickListeners() {
+        // Number row toggle
+        numberRowSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setShowNumberRow(isChecked)
+            DebugLog.i("Number row setting changed to: $isChecked")
+            // Note: Keyboard needs to be reopened to see the change
+        }
+
         // Giphy API key saves on text change
         giphyApiKeyInput.setOnFocusChangeListener { _, hasFocus ->
             if (!hasFocus) {

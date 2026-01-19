@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.4:
+            • NEW: Optional number row on QWERTY keyboard
+            • Toggle in Settings > Appearance > Number Row
+            • Shows 1-0 above letter keys for quick number input
+
             v1.17.3:
             • NEW: Long-press 'a' key to insert @ (like iOS)
             • Quick access for @mentions in ticketing/chat apps

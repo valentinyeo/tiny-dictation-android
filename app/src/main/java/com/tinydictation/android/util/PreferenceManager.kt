@@ -41,6 +41,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_SILENCE_AUTO_STOP_MS = "silence_auto_stop_ms"
         private const val KEY_GIPHY_API_KEY = "giphy_api_key"
         private const val KEY_PREDICTION_ENGINE = "prediction_engine"
+        private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
 
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"
@@ -998,5 +999,23 @@ class PreferenceManager(context: Context) {
      */
     fun setPredictionEngine(engineId: String) {
         prefs.edit().putString(KEY_PREDICTION_ENGINE, engineId).apply()
+    }
+
+    // ========== Number Row Setting ==========
+
+    /**
+     * Gets whether to show the number row on the QWERTY keyboard.
+     * @return true if number row should be shown
+     */
+    fun getShowNumberRow(): Boolean {
+        return prefs.getBoolean(KEY_SHOW_NUMBER_ROW, false)
+    }
+
+    /**
+     * Sets whether to show the number row on the QWERTY keyboard.
+     * @param show true to show number row
+     */
+    fun setShowNumberRow(show: Boolean) {
+        prefs.edit().putBoolean(KEY_SHOW_NUMBER_ROW, show).apply()
     }
 }

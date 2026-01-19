@@ -672,6 +672,9 @@ class DictationKeyboardService : InputMethodService() {
 
         // Get all Button views in the keyboard panels and apply theme
         val buttonIds = listOf(
+            // Number row
+            R.id.key_1, R.id.key_2, R.id.key_3, R.id.key_4, R.id.key_5,
+            R.id.key_6, R.id.key_7, R.id.key_8, R.id.key_9, R.id.key_0,
             // QWERTY keys
             R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
             R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p,
@@ -1403,6 +1406,26 @@ class DictationKeyboardService : InputMethodService() {
         prediction1?.setOnClickListener { onPredictionTapped(0) }
         prediction2?.setOnClickListener { onPredictionTapped(1) }
         prediction3?.setOnClickListener { onPredictionTapped(2) }
+
+        // Number row setup
+        val numberRow = qwertyPanel?.findViewById<LinearLayout>(R.id.numberRow)
+        val prefs = PreferenceManager(this)
+        val showNumberRow = prefs.getShowNumberRow()
+        numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE
+
+        // Number keys - simple click handlers
+        val numberKeys = listOf(
+            R.id.key_1 to "1", R.id.key_2 to "2", R.id.key_3 to "3",
+            R.id.key_4 to "4", R.id.key_5 to "5", R.id.key_6 to "6",
+            R.id.key_7 to "7", R.id.key_8 to "8", R.id.key_9 to "9",
+            R.id.key_0 to "0"
+        )
+        for ((id, char) in numberKeys) {
+            qwertyPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+                currentInputConnection?.commitText(char, 1)
+                updatePredictions()
+            }
+        }
 
         // Letter keys - map button IDs to characters
         val letterKeys = mapOf(
