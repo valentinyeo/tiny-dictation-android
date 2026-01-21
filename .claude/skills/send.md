@@ -6,16 +6,17 @@
 
 ### Step 1: Update Version Files
 
-Update these files for EVERY version:
+Update these files for EVERY version (current: versionCode=217, versionName=1.17.6):
 
 1. **`app/build.gradle.kts`** - Increment both:
-   - `versionCode` (integer, +1)
-   - `versionName` (e.g., "1.11.55" → "1.11.56")
+   - `versionCode` (integer, +1 from current)
+   - `versionName` (e.g., "1.17.6" → "1.17.7")
 
-2. **`app/src/main/java/com/tinydictation/android/SettingsActivity.kt`** - Add changelog entry at top:
+2. **`app/src/main/java/com/tinydictation/android/settings/AboutActivity.kt`** - Add changelog entry at top of CHANGELOG companion object (line ~40):
    ```kotlin
-   v1.11.56:
-   • Your change description here
+   "v1.17.7 - 2025-01-21",
+   "• Your change 1",
+   "• Your change 2",
    ```
 
 Note: Version display on keyboard and in Settings is automatic (reads from build.gradle.kts).
@@ -29,12 +30,13 @@ nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvma
 ### Step 3: Copy and Send to Telegram
 
 ```bash
-cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
+VERSION=$(grep 'versionName = ' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v${VERSION}-arm64.apk
 
 source ~/.telegram-deploy && curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendDocument" \
   -F chat_id="${TELEGRAM_CHAT_ID}" \
-  -F document=@"/tmp/TinyDictation-v{VERSION}-arm64.apk" \
-  -F caption="v{VERSION}
+  -F document=@"/tmp/TinyDictation-v${VERSION}-arm64.apk" \
+  -F caption="v${VERSION}
 • Change 1
 • Change 2"
 ```
@@ -42,7 +44,9 @@ source ~/.telegram-deploy && curl -s -X POST "https://api.telegram.org/bot${TELE
 ### Step 4: COMMIT IMMEDIATELY
 
 ```bash
-git add -A && git commit -m "v{VERSION}: {Brief description}"
+VERSION=$(grep 'versionName = ' app/build.gradle.kts | grep -oE '"[^"]*"' | tr -d '"')
+git add -A && git commit -m "v${VERSION}: Brief description of changes"
+git push origin master
 ```
 
 **Never skip this step.** Previous sessions lost 8 versions of work by not committing.
