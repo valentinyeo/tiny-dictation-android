@@ -481,6 +481,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("DictationKeyboardService: Creating input view")
 
         return try {
+            // Reset lazy-loaded panel state before creating new view
+            // This ensures panels are re-inflated and listeners re-registered
+            clipboardHistoryManager?.removeOnHistoryChangedListener(this)
+            claudePanel = null
+            shellPanel = null
+            clipboardPanel = null
+            historyTabPanel = null
+            isClaudePanelInflated = false
+            isShellPanelInflated = false
+            isClipboardPanelInflated = false
+
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.8:
+            • FIX: Clipboard panel real-time updates now work consistently
+            • Panel state properly reset when keyboard view is recreated
+            • Listener re-registered on each view inflation
+
             v1.17.7:
             • NEW: Quick Actions section at top of Claude panel
             • exit, Esc, y/n buttons immediately accessible
