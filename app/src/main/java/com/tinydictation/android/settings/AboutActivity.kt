@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.7:
+            • NEW: Quick Actions section at top of Claude panel
+            • exit, Esc, y/n buttons immediately accessible
+            • Added /send, /cost, /compact, /clear to quick section
+
             v1.17.6:
             • NEW: Clipboard panel updates in real-time
             • New items appear instantly when copied to clipboard

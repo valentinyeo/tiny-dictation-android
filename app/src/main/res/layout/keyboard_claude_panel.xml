@@ -14,6 +14,77 @@
         android:paddingHorizontal="8dp"
         android:paddingVertical="4dp">
 
+        <!-- Section: Quick Actions (Most Used) -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Quick Actions"
+            android:textSize="11sp"
+            android:textColor="@color/primary"
+            android:textStyle="bold"
+            android:paddingTop="4dp"
+            android:paddingBottom="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_quick_exit"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="exit"
+                android:tag="exit" />
+
+            <Button android:id="@+id/claude_quick_esc"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="Esc"
+                android:tag="\u001b" />
+
+            <Button android:id="@+id/claude_quick_y"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="y"
+                android:tag="y" />
+
+            <Button android:id="@+id/claude_quick_n"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="n"
+                android:tag="n" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button android:id="@+id/claude_quick_send"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/send"
+                android:tag="/send" />
+
+            <Button android:id="@+id/claude_quick_cost"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/cost"
+                android:tag="/cost" />
+
+            <Button android:id="@+id/claude_quick_compact"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/compact"
+                android:tag="/compact" />
+
+            <Button android:id="@+id/claude_quick_clear"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/clear"
+                android:tag="/clear" />
+        </LinearLayout>
+
         <!-- Section: Shell Launch Commands -->
         <TextView
             android:layout_width="match_parent"
@@ -22,7 +93,7 @@
             android:textSize="11sp"
             android:textColor="@color/primary"
             android:textStyle="bold"
-            android:paddingTop="4dp"
+            android:paddingTop="8dp"
             android:paddingBottom="2dp" />
 
         <LinearLayout
