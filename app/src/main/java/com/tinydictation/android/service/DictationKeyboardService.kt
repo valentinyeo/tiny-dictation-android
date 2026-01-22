@@ -148,6 +148,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isRecording = false
     private var isProcessing = false
     private var isStandby = false  // True when in standby/hibernation mode
+    private var isMuteLocked = false  // True when mic is locked muted via long press
 
     // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
@@ -801,6 +802,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     /**
      * Handles touch events for mic button with long-press detection.
+     * Long press toggles mute lock state.
      */
     private fun handleMicTouch(event: MotionEvent): Boolean {
         when (event.action) {
@@ -809,7 +811,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 longPressHandler = Handler(Looper.getMainLooper())
                 longPressRunnable = Runnable {
                     isLongPressTriggered = true
-                    openSettings()
+                    toggleMuteLock()
                 }
                 longPressHandler?.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD)
                 return true
@@ -823,6 +825,30 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
         return false
+    }
+
+    /**
+     * Toggles mute lock state. When locked, mic stays muted until unlocked via another long press.
+     */
+    private fun toggleMuteLock() {
+        isMuteLocked = !isMuteLocked
+
+        if (isMuteLocked) {
+            // Stop dictation if running
+            if (isRecording || isProcessing || isStandby) {
+                transcriptionManager?.stopListening()
+                isRecording = false
+                isProcessing = false
+                isStandby = false
+            }
+            Log.i(TAG, "Mic mute locked")
+            DebugLog.i("DictationKeyboardService: Mic mute locked")
+        } else {
+            Log.i(TAG, "Mic mute unlocked")
+            DebugLog.i("DictationKeyboardService: Mic mute unlocked")
+        }
+
+        updateMicButton()
     }
 
     private fun openSettings() {
@@ -846,6 +872,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun toggleDictation() {
+        // If mute is locked, ignore short press
+        if (isMuteLocked) {
+            Log.i(TAG, "Mic mute locked - ignoring toggle")
+            return
+        }
+
         Log.i(TAG, "DictationKeyboardService: Toggle dictation")
         DebugLog.i("DictationKeyboardService: Toggling dictation")
 
@@ -924,11 +956,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun updateMicButton() {
-        // Three visual states:
+        // Four visual states:
+        // - Mute locked: Grey #808080
         // - Active (transcribing): Imperial red #ED2939
         // - Inactive (standby/hibernation): Darker imperial red #8B1C26
         // - Off: White/themed
         val color = when {
+            isMuteLocked -> Color.parseColor("#808080")  // Grey - mute locked
             isProcessing -> Color.parseColor("#ED2939")  // Imperial red - actively transcribing
             isStandby -> Color.parseColor("#8B1C26")  // Darker imperial red - standby
             isRecording -> Color.parseColor("#ED2939")  // Imperial red (legacy)
@@ -2860,10 +2894,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateEmojiButtonState()
 
         // Auto-start dictation when keyboard opens (mic red/active by default)
-        if (!isRecording && !isProcessing) {
+        // Skip auto-start if mute is locked
+        if (!isRecording && !isProcessing && !isMuteLocked) {
             // Small delay to let UI settle before starting audio
             Handler(Looper.getMainLooper()).postDelayed({
-                if (!isRecording && !isProcessing) {
+                if (!isRecording && !isProcessing && !isMuteLocked) {
                     Log.i(TAG, "Auto-starting dictation on keyboard open")
                     DebugLog.i("DictationKeyboardService: Auto-starting dictation")
 

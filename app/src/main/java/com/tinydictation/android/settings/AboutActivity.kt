@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.9:
+            • NEW: Long-press mic to lock mute state (grey icon)
+            • Long-press again to unlock and resume normal operation
+            • Prevents auto-start when mute is locked
+
             v1.17.8:
             • FIX: Clipboard panel real-time updates now work consistently
             • Panel state properly reset when keyboard view is recreated
