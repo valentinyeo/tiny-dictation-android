@@ -382,6 +382,22 @@ class TranscriptionManager(
                 currentScope.launch(Dispatchers.Main) {
                     if (isListening) {
                         DebugLog.e("TranscriptionManager: Engine error - $error")
+
+                        // Connection failed (e.g., went offline) - reset state and return to standby
+                        // This allows automatic reconnection when speech is detected again
+                        isEngineConnected = false
+                        consecutiveSpeechChunks = 0
+                        consecutiveSilenceChunks = 0
+                        currentEngine?.endSession()
+
+                        // Clear audio buffer to avoid sending stale data on reconnect
+                        synchronized(audioBuffer) {
+                            audioBuffer.clear()
+                        }
+
+                        updateState(TranscriptionState.STANDBY)
+                        DebugLog.i("TranscriptionManager: Returned to STANDBY after error (will auto-reconnect)")
+
                         onError?.invoke(error)
                     }
                 }

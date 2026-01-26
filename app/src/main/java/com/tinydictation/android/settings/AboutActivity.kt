@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.10:
+            • FIX: Mic button no longer freezes after losing network connection
+            • Auto-returns to standby mode on connection error (will auto-reconnect)
+            • Fixes issue where mic appeared frozen after going offline (e.g., on train)
+
             v1.17.9:
             • NEW: Long-press mic to lock mute state (grey icon)
             • Long-press again to unlock and resume normal operation
