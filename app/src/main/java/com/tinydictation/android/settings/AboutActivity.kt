@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.17.11:
+            • FIX: Claude panel /exit command now has correct forward slash
+
             v1.17.10:
             • FIX: Mic button no longer freezes after losing network connection
             • Auto-returns to standby mode on connection error (will auto-reconnect)
