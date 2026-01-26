@@ -106,12 +106,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isEmojiPanelVisible = false
     private var isEmojiPanelInflated = false
 
-    // Tabbed keyboard panel (6 tabs: ABC, 123, Claude, Shell, Clipboard, History)
+    // Tabbed keyboard panel (7 tabs: ABC, 123, Claude, Shell, Snip, Clipboard, History)
     private var keyboardTabbedPanel: View? = null
     private var tabABC: TextView? = null
     private var tabNumpad: TextView? = null
     private var tabClaude: TextView? = null
     private var tabShell: TextView? = null
+    private var tabSnippets: TextView? = null
     private var tabClipboard: TextView? = null
     private var tabHistory: TextView? = null
     private var tabIndicator: View? = null
@@ -119,14 +120,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var cursorNumpadPanel: View? = null
     private var claudePanel: View? = null
     private var shellPanel: View? = null
+    private var snippetsPanel: View? = null
     private var clipboardPanel: View? = null
     private var historyTabPanel: View? = null  // Named differently to avoid conflict with historyPanel
     private var isKeyboardPanelVisible = false
-    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Claude, 3=Shell, 4=Clipboard, 5=History
+    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Claude, 3=Shell, 4=Snip, 5=Clipboard, 6=History
 
     // Lazy loading flags for new panels
     private var isClaudePanelInflated = false
     private var isShellPanelInflated = false
+    private var isSnippetsPanelInflated = false
     private var isClipboardPanelInflated = false
     private var isHistoryTabPanelInflated = false
 
@@ -487,10 +490,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             clipboardHistoryManager?.removeOnHistoryChangedListener(this)
             claudePanel = null
             shellPanel = null
+            snippetsPanel = null
             clipboardPanel = null
             historyTabPanel = null
             isClaudePanelInflated = false
             isShellPanelInflated = false
+            isSnippetsPanelInflated = false
             isClipboardPanelInflated = false
 
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
@@ -500,18 +505,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
-            // Tabbed keyboard panel (6 tabs)
+            // Tabbed keyboard panel (7 tabs)
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
             tabABC = keyboardTabbedPanel?.findViewById(R.id.tabABC)
             tabNumpad = keyboardTabbedPanel?.findViewById(R.id.tabNumpad)
             tabClaude = keyboardTabbedPanel?.findViewById(R.id.tabClaude)
             tabShell = keyboardTabbedPanel?.findViewById(R.id.tabShell)
+            tabSnippets = keyboardTabbedPanel?.findViewById(R.id.tabSnippets)
             tabClipboard = keyboardTabbedPanel?.findViewById(R.id.tabClipboard)
             tabHistory = keyboardTabbedPanel?.findViewById(R.id.tabHistory)
             tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
-            // Claude, Shell, Clipboard, History panels are lazy-loaded via ViewStub
+            // Claude, Shell, Snippets, Clipboard, History panels are lazy-loaded via ViewStub
 
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
@@ -1202,16 +1208,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         cursorNumpadPanel?.visibility = View.GONE
         claudePanel?.visibility = View.GONE
         shellPanel?.visibility = View.GONE
+        snippetsPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
-        // Tab click listeners for all 6 tabs
+        // Tab click listeners for all 7 tabs
         tabABC?.setOnClickListener { switchToTab(0) }
         tabNumpad?.setOnClickListener { switchToTab(1) }
         tabClaude?.setOnClickListener { switchToTab(2) }
         tabShell?.setOnClickListener { switchToTab(3) }
-        tabClipboard?.setOnClickListener { switchToTab(4) }
-        tabHistory?.setOnClickListener { switchToTab(5) }
+        tabSnippets?.setOnClickListener { switchToTab(4) }
+        tabClipboard?.setOnClickListener { switchToTab(5) }
+        tabHistory?.setOnClickListener { switchToTab(6) }
 
         // Set up swipe gesture detection on transparent overlay
         var startX = 0f
@@ -1223,14 +1231,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
         swipeOverlay?.setOnTouchListener { view, event ->
-            // Get the target panel for passing through events (6 tabs)
+            // Get the target panel for passing through events (7 tabs)
             val targetPanel = when (currentKeyboardTab) {
                 0 -> qwertyPanel
                 1 -> cursorNumpadPanel
                 2 -> claudePanel
                 3 -> shellPanel
-                4 -> clipboardPanel
-                5 -> historyTabPanel
+                4 -> snippetsPanel
+                5 -> clipboardPanel
+                6 -> historyTabPanel
                 else -> null
             }
 
@@ -1277,7 +1286,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val diffX = event.x - startX
                     val diffTime = System.currentTimeMillis() - startTime
 
-                    val totalTabs = 6  // ABC, 123, Claude, Shell, Clip, Hist
+                    val totalTabs = 7  // ABC, 123, Claude, Shell, Snip, Clip, Hist
                     when {
                         // Horizontal swipe - navigate between tabs (with wraparound)
                         isHorizontalSwipe && diffTime < 500 && kotlin.math.abs(diffX) > 80 -> {
@@ -1326,8 +1335,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         when (tab) {
             2 -> inflateClaudePanelIfNeeded()
             3 -> inflateShellPanelIfNeeded()
-            4 -> inflateClipboardPanelIfNeeded()
-            5 -> inflateHistoryTabPanelIfNeeded()
+            4 -> inflateSnippetsPanelIfNeeded()
+            5 -> inflateClipboardPanelIfNeeded()
+            6 -> inflateHistoryTabPanelIfNeeded()
         }
 
         updateKeyboardTabContent()
@@ -1355,6 +1365,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             isShellPanelInflated = true
             setupShellPanel()
             DebugLog.i("DictationKeyboardService: Shell panel inflated")
+        }
+    }
+
+    private fun inflateSnippetsPanelIfNeeded() {
+        if (!isSnippetsPanelInflated) {
+            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.snippetsPanelStub)
+            snippetsPanel = stub?.inflate()
+            isSnippetsPanelInflated = true
+            setupSnippetsPanel()
+            DebugLog.i("DictationKeyboardService: Snippets panel inflated")
         }
     }
 
@@ -1388,7 +1408,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Updates the visible keyboard tab content for all 6 tabs.
+     * Updates the visible keyboard tab content for all 7 tabs.
      */
     private fun updateKeyboardTabContent() {
         // Hide all panels first
@@ -1396,6 +1416,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         cursorNumpadPanel?.visibility = View.GONE
         claudePanel?.visibility = View.GONE
         shellPanel?.visibility = View.GONE
+        snippetsPanel?.visibility = View.GONE
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
@@ -1405,8 +1426,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             1 -> cursorNumpadPanel?.visibility = View.VISIBLE
             2 -> claudePanel?.visibility = View.VISIBLE
             3 -> shellPanel?.visibility = View.VISIBLE
-            4 -> clipboardPanel?.visibility = View.VISIBLE
-            5 -> historyTabPanel?.visibility = View.VISIBLE
+            4 -> snippetsPanel?.visibility = View.VISIBLE
+            5 -> clipboardPanel?.visibility = View.VISIBLE
+            6 -> historyTabPanel?.visibility = View.VISIBLE
         }
 
         updateTabIndicator()
@@ -1414,22 +1436,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Updates the tab indicator position and colors for 6 tabs.
+     * Updates the tab indicator position and colors for 7 tabs.
      */
     private fun updateTabIndicator() {
         val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
         val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
 
         // Update tab colors - active tab gets primary color
-        val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabClipboard, tabHistory)
+        val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabSnippets, tabClipboard, tabHistory)
         tabs.forEachIndexed { index, tab ->
             tab?.setTextColor(if (index == currentKeyboardTab) primaryColor else inactiveColor)
         }
 
-        // Update indicator position (1/6 width, positioned under selected tab)
+        // Update indicator position (1/7 width, positioned under selected tab)
         tabIndicator?.post {
             val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
-            val indicatorWidth = parentWidth / 6
+            val indicatorWidth = parentWidth / 7
             tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
                 width = indicatorWidth
             }
@@ -1865,6 +1887,131 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
+     * Sets up the Snippets panel with saved text snippets.
+     */
+    private fun setupSnippetsPanel() {
+        try {
+            snippetsPanel ?: return
+
+            val recyclerView = snippetsPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.snippetsRecyclerView)
+            val emptyState = snippetsPanel?.findViewById<View>(R.id.snippetsEmptyState)
+
+            if (recyclerView == null) {
+                DebugLog.e("DictationKeyboardService: snippetsRecyclerView not found!")
+                return
+            }
+
+            // Set up GridLayoutManager with 2 columns
+            recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
+
+            // Load snippets and set up adapter
+            loadSnippetsContent(recyclerView, emptyState)
+
+            DebugLog.i("DictationKeyboardService: Snippets panel set up")
+        } catch (e: Exception) {
+            DebugLog.e("DictationKeyboardService: Failed to setup snippets panel: ${e.message}")
+            Log.e(TAG, "Failed to setup snippets panel", e)
+        }
+    }
+
+    /**
+     * Loads snippets into the Snippets tab RecyclerView.
+     * Snippets are sorted alphabetically (case-insensitive).
+     */
+    private fun loadSnippetsContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
+        val snippetManager = com.tinydictation.android.snippet.SnippetManager.getInstance(this)
+        // Returns alphabetically sorted snippets
+        val snippets = snippetManager.getAll()
+
+        if (snippets.isEmpty()) {
+            emptyState?.visibility = View.VISIBLE
+            recyclerView.visibility = View.GONE
+        } else {
+            emptyState?.visibility = View.GONE
+            recyclerView.visibility = View.VISIBLE
+
+            recyclerView.adapter = SnippetsTabAdapter(
+                snippets = snippets,
+                onItemClick = { snippet ->
+                    // Tap to paste directly
+                    commitTextInternal(snippet)
+                },
+                onItemDelete = { snippet ->
+                    snippetManager.delete(snippet)
+                    refreshSnippetsPanel()
+                    android.widget.Toast.makeText(this, R.string.snippet_deleted, android.widget.Toast.LENGTH_SHORT).show()
+                }
+            )
+        }
+    }
+
+    /**
+     * Refreshes the snippets panel content.
+     */
+    private fun refreshSnippetsPanel() {
+        val recyclerView = snippetsPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.snippetsRecyclerView)
+        val emptyState = snippetsPanel?.findViewById<View>(R.id.snippetsEmptyState)
+        recyclerView?.let { loadSnippetsContent(it, emptyState) }
+    }
+
+    /**
+     * Adapter for Snippets tab RecyclerView.
+     */
+    private inner class SnippetsTabAdapter(
+        private val snippets: List<String>,
+        private val onItemClick: (String) -> Unit,
+        private val onItemDelete: (String) -> Unit
+    ) : androidx.recyclerview.widget.RecyclerView.Adapter<SnippetsTabAdapter.ViewHolder>() {
+
+        override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
+            // Use themed context for Material components
+            val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
+            val inflater = android.view.LayoutInflater.from(themedContext)
+            val view = inflater.inflate(R.layout.item_snippet, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            holder.bind(snippets[position])
+        }
+
+        override fun getItemCount(): Int = snippets.size
+
+        inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
+            private val tvSnippetText: android.widget.TextView? = itemView.findViewById(R.id.tvSnippetText)
+
+            fun bind(snippet: String) {
+                tvSnippetText?.text = snippet
+
+                // Tap item to paste
+                itemView.setOnClickListener { onItemClick(snippet) }
+
+                // Long-press for delete option
+                itemView.setOnLongClickListener { view ->
+                    showSnippetItemMenu(view, snippet)
+                    true
+                }
+            }
+
+            private fun showSnippetItemMenu(anchor: View, snippet: String) {
+                val popup = android.widget.PopupMenu(anchor.context, anchor)
+                popup.menu.add(R.string.delete)
+
+                popup.setOnMenuItemClickListener { item ->
+                    when (item.title) {
+                        anchor.context.getString(R.string.delete) -> {
+                            onItemDelete(snippet)
+                            true
+                        }
+                        else -> false
+                    }
+                }
+                popup.show()
+            }
+        }
+    }
+
+    /**
      * Sets up the Clipboard panel with clipboard history.
      */
     private fun setupClipboardPanel() {
@@ -1925,6 +2072,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 onItemDelete = { entry ->
                     clipboardManager.delete(entry.id)
                     refreshClipboardPanel()
+                },
+                onSaveAsSnippet = { entry ->
+                    val snippetManager = com.tinydictation.android.snippet.SnippetManager.getInstance(this)
+                    if (snippetManager.add(entry.text)) {
+                        android.widget.Toast.makeText(this, R.string.snippet_saved, android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        android.widget.Toast.makeText(this, R.string.snippet_already_exists, android.widget.Toast.LENGTH_SHORT).show()
+                    }
                 }
             )
         }
@@ -1960,7 +2115,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         private val entries: List<com.tinydictation.android.history.ClipboardEntry>,
         private val onItemClick: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
         private val onPinToggle: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
-        private val onItemDelete: (com.tinydictation.android.history.ClipboardEntry) -> Unit
+        private val onItemDelete: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
+        private val onSaveAsSnippet: (com.tinydictation.android.history.ClipboardEntry) -> Unit
     ) : androidx.recyclerview.widget.RecyclerView.Adapter<ClipboardTabAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
@@ -2011,6 +2167,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             private fun showClipboardItemMenu(anchor: View, entry: com.tinydictation.android.history.ClipboardEntry) {
                 val popup = android.widget.PopupMenu(anchor.context, anchor)
                 popup.menu.add(if (entry.isPinned) R.string.unpin else R.string.pin)
+                popup.menu.add(R.string.save_as_snippet)
                 popup.menu.add(R.string.delete)
 
                 popup.setOnMenuItemClickListener { item ->
@@ -2018,6 +2175,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         anchor.context.getString(R.string.pin),
                         anchor.context.getString(R.string.unpin) -> {
                             onPinToggle(entry)
+                            true
+                        }
+                        anchor.context.getString(R.string.save_as_snippet) -> {
+                            onSaveAsSnippet(entry)
                             true
                         }
                         anchor.context.getString(R.string.delete) -> {

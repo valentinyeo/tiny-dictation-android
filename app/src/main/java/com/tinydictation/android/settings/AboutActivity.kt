@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.0:
+            • NEW: Snippet panel - save clipboard items as reusable snippets
+            • Long-press clipboard items to save as snippet
+            • Snippets sorted alphabetically for easy finding
+            • Tap snippet to insert, long-press to delete
+
             v1.17.11:
             • FIX: Claude panel /exit command now has correct forward slash
 

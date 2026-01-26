@@ -95,6 +95,15 @@
     <string name="item_pinned">Pinned</string>
     <string name="item_unpinned">Unpinned</string>
 
+    <!-- Snippets -->
+    <string name="snippet">Snippet</string>
+    <string name="snippets_empty">No snippets saved</string>
+    <string name="snippets_empty_hint">Long-press clipboard items to save as snippet</string>
+    <string name="save_as_snippet">Save as snippet</string>
+    <string name="snippet_saved">Saved as snippet</string>
+    <string name="snippet_already_exists">Snippet already exists</string>
+    <string name="snippet_deleted">Snippet deleted</string>
+
     <!-- Plurals for multi-select -->
     <plurals name="history_selected_count">
         <item quantity="one">%d selected</item>

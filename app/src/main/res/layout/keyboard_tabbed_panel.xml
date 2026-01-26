@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tabbed keyboard panel with 6 tabs: ABC, 123, Claude, Shell, Clip, Hist -->
+<!-- Tabbed keyboard panel with 7 tabs: ABC, 123, Claude, Shell, Snip, Clip, Hist -->
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/keyboardTabbedPanel"
     android:layout_width="match_parent"
@@ -7,7 +7,7 @@
     android:orientation="vertical"
     android:background="@android:color/black">
 
-    <!-- 6-tab bar: ABC | 123 | Claude | Shell | Clip | Hist -->
+    <!-- 7-tab bar: ABC | 123 | Claude | Shell | Snip | Clip | Hist -->
     <LinearLayout
         android:id="@+id/keyboardTabBar"
         android:layout_width="match_parent"
@@ -22,7 +22,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="ABC"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/primary"
             android:background="@android:color/transparent" />
@@ -34,7 +34,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="123"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="@android:color/transparent" />
@@ -46,7 +46,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Claude"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="@android:color/transparent" />
@@ -58,7 +58,19 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Shell"
-            android:textSize="11sp"
+            android:textSize="10sp"
+            android:textStyle="bold"
+            android:textColor="@color/on_surface_variant"
+            android:background="@android:color/transparent" />
+
+        <TextView
+            android:id="@+id/tabSnippets"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:text="Snip"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="@android:color/transparent" />
@@ -70,7 +82,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Clip"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="@android:color/transparent" />
@@ -82,7 +94,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Hist"
-            android:textSize="11sp"
+            android:textSize="10sp"
             android:textStyle="bold"
             android:textColor="@color/on_surface_variant"
             android:background="@android:color/transparent" />
@@ -136,14 +148,21 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- Page 4: Clipboard history (lazy loaded) -->
+        <!-- Page 4: Snippets (lazy loaded) -->
+        <ViewStub
+            android:id="@+id/snippetsPanelStub"
+            android:layout="@layout/panel_snippets"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <!-- Page 5: Clipboard history (lazy loaded) -->
         <ViewStub
             android:id="@+id/clipboardPanelStub"
             android:layout="@layout/panel_clipboard"
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
-        <!-- Page 5: Transcription history (lazy loaded) -->
+        <!-- Page 6: Transcription history (lazy loaded) -->
         <ViewStub
             android:id="@+id/historyPanelStub"
             android:layout="@layout/panel_history"

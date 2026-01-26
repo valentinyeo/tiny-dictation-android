@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Snippets panel - shows saved text snippets for quick insertion -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/snippetsPanel"
+    android:layout_width="match_parent"
+    android:layout_height="200dp"
+    android:background="@android:color/black">
+
+    <!-- Snippets list -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/snippetsRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:padding="4dp"
+        android:clipToPadding="false" />
+
+    <!-- Empty state -->
+    <LinearLayout
+        android:id="@+id/snippetsEmptyState"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:src="@drawable/ic_note"
+            app:tint="@color/on_surface_variant"
+            android:alpha="0.5" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="@string/snippets_empty"
+            android:textAppearance="?attr/textAppearanceBodyMedium"
+            android:textColor="@color/on_surface_variant" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/snippets_empty_hint"
+            android:textAppearance="?attr/textAppearanceBodySmall"
+            android:textColor="@color/on_surface_variant"
+            android:alpha="0.7" />
+
+    </LinearLayout>
+
+</FrameLayout>
