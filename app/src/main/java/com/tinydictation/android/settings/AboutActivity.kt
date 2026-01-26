@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.1:
+            • FIX: Snippets now appear after saving from clipboard
+
             v1.18.0:
             • NEW: Snippet panel - save clipboard items as reusable snippets
             • Long-press clipboard items to save as snippet

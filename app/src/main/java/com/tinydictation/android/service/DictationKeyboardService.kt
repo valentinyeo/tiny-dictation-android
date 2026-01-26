@@ -2077,6 +2077,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val snippetManager = com.tinydictation.android.snippet.SnippetManager.getInstance(this)
                     if (snippetManager.add(entry.text)) {
                         android.widget.Toast.makeText(this, R.string.snippet_saved, android.widget.Toast.LENGTH_SHORT).show()
+                        refreshSnippetsPanel()
                     } else {
                         android.widget.Toast.makeText(this, R.string.snippet_already_exists, android.widget.Toast.LENGTH_SHORT).show()
                     }
