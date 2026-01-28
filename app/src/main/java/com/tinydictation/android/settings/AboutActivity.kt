@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.24:
+            • Fix keyboard panel height (280dp → 320dp)
+
             v1.18.23:
             • Samsung-style QWERTY layout adjustments
             • Reduced keyboard panel height (330dp → 280dp)
