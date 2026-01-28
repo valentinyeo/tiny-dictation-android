@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.8:
+            • Completely square button corners (0dp radius)
+
             v1.18.7:
             • Clean rebuild to ensure corner radius changes apply
 
