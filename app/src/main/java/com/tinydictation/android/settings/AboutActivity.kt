@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.25:
+            • Uniform row spacing (8dp between all rows)
+            • Space bar row same height as character rows
+
             v1.18.24:
             • Fix keyboard panel height (280dp → 320dp)
 
