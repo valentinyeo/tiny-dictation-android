@@ -43,5 +43,5 @@
     <color name="keyboard_key_border">#4D4D4F</color>
 
     <!-- Dictation bar (dark background for contrast with keyboard) -->
-    <color name="dictation_bar_background">#2D2D2D</color>
+    <color name="dictation_bar_background">#1A1A1A</color>
 </resources>

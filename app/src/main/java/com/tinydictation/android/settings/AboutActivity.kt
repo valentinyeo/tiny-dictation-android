@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.21:
+            • Darker dictation bar background (#1A1A1A)
+            • All dictation bar icons set to white (except mic)
+            • Fixed programmatic color override issue
+
             v1.18.20:
             • Dark dictation bar background (#2D2D2D)
             • White icons for better visibility on dark background
