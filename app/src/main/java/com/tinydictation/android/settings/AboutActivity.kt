@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.4:
+            • Reduced button corner radius (12dp → 6dp) for Samsung-like appearance
+            • Affects all keys, dictation bar buttons, and mic glow
+
             v1.18.3:
             • FIX: Reduced swipe sensitivity to prevent accidental tab switches
             • Swipe must be faster, longer, and more horizontal to trigger
