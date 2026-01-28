@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.7:
+            • Clean rebuild to ensure corner radius changes apply
+
             v1.18.6:
             • Removed swipe gesture between tabs (use tab buttons instead)
             • Sharper button corners (6dp → 3dp radius)
