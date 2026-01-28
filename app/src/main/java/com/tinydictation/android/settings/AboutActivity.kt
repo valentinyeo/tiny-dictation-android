@@ -35,6 +35,15 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.27:
+            • Dictation bar buttons: #1A1A1A (darker)
+            • Special keys (shift, backspace, enter, !#1): #1A1A1A
+
+            v1.18.26:
+            • Fix dictation bar icons (white instead of black)
+            • Number row height 42dp → 43dp
+            • Panel height 320dp → 324dp (+1dp per character row)
+
             v1.18.25:
             • Uniform row spacing (8dp between all rows)
             • Space bar row same height as character rows

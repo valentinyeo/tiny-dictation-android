@@ -8,7 +8,7 @@
     <!-- Clock circle -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#49454F"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
@@ -16,7 +16,7 @@
     <!-- Clock hands -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#49454F"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
@@ -24,7 +24,7 @@
     <!-- Arrow head -->
     <path
         android:fillColor="@android:color/transparent"
-        android:strokeColor="#49454F"
+        android:strokeColor="#FFFFFF"
         android:strokeWidth="2"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
