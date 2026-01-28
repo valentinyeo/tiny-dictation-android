@@ -1260,9 +1260,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val diffY = kotlin.math.abs(event.y - startY)
 
                     // Determine gesture type once we have enough movement
-                    if (!hasDeterminedGesture && (diffX > 20 || diffY > 20)) {
+                    if (!hasDeterminedGesture && (diffX > 30 || diffY > 30)) {
                         hasDeterminedGesture = true
-                        if (diffX > diffY * 1.2) {
+                        if (diffX > diffY * 2.0) {
                             // Horizontal swipe - we handle this
                             isHorizontalSwipe = true
                             // Cancel the touch on target panel
@@ -1289,7 +1289,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val totalTabs = 7  // ABC, 123, Claude, Shell, Snip, Clip, Hist
                     when {
                         // Horizontal swipe - navigate between tabs (with wraparound)
-                        isHorizontalSwipe && diffTime < 500 && kotlin.math.abs(diffX) > 80 -> {
+                        isHorizontalSwipe && diffTime < 350 && kotlin.math.abs(diffX) > 120 -> {
                             val newTab = if (diffX > 0) {
                                 // Swipe right - go to previous tab (wrap from 0 to last)
                                 if (currentKeyboardTab > 0) currentKeyboardTab - 1 else totalTabs - 1

@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.3:
+            • FIX: Reduced swipe sensitivity to prevent accidental tab switches
+            • Swipe must be faster, longer, and more horizontal to trigger
+
             v1.18.2:
             • Taller keyboard keys matching Samsung keyboard sizing
             • Increased panel height from 250dp to 290dp
