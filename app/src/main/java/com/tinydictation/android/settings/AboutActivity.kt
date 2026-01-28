@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.6:
+            • Removed swipe gesture between tabs (use tab buttons instead)
+            • Sharper button corners (6dp → 3dp radius)
+
             v1.18.5:
             • Added version number at bottom of main Settings screen
 

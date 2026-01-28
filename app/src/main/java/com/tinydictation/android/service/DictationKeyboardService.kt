@@ -1221,16 +1221,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         tabClipboard?.setOnClickListener { switchToTab(5) }
         tabHistory?.setOnClickListener { switchToTab(6) }
 
-        // Set up swipe gesture detection on transparent overlay
-        var startX = 0f
-        var startY = 0f
-        var startTime = 0L
-        var isHorizontalSwipe = false
-        var isVerticalScroll = false
-        var hasDeterminedGesture = false
-
+        // Pass all touch events through to the target panel (no swipe gestures)
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
-        swipeOverlay?.setOnTouchListener { view, event ->
+        swipeOverlay?.setOnTouchListener { _, event ->
             // Get the target panel for passing through events (7 tabs)
             val targetPanel = when (currentKeyboardTab) {
                 0 -> qwertyPanel
@@ -1242,83 +1235,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 6 -> historyTabPanel
                 else -> null
             }
-
-            when (event.action) {
-                android.view.MotionEvent.ACTION_DOWN -> {
-                    startX = event.x
-                    startY = event.y
-                    startTime = System.currentTimeMillis()
-                    isHorizontalSwipe = false
-                    isVerticalScroll = false
-                    hasDeterminedGesture = false
-                    // Pass down event to target panel
-                    targetPanel?.dispatchTouchEvent(event)
-                    true
-                }
-                android.view.MotionEvent.ACTION_MOVE -> {
-                    val diffX = kotlin.math.abs(event.x - startX)
-                    val diffY = kotlin.math.abs(event.y - startY)
-
-                    // Determine gesture type once we have enough movement
-                    if (!hasDeterminedGesture && (diffX > 30 || diffY > 30)) {
-                        hasDeterminedGesture = true
-                        if (diffX > diffY * 2.0) {
-                            // Horizontal swipe - we handle this
-                            isHorizontalSwipe = true
-                            // Cancel the touch on target panel
-                            val cancelEvent = android.view.MotionEvent.obtain(event)
-                            cancelEvent.action = android.view.MotionEvent.ACTION_CANCEL
-                            targetPanel?.dispatchTouchEvent(cancelEvent)
-                            cancelEvent.recycle()
-                        } else {
-                            // Vertical scroll - pass to target panel
-                            isVerticalScroll = true
-                        }
-                    }
-
-                    // If vertical scroll, pass move events to target
-                    if (isVerticalScroll) {
-                        targetPanel?.dispatchTouchEvent(event)
-                    }
-                    true
-                }
-                android.view.MotionEvent.ACTION_UP -> {
-                    val diffX = event.x - startX
-                    val diffTime = System.currentTimeMillis() - startTime
-
-                    val totalTabs = 7  // ABC, 123, Claude, Shell, Snip, Clip, Hist
-                    when {
-                        // Horizontal swipe - navigate between tabs (with wraparound)
-                        isHorizontalSwipe && diffTime < 350 && kotlin.math.abs(diffX) > 120 -> {
-                            val newTab = if (diffX > 0) {
-                                // Swipe right - go to previous tab (wrap from 0 to last)
-                                if (currentKeyboardTab > 0) currentKeyboardTab - 1 else totalTabs - 1
-                            } else {
-                                // Swipe left - go to next tab (wrap from last to 0)
-                                if (currentKeyboardTab < totalTabs - 1) currentKeyboardTab + 1 else 0
-                            }
-                            switchToTab(newTab)
-                            Log.d(TAG, "Swiped ${if (diffX > 0) "right" else "left"} to tab $newTab")
-                        }
-                        // Vertical scroll or tap - pass through
-                        else -> {
-                            targetPanel?.dispatchTouchEvent(event)
-                        }
-                    }
-                    true
-                }
-                android.view.MotionEvent.ACTION_CANCEL -> {
-                    isHorizontalSwipe = false
-                    isVerticalScroll = false
-                    hasDeterminedGesture = false
-                    targetPanel?.dispatchTouchEvent(event)
-                    true
-                }
-                else -> {
-                    targetPanel?.dispatchTouchEvent(event)
-                    true
-                }
-            }
+            targetPanel?.dispatchTouchEvent(event)
+            true
         }
 
         updateTabIndicator()
