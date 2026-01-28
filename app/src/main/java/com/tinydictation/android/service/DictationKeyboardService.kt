@@ -795,12 +795,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         // History button - shows keyboard panel and switches to History tab
-        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.setOnClickListener {
-            // Show keyboard panel if hidden, then switch to History tab
-            if (!isKeyboardPanelVisible) {
-                toggleKeyboardPanel()
+        // Long-press opens settings
+        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.let { historyBtn ->
+            historyBtn.setOnClickListener {
+                // Show keyboard panel if hidden, then switch to History tab
+                if (!isKeyboardPanelVisible) {
+                    toggleKeyboardPanel()
+                }
+                switchToTab(4)  // History tab
             }
-            switchToTab(4)  // History tab
+            historyBtn.setOnLongClickListener {
+                openSettings()
+                true
+            }
         }
 
         // Enter button
@@ -1447,6 +1454,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_n to "n", R.id.key_m to "m"
         )
 
+        // Long-press number mappings for top row (Q=1, W=2, ... P=0)
+        val longPressNumbers = mapOf(
+            R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
+            R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
+            R.id.key_o to "9", R.id.key_p to "0"
+        )
+
         for ((id, _) in letterKeys) {
             val button = qwertyPanel?.findViewById<android.widget.TextView>(id)
             button?.setOnClickListener {
@@ -1462,6 +1476,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                 // Update predictions after typing
                 updatePredictions()
+            }
+
+            // Add long-press for numbers on top row (only in letters mode)
+            longPressNumbers[id]?.let { number ->
+                button?.setOnLongClickListener {
+                    if (!isNumbersMode) {
+                        currentInputConnection?.commitText(number, 1)
+                        updatePredictions()
+                    }
+                    true
+                }
             }
         }
 

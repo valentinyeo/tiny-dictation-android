@@ -93,7 +93,7 @@
         <TextView android:id="@+id/key_0" style="@style/KeyboardKey" android:text="0" />
     </LinearLayout>
 
-    <!-- Row 1: Q W E R T Y U I O P - Samsung style spacing between rows -->
+    <!-- Row 1: Q W E R T Y U I O P - with number hints for long-press -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
@@ -101,16 +101,46 @@
         android:layout_marginBottom="7dp"
         android:orientation="horizontal">
 
-        <TextView android:id="@+id/key_q" style="@style/KeyboardKey" android:text="q" />
-        <TextView android:id="@+id/key_w" style="@style/KeyboardKey" android:text="w" />
-        <TextView android:id="@+id/key_e" style="@style/KeyboardKey" android:text="e" />
-        <TextView android:id="@+id/key_r" style="@style/KeyboardKey" android:text="r" />
-        <TextView android:id="@+id/key_t" style="@style/KeyboardKey" android:text="t" />
-        <TextView android:id="@+id/key_y" style="@style/KeyboardKey" android:text="y" />
-        <TextView android:id="@+id/key_u" style="@style/KeyboardKey" android:text="u" />
-        <TextView android:id="@+id/key_i" style="@style/KeyboardKey" android:text="i" />
-        <TextView android:id="@+id/key_o" style="@style/KeyboardKey" android:text="o" />
-        <TextView android:id="@+id/key_p" style="@style/KeyboardKey" android:text="p" />
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_q" style="@style/KeyboardKeyText" android:text="q" />
+            <TextView style="@style/KeyboardKeyHint" android:text="1" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_w" style="@style/KeyboardKeyText" android:text="w" />
+            <TextView style="@style/KeyboardKeyHint" android:text="2" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_e" style="@style/KeyboardKeyText" android:text="e" />
+            <TextView style="@style/KeyboardKeyHint" android:text="3" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_r" style="@style/KeyboardKeyText" android:text="r" />
+            <TextView style="@style/KeyboardKeyHint" android:text="4" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_t" style="@style/KeyboardKeyText" android:text="t" />
+            <TextView style="@style/KeyboardKeyHint" android:text="5" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_y" style="@style/KeyboardKeyText" android:text="y" />
+            <TextView style="@style/KeyboardKeyHint" android:text="6" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_u" style="@style/KeyboardKeyText" android:text="u" />
+            <TextView style="@style/KeyboardKeyHint" android:text="7" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_i" style="@style/KeyboardKeyText" android:text="i" />
+            <TextView style="@style/KeyboardKeyHint" android:text="8" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_o" style="@style/KeyboardKeyText" android:text="o" />
+            <TextView style="@style/KeyboardKeyHint" android:text="9" />
+        </FrameLayout>
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_p" style="@style/KeyboardKeyText" android:text="p" />
+            <TextView style="@style/KeyboardKeyHint" android:text="0" />
+        </FrameLayout>
     </LinearLayout>
 
     <!-- Row 2: A S D F G H J K L -->
