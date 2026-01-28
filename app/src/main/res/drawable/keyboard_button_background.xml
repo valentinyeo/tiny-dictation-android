@@ -1,11 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Dark keyboard button background - consistent with all keyboard elements -->
-<ripple xmlns:android="http://schemas.android.com/apk/res/android"
-    android:color="@color/primary">
+<!-- Dark keyboard button background - no ripple, just solid rectangle -->
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_pressed="true">
+        <shape android:shape="rectangle">
+            <solid android:color="@color/primary" />
+        </shape>
+    </item>
     <item>
         <shape android:shape="rectangle">
             <solid android:color="@color/keyboard_key_background" />
-            <corners android:radius="0dp" />
         </shape>
     </item>
-</ripple>
+</selector>
