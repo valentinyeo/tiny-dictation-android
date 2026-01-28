@@ -615,23 +615,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Apply dark background to dictation bar (always dark regardless of theme)
-        val dictationBarBackground = ContextCompat.getColor(this, R.color.dictation_bar_background)
-        keyboardView?.findViewById<LinearLayout>(R.id.keyboardRoot)?.setBackgroundColor(dictationBarBackground)
-        keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.setBackgroundColor(dictationBarBackground)
-
-        // Set dictation bar icons to white (except mic which has its own color logic)
-        val whiteColor = android.content.res.ColorStateList.valueOf(Color.WHITE)
-        keyboardView?.findViewById<ImageView>(R.id.ivSwitchBack)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivSelectAll)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivEmoji)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivSpace)?.imageTintList = whiteColor
-        keyboardView?.findViewById<TextView>(R.id.tvLanguage)?.setTextColor(Color.WHITE)
-        keyboardView?.findViewById<ImageView>(R.id.ivBackspace)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivEnter)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivKeyboard)?.imageTintList = whiteColor
-        keyboardView?.findViewById<ImageView>(R.id.ivHistory)?.imageTintList = whiteColor
-        // NOTE: ivKeyboardMic is NOT set here - it has its own color logic in updateMicButtonState()
+        // Apply AMOLED black background to dictation bar only
+        // (Dictation bar buttons keep their XML styling from keyboard_button_background.xml)
+        keyboardView?.findViewById<LinearLayout>(R.id.keyboardRoot)?.setBackgroundColor(Color.BLACK)
+        keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.setBackgroundColor(Color.BLACK)
 
         // Only the QWERTY panel gets theme-specific styling
 

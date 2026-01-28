@@ -12,7 +12,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:background="@color/dictation_bar_background">
+    android:background="@android:color/black">
 
     <!-- Expandable emoji panel - lazy loaded via ViewStub for fast keyboard startup -->
     <ViewStub
@@ -50,7 +50,7 @@
                 android:gravity="center_vertical"
                 android:paddingHorizontal="8dp"
                 android:paddingVertical="10dp"
-                android:background="@color/dictation_bar_background"
+                android:background="@android:color/black"
                 android:minHeight="64dp">
 
                 <!-- 1. Switch back to previous keyboard (small chevron) -->

@@ -35,6 +35,17 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.23:
+            • Samsung-style QWERTY layout adjustments
+            • Reduced keyboard panel height (330dp → 280dp)
+            • Increased row spacing (10dp between rows)
+            • Number row height reduced (48dp → 42dp)
+
+            v1.18.22:
+            • Dictation bar background: AMOLED black (#000000)
+            • Dictation bar buttons unchanged (keep XML styling)
+            • White icons on dictation bar for visibility
+
             v1.18.21:
             • Darker dictation bar background (#1A1A1A)
             • All dictation bar icons set to white (except mic)

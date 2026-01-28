@@ -116,11 +116,11 @@
 
     </FrameLayout>
 
-    <!-- Swipeable container for keyboard panels -->
+    <!-- Swipeable container for keyboard panels - reduced height for Samsung style -->
     <FrameLayout
         android:id="@+id/keyboardPagesContainer"
         android:layout_width="match_parent"
-        android:layout_height="330dp">
+        android:layout_height="280dp">
 
         <!-- Page 0: QWERTY keyboard -->
         <include
