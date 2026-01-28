@@ -30,25 +30,25 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_quick_exit"
+            <TextView android:id="@+id/claude_quick_exit"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/exit"
                 android:tag="/exit" />
 
-            <Button android:id="@+id/claude_quick_esc"
+            <TextView android:id="@+id/claude_quick_esc"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="Esc"
                 android:tag="\u001b" />
 
-            <Button android:id="@+id/claude_quick_y"
+            <TextView android:id="@+id/claude_quick_y"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="y"
                 android:tag="y" />
 
-            <Button android:id="@+id/claude_quick_n"
+            <TextView android:id="@+id/claude_quick_n"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="n"
@@ -60,25 +60,25 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_quick_send"
+            <TextView android:id="@+id/claude_quick_send"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/send"
                 android:tag="/send" />
 
-            <Button android:id="@+id/claude_quick_cost"
+            <TextView android:id="@+id/claude_quick_cost"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/cost"
                 android:tag="/cost" />
 
-            <Button android:id="@+id/claude_quick_compact"
+            <TextView android:id="@+id/claude_quick_compact"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/compact"
                 android:tag="/compact" />
 
-            <Button android:id="@+id/claude_quick_clear"
+            <TextView android:id="@+id/claude_quick_clear"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/clear"
@@ -101,7 +101,7 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_launch_skip"
+            <TextView android:id="@+id/claude_launch_skip"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="claude --dangerously-skip-permissions"
@@ -114,14 +114,14 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_launch_continue"
+            <TextView android:id="@+id/claude_launch_continue"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="claude --continue"
                 android:textSize="9sp"
                 android:tag="claude --continue" />
 
-            <Button android:id="@+id/claude_launch_both"
+            <TextView android:id="@+id/claude_launch_both"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="claude -d -c"
@@ -145,19 +145,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_skip_permissions"
+            <TextView android:id="@+id/claude_skip_permissions"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/permissions"
                 android:tag="/permissions" />
 
-            <Button android:id="@+id/claude_yes"
+            <TextView android:id="@+id/claude_yes"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="y"
                 android:tag="y" />
 
-            <Button android:id="@+id/claude_no"
+            <TextView android:id="@+id/claude_no"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="n"
@@ -169,19 +169,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_continue"
+            <TextView android:id="@+id/claude_continue"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/continue"
                 android:tag="/continue" />
 
-            <Button android:id="@+id/claude_resume"
+            <TextView android:id="@+id/claude_resume"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/resume"
                 android:tag="/resume" />
 
-            <Button android:id="@+id/claude_stop"
+            <TextView android:id="@+id/claude_stop"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="Esc"
@@ -204,19 +204,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_clear"
+            <TextView android:id="@+id/claude_clear"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/clear"
                 android:tag="/clear" />
 
-            <Button android:id="@+id/claude_reset"
+            <TextView android:id="@+id/claude_reset"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/reset"
                 android:tag="/reset" />
 
-            <Button android:id="@+id/claude_undo"
+            <TextView android:id="@+id/claude_undo"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/undo"
@@ -228,19 +228,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_compact"
+            <TextView android:id="@+id/claude_compact"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/compact"
                 android:tag="/compact" />
 
-            <Button android:id="@+id/claude_cost"
+            <TextView android:id="@+id/claude_cost"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/cost"
                 android:tag="/cost" />
 
-            <Button android:id="@+id/claude_memory"
+            <TextView android:id="@+id/claude_memory"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/memory"
@@ -263,19 +263,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_plan"
+            <TextView android:id="@+id/claude_plan"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/plan"
                 android:tag="/plan" />
 
-            <Button android:id="@+id/claude_model"
+            <TextView android:id="@+id/claude_model"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/model"
                 android:tag="/model" />
 
-            <Button android:id="@+id/claude_config"
+            <TextView android:id="@+id/claude_config"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/config"
@@ -287,21 +287,21 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_model_opus"
+            <TextView android:id="@+id/claude_model_opus"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/model opus"
                 android:textSize="9sp"
                 android:tag="/model opus" />
 
-            <Button android:id="@+id/claude_model_sonnet"
+            <TextView android:id="@+id/claude_model_sonnet"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/model sonnet"
                 android:textSize="9sp"
                 android:tag="/model sonnet" />
 
-            <Button android:id="@+id/claude_model_haiku"
+            <TextView android:id="@+id/claude_model_haiku"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/model haiku"
@@ -325,19 +325,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_add"
+            <TextView android:id="@+id/claude_add"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/add"
                 android:tag="/add" />
 
-            <Button android:id="@+id/claude_commit"
+            <TextView android:id="@+id/claude_commit"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/commit"
                 android:tag="/commit" />
 
-            <Button android:id="@+id/claude_diff"
+            <TextView android:id="@+id/claude_diff"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/diff"
@@ -360,19 +360,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_help"
+            <TextView android:id="@+id/claude_help"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/help"
                 android:tag="/help" />
 
-            <Button android:id="@+id/claude_status"
+            <TextView android:id="@+id/claude_status"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/status"
                 android:tag="/status" />
 
-            <Button android:id="@+id/claude_tasks"
+            <TextView android:id="@+id/claude_tasks"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/tasks"
@@ -395,19 +395,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_review"
+            <TextView android:id="@+id/claude_review"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/review"
                 android:tag="/review" />
 
-            <Button android:id="@+id/claude_pr"
+            <TextView android:id="@+id/claude_pr"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/pr"
                 android:tag="/pr" />
 
-            <Button android:id="@+id/claude_bug"
+            <TextView android:id="@+id/claude_bug"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/bug"
@@ -430,19 +430,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_terminal"
+            <TextView android:id="@+id/claude_terminal"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/terminal"
                 android:tag="/terminal" />
 
-            <Button android:id="@+id/claude_vim"
+            <TextView android:id="@+id/claude_vim"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/vim"
                 android:tag="/vim" />
 
-            <Button android:id="@+id/claude_doctor"
+            <TextView android:id="@+id/claude_doctor"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/doctor"
@@ -454,19 +454,19 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <Button android:id="@+id/claude_init"
+            <TextView android:id="@+id/claude_init"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/init"
                 android:tag="/init" />
 
-            <Button android:id="@+id/claude_login"
+            <TextView android:id="@+id/claude_login"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/login"
                 android:tag="/login" />
 
-            <Button android:id="@+id/claude_logout"
+            <TextView android:id="@+id/claude_logout"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/logout"

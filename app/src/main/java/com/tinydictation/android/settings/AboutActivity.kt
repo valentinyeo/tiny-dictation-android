@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.10:
+            • Changed all keyboard keys from Button to TextView
+            • Removes Material3 styling that forced rounded corners
+
+            v1.18.9:
+            • Override Material3 button shape to square corners
+            • Added shapeAppearance with cornerSize=0dp to all button styles
+
             v1.18.8:
             • Completely square button corners (0dp radius)
 

@@ -8,7 +8,21 @@
         <item name="colorControlNormal">#AAFFFFFF</item>
     </style>
 
+    <!-- Square button style - override Material3 rounded corners -->
+    <style name="SquareButton" parent="Widget.Material3.Button">
+        <item name="shapeAppearance">@style/SquareShape</item>
+        <item name="android:insetTop">0dp</item>
+        <item name="android:insetBottom">0dp</item>
+    </style>
+
+    <style name="SquareShape" parent="">
+        <item name="cornerSize">0dp</item>
+    </style>
+
     <style name="Theme.TinyDictation" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Override default button style to be square -->
+        <item name="materialButtonStyle">@style/SquareButton</item>
+
         <!-- Primary colors -->
         <item name="colorPrimary">@color/primary</item>
         <item name="colorPrimaryContainer">@color/primary_container</item>
