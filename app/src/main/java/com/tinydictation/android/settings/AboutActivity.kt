@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.28:
+            • Panel height back to 320dp
+            • Row spacing reduced to 7dp
+
             v1.18.27:
             • Dictation bar buttons: #1A1A1A (darker)
             • Special keys (shift, backspace, enter, !#1): #1A1A1A
