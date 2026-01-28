@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.2:
+            • Taller keyboard keys matching Samsung keyboard sizing
+            • Increased panel height from 250dp to 290dp
+
             v1.18.1:
             • FIX: Snippets now appear after saving from clipboard
 
