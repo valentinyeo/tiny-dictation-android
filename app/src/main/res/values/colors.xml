@@ -35,10 +35,10 @@
     <color name="text_tertiary">#79747E</color>
     <color name="bubble_text">#FFFFFF</color>
 
-    <!-- Keyboard colors (dark theme) -->
+    <!-- Keyboard colors (dark theme - Samsung style) -->
     <color name="keyboard_background">#000000</color>
-    <color name="keyboard_key_background">#2D2D2D</color>
+    <color name="keyboard_key_background">#3B3B3B</color>
     <color name="keyboard_key_text">#FFFFFF</color>
-    <color name="keyboard_key_accent">#3D3D3D</color>
-    <color name="keyboard_key_border">#4D4D4D</color>
+    <color name="keyboard_key_accent">#4A4A4A</color>
+    <color name="keyboard_key_border">#5A5A5A</color>
 </resources>

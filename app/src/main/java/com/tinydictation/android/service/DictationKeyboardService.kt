@@ -583,9 +583,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         when (themeSetting) {
             PreferenceManager.THEME_AMOLED -> {
-                // AMOLED black theme - pure black saves battery on OLED screens
+                // AMOLED black theme - Samsung-style dark gray keys on black
                 backgroundColor = Color.parseColor("#000000")  // Pure black
-                buttonColor = Color.parseColor("#1A1A1A")      // Very dark gray
+                buttonColor = Color.parseColor("#3B3B3B")      // Samsung-style gray
                 iconColor = Color.parseColor("#FFFFFF")        // White
             }
             PreferenceManager.THEME_DARK -> {

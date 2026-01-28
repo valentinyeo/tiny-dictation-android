@@ -35,9 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.18.17:
-            • Increased key spacing to 4dp (Samsung-style visible gaps)
-            • Clear separation between keys matching Samsung keyboard
+            v1.18.18:
+            • Samsung keyboard style overhaul
+            • Taller keyboard (330dp panel height)
+            • Shorter number row (38dp) with taller letters
+            • Bigger letter keys (22sp text)
+            • Samsung-style key color (#3B3B3B)
+            • Changed "123" to "!#1" like Samsung
 
             v1.18.15:
             • Set corner radius to 4dp (Samsung-style subtle rounding)
