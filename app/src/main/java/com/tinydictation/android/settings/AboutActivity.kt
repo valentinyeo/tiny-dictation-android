@@ -35,9 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.16:
+            • Reduced key spacing from 2dp to 1dp (closer to Samsung keyboard)
+            • Keys now appear tighter together like Samsung
+
             v1.18.15:
             • Set corner radius to 4dp (Samsung-style subtle rounding)
-            • Applied to all keyboard keys across QWERTY, numpad, and other panels
 
             v1.18.14:
             • FIX: Keyboard keys now respect corner radius settings
