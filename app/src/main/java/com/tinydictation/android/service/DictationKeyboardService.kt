@@ -684,9 +684,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_h, R.id.key_j, R.id.key_k, R.id.key_l,
             R.id.key_z, R.id.key_x, R.id.key_c, R.id.key_v, R.id.key_b,
             R.id.key_n, R.id.key_m,
-            R.id.key_shift, R.id.key_numbers,
             R.id.key_comma, R.id.key_space, R.id.key_period
         )
+
+        // Accent keys (shift, numbers) - use darker accent color #1A1A1A
+        val accentKeyIds = listOf(R.id.key_shift, R.id.key_numbers)
 
         for (id in textKeyIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
@@ -705,12 +707,32 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Icon keys (ImageView) - backspace and enter
+        // Accent color for special keys (shift, numbers, backspace, enter)
+        val accentColor = ContextCompat.getColor(this, R.color.dictation_bar_button)
+
+        // Accent text keys (shift, numbers)
+        for (id in accentKeyIds) {
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
+                val backgroundDrawable = GradientDrawable().apply {
+                    setColor(accentColor)
+                    cornerRadius = 6 * resources.displayMetrics.density
+                }
+                val rippleDrawable = RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
+                    backgroundDrawable,
+                    null
+                ).mutate()
+                button.background = rippleDrawable
+                button.setTextColor(textColor)
+            }
+        }
+
+        // Icon keys (ImageView) - backspace and enter - use accent color
         val iconKeyIds = listOf(R.id.key_backspace, R.id.key_enter)
         for (id in iconKeyIds) {
             qwertyPanel?.findViewById<android.widget.ImageView>(id)?.let { imageView ->
                 val backgroundDrawable = GradientDrawable().apply {
-                    setColor(buttonColor)
+                    setColor(accentColor)
                     cornerRadius = 6 * resources.displayMetrics.density  // 6dp Samsung-style
                 }
                 val rippleDrawable = RippleDrawable(

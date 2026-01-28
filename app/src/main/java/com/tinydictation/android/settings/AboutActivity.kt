@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.29:
+            • Special keys now use accent color #1A1A1A
+            • Fixed Kotlin code overriding XML styles
+
             v1.18.28:
             • Panel height back to 320dp
             • Row spacing reduced to 7dp
