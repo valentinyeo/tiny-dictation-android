@@ -166,7 +166,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
     private var isPunctuationPopupShowing = false
-    private var periodButton: android.widget.Button? = null
+    private var periodButton: android.widget.TextView? = null
     private var selectedPunctuation: String? = null
     private var punctuationTouchStartX = 0f
     private var punctuationTouchStartY = 0f
@@ -177,7 +177,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
     // 'A' key long-press for @ symbol
-    private var aKeyButton: android.widget.Button? = null
+    private var aKeyButton: android.widget.TextView? = null
     private var isAKeyLongPressTriggered = false
     private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val aKeyLongPressRunnable = Runnable {
@@ -706,7 +706,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
 
         for (id in buttonIds) {
-            qwertyPanel?.findViewById<android.widget.Button>(id)?.let { button ->
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 // Create themed background
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
@@ -734,7 +734,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
 
         for (id in numpadIds) {
-            cursorNumpadPanel?.findViewById<android.widget.Button>(id)?.let { button ->
+            cursorNumpadPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
                     cornerRadius = 12 * resources.displayMetrics.density
@@ -1407,7 +1407,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_0 to "0"
         )
         for ((id, char) in numberKeys) {
-            qwertyPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
                 updatePredictions()
             }
@@ -1425,7 +1425,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
 
         for ((id, _) in letterKeys) {
-            val button = qwertyPanel?.findViewById<android.widget.Button>(id)
+            val button = qwertyPanel?.findViewById<android.widget.TextView>(id)
             button?.setOnClickListener {
                 // Use the button's displayed text (works for both letters and numbers/symbols)
                 val textToCommit = button.text.toString()
@@ -1443,40 +1443,40 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         // 'A' key - tap for 'a', long press for '@' (like iOS)
-        aKeyButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_a)
+        aKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_a)
         aKeyButton?.setOnTouchListener { _, event ->
             handleAKeyTouch(event)
         }
 
         // Punctuation keys
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_comma)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
             updatePredictions()
         }
         // Period key - tap for ".", long press for punctuation popup (! and ?)
-        periodButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_period)
+        periodButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_period)
         periodButton?.setOnTouchListener { view, event ->
             handlePeriodTouch(view, event)
         }
 
         // Space bar - triggers next-word prediction
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_space)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
             updatePredictions()
         }
 
         // Enter key
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_enter)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
 
         // Backspace key - with hold-to-repeat (same behavior as dictation bar backspace)
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_backspace)?.setOnTouchListener { _, event ->
+        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_backspace)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
 
         // Shift key - tap for shift, double-tap for caps lock (or symbols toggle in numbers mode)
-        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
+        val shiftButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
         var lastShiftTapTime = 0L
         shiftButton?.setOnClickListener {
             if (isNumbersMode) {
@@ -1507,7 +1507,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         // 123/ABC key - toggle between letters and numbers/symbols
-        qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.setOnClickListener {
+        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
         }
     }
@@ -1614,57 +1614,57 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
 
         for ((id, char) in numpadKeys) {
-            cursorNumpadPanel?.findViewById<android.widget.Button>(id)?.setOnClickListener {
+            cursorNumpadPanel?.findViewById<android.widget.TextView>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
             }
         }
 
         // Cursor/navigation keys - with hold-to-repeat (same acceleration as backspace)
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_up)?.setOnTouchListener { _, event ->
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_up)?.setOnTouchListener { _, event ->
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_UP)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_down)?.setOnTouchListener { _, event ->
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_down)?.setOnTouchListener { _, event ->
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_DOWN)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_left)?.setOnTouchListener { _, event ->
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_left)?.setOnTouchListener { _, event ->
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_LEFT)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_right)?.setOnTouchListener { _, event ->
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_right)?.setOnTouchListener { _, event ->
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_RIGHT)
         }
 
         // Navigation keys
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_home)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_home)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_HOME)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_end)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_end)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_END)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgup)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_pgup)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_UP)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_pgdn)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_pgdn)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_DOWN)
         }
 
         // Additional keys
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_tab)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_tab)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_del)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_del)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL)
         }
         // Backspace - with hold-to-repeat (same behavior as dictation bar backspace)
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_bksp)?.setOnTouchListener { _, event ->
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_bksp)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_esc)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_esc)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ESCAPE)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_space)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
         }
-        cursorNumpadPanel?.findViewById<android.widget.Button>(R.id.cursor_enter)?.setOnClickListener {
+        cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
     }
@@ -1729,7 +1729,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
 
         // Set up all buttons by iterating through shell panel children
-        fun setupButton(button: android.widget.Button) {
+        fun setupButton(button: android.widget.TextView) {
             val tag = button.tag as? String ?: return
 
             button.setOnClickListener {
@@ -2311,21 +2311,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (isNumbersMode) {
             // Update to numbers/symbols
             for ((id, char) in numbersRow1 + numbersRow2 + numbersRow3) {
-                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
             }
             // Update mode switch button to "ABC"
-            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "ABC"
+            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.text = "ABC"
             // Hide shift key text (not applicable in numbers mode)
-            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
+            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "#+="
         } else {
             // Update to letters
             val useUppercase = isShiftActive || isCapsLock
             for ((id, char) in lettersRow1 + lettersRow2 + lettersRow3) {
-                qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
+                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text =
                     if (useUppercase) char.uppercase() else char
             }
             // Update mode switch button to "123"
-            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_numbers)?.text = "123"
+            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.text = "123"
             // Restore shift key
             updateShiftKeyDisplay()
         }
@@ -2369,14 +2369,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         if (isShiftActive) {
             for ((id, char) in secondaryRow1 + secondaryRow2 + secondaryRow3) {
-                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
             }
-            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "123"
+            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "123"
         } else {
             for ((id, char) in primaryRow1 + primaryRow2 + primaryRow3) {
-                qwertyPanel?.findViewById<android.widget.Button>(id)?.text = char
+                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
             }
-            qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)?.text = "#+="
+            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "#+="
         }
     }
 
@@ -2384,7 +2384,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Updates the shift key display based on current state.
      */
     private fun updateShiftKeyDisplay() {
-        val shiftButton = qwertyPanel?.findViewById<android.widget.Button>(R.id.key_shift)
+        val shiftButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
         shiftButton?.text = when {
             isCapsLock -> "⇪"  // Caps lock indicator
             isShiftActive -> "⇧"  // Shift active (filled)
@@ -2411,7 +2411,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         val useUppercase = isShiftActive || isCapsLock
         for ((id, char) in letterKeys) {
-            qwertyPanel?.findViewById<android.widget.Button>(id)?.text =
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.text =
                 if (useUppercase) char.uppercase() else char
         }
     }

@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.11:
+            • FIX: Updated Kotlin code to use TextView instead of Button
+            • Fixes crash on keyboard load
+
             v1.18.10:
             • Changed all keyboard keys from Button to TextView
             • Removes Material3 styling that forced rounded corners
