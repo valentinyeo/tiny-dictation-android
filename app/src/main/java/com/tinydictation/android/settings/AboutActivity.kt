@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.20:
+            • Dark dictation bar background (#2D2D2D)
+            • White icons for better visibility on dark background
+            • QWERTY keyboard styling unchanged
+
             v1.18.19:
             • Exact Samsung color (#2D2D2F) for keyboard keys
             • Dictation bar keeps original colors (not themed)
