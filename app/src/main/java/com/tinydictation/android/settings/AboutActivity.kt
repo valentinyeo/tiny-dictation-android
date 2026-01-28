@@ -35,9 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.18.12:
-            • Replaced ripple drawables with plain selectors
-            • No corners attribute at all - pure rectangles
+            v1.18.14:
+            • FIX: Keyboard keys now have square corners (Samsung-style)
+            • Root cause: Kotlin code was overriding XML drawable corners
+            • Changed programmatic cornerRadius from 12dp to 0
 
             v1.18.11:
             • FIX: Updated Kotlin code to use TextView instead of Button

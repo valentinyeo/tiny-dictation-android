@@ -655,7 +655,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Create new background drawable with themed color
         val backgroundDrawable = GradientDrawable().apply {
             setColor(buttonColor)
-            cornerRadius = 12 * resources.displayMetrics.density
+            cornerRadius = 0f
         }
 
         // Wrap in ripple for touch feedback
@@ -710,7 +710,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 // Create themed background
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 12 * resources.displayMetrics.density
+                    cornerRadius = 0f
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -737,7 +737,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             cursorNumpadPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 12 * resources.displayMetrics.density
+                    cornerRadius = 0f
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
