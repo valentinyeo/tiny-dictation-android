@@ -37,8 +37,8 @@
 
     <!-- Keyboard colors (dark theme - Samsung style) -->
     <color name="keyboard_background">#000000</color>
-    <color name="keyboard_key_background">#3B3B3B</color>
+    <color name="keyboard_key_background">#2D2D2F</color>
     <color name="keyboard_key_text">#FFFFFF</color>
-    <color name="keyboard_key_accent">#4A4A4A</color>
-    <color name="keyboard_key_border">#5A5A5A</color>
+    <color name="keyboard_key_accent">#3D3D3F</color>
+    <color name="keyboard_key_border">#4D4D4F</color>
 </resources>

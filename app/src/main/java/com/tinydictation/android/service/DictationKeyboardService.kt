@@ -585,7 +585,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             PreferenceManager.THEME_AMOLED -> {
                 // AMOLED black theme - Samsung-style dark gray keys on black
                 backgroundColor = Color.parseColor("#000000")  // Pure black
-                buttonColor = Color.parseColor("#3B3B3B")      // Samsung-style gray
+                buttonColor = Color.parseColor("#2D2D2F")      // Samsung exact color
                 iconColor = Color.parseColor("#FFFFFF")        // White
             }
             PreferenceManager.THEME_DARK -> {
@@ -619,28 +619,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardRoot)?.setBackgroundColor(backgroundColor)
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.setBackgroundColor(backgroundColor)
 
-        // Apply button and icon colors to all buttons
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboardMic), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnLanguage), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnBackspace), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnEnter), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnEmoji), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnKeyboard), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnSelectAll), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnHistory), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnSpace), buttonColor, iconColor)
-        applyButtonTheme(keyboardView?.findViewById(R.id.btnSwitchBack), buttonColor, iconColor)
+        // NOTE: Dictation bar buttons keep their original colors (not themed)
+        // Only the QWERTY panel gets Samsung-style theming
 
-        // Apply text color to language text
-        languageText?.setTextColor(iconColor)
-
-        // Apply text color to "All" button text
-        keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.let { button ->
-            val textView = button.getChildAt(0) as? TextView
-            textView?.setTextColor(iconColor)
-        }
-
-        // Apply theme to QWERTY keyboard buttons
+        // Apply theme to QWERTY keyboard buttons only
         applyQwertyTheme(buttonColor, iconColor, backgroundColor)
 
         DebugLog.d("DictationKeyboardService: Applied theme - $themeSetting")
@@ -655,7 +637,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Create new background drawable with themed color
         val backgroundDrawable = GradientDrawable().apply {
             setColor(buttonColor)
-            cornerRadius = 4 * resources.displayMetrics.density  // 4dp Samsung-style
+            cornerRadius = 6 * resources.displayMetrics.density  // 4dp Samsung-style
         }
 
         // Wrap in ripple for touch feedback
@@ -690,7 +672,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         cursorNumpadPanel?.setBackgroundColor(backgroundColor)
 
         // Get all Button views in the keyboard panels and apply theme
-        val buttonIds = listOf(
+        // Text keys (TextView)
+        val textKeyIds = listOf(
             // Number row
             R.id.key_1, R.id.key_2, R.id.key_3, R.id.key_4, R.id.key_5,
             R.id.key_6, R.id.key_7, R.id.key_8, R.id.key_9, R.id.key_0,
@@ -701,16 +684,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_h, R.id.key_j, R.id.key_k, R.id.key_l,
             R.id.key_z, R.id.key_x, R.id.key_c, R.id.key_v, R.id.key_b,
             R.id.key_n, R.id.key_m,
-            R.id.key_shift, R.id.key_backspace, R.id.key_numbers,
-            R.id.key_comma, R.id.key_space, R.id.key_period, R.id.key_enter
+            R.id.key_shift, R.id.key_numbers,
+            R.id.key_comma, R.id.key_space, R.id.key_period
         )
 
-        for (id in buttonIds) {
+        for (id in textKeyIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 // Create themed background
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 4 * resources.displayMetrics.density  // 4dp Samsung-style
+                    cornerRadius = 6 * resources.displayMetrics.density  // 6dp Samsung-style
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -719,6 +702,24 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 ).mutate()
                 button.background = rippleDrawable
                 button.setTextColor(textColor)
+            }
+        }
+
+        // Icon keys (ImageView) - backspace and enter
+        val iconKeyIds = listOf(R.id.key_backspace, R.id.key_enter)
+        for (id in iconKeyIds) {
+            qwertyPanel?.findViewById<android.widget.ImageView>(id)?.let { imageView ->
+                val backgroundDrawable = GradientDrawable().apply {
+                    setColor(buttonColor)
+                    cornerRadius = 6 * resources.displayMetrics.density  // 6dp Samsung-style
+                }
+                val rippleDrawable = RippleDrawable(
+                    android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
+                    backgroundDrawable,
+                    null
+                ).mutate()
+                imageView.background = rippleDrawable
+                imageView.setColorFilter(textColor)
             }
         }
 
@@ -737,7 +738,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             cursorNumpadPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 4 * resources.displayMetrics.density  // 4dp Samsung-style
+                    cornerRadius = 6 * resources.displayMetrics.density  // 4dp Samsung-style
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -1465,13 +1466,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             updatePredictions()
         }
 
-        // Enter key
-        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_enter)?.setOnClickListener {
+        // Enter key (ImageView)
+        qwertyPanel?.findViewById<android.view.View>(R.id.key_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
         }
 
-        // Backspace key - with hold-to-repeat (same behavior as dictation bar backspace)
-        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_backspace)?.setOnTouchListener { _, event ->
+        // Backspace key (ImageView) - with hold-to-repeat (same behavior as dictation bar backspace)
+        qwertyPanel?.findViewById<android.view.View>(R.id.key_backspace)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
 

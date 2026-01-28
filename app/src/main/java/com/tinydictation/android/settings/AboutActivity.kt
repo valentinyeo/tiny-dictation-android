@@ -35,13 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.18.18:
-            • Samsung keyboard style overhaul
-            • Taller keyboard (330dp panel height)
-            • Shorter number row (38dp) with taller letters
-            • Bigger letter keys (22sp text)
-            • Samsung-style key color (#3B3B3B)
-            • Changed "123" to "!#1" like Samsung
+            v1.18.19:
+            • Exact Samsung color (#2D2D2F) for keyboard keys
+            • Dictation bar keeps original colors (not themed)
+            • Corner radius increased to 6dp
+            • Number row height 48dp, space bar row shorter
+            • Vector icons for backspace and enter keys
+            • Bigger shift symbol (22sp)
 
             v1.18.15:
             • Set corner radius to 4dp (Samsung-style subtle rounding)
