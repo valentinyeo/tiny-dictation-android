@@ -33,6 +33,15 @@ class SettingsActivity : AppCompatActivity() {
         recyclerView.adapter = SettingsCategoryAdapter(getSettingsCategories()) { category ->
             navigateToCategory(category)
         }
+
+        // Set version text
+        val versionText = findViewById<TextView>(R.id.versionText)
+        try {
+            val versionName = packageManager.getPackageInfo(packageName, 0).versionName
+            versionText.text = "v$versionName"
+        } catch (e: Exception) {
+            versionText.visibility = View.GONE
+        }
     }
 
     private fun getSettingsCategories(): List<SettingsCategory> {
