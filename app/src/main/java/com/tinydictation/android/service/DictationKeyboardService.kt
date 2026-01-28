@@ -1423,11 +1423,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2?.setOnClickListener { onPredictionTapped(1) }
         prediction3?.setOnClickListener { onPredictionTapped(2) }
 
-        // Number row setup
-        val numberRow = qwertyPanel?.findViewById<LinearLayout>(R.id.numberRow)
-        val prefs = PreferenceManager(this)
-        val showNumberRow = prefs.getShowNumberRow()
-        numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE
+        // Number row and hints visibility (refreshed on each keyboard open)
+        updateNumberRowVisibility()
 
         // Number keys - simple click handlers
         val numberKeys = listOf(
@@ -2444,6 +2441,29 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
+     * Updates number row visibility and number hints on top row keys.
+     * Called on keyboard open to apply latest settings.
+     */
+    private fun updateNumberRowVisibility() {
+        val prefs = PreferenceManager(this)
+        val showNumberRow = prefs.getShowNumberRow()
+
+        // Update number row visibility
+        val numberRow = qwertyPanel?.findViewById<LinearLayout>(R.id.numberRow)
+        numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE
+
+        // Update number hints visibility (show hints when number row is hidden)
+        val hintVisibility = if (showNumberRow) View.GONE else View.VISIBLE
+        val hintIds = listOf(
+            R.id.hint_q, R.id.hint_w, R.id.hint_e, R.id.hint_r, R.id.hint_t,
+            R.id.hint_y, R.id.hint_u, R.id.hint_i, R.id.hint_o, R.id.hint_p
+        )
+        for (id in hintIds) {
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
+        }
+    }
+
+    /**
      * Updates all letter keys to show uppercase or lowercase.
      */
     private fun updateLetterKeyDisplays() {
@@ -3020,6 +3040,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateLanguageButton()
         updateKeyboardButtonState()
         updateEmojiButtonState()
+        updateNumberRowVisibility()
 
         // Auto-start dictation when keyboard opens (mic red/active by default)
         // Skip auto-start if mute is locked

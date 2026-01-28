@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.31:
+            • Fixed number row toggle (now refreshes on keyboard open)
+            • Number hints only shown when number row is OFF
+
             v1.18.30:
             • Long-press history button → opens settings
             • Long-press Q-P keys → types numbers 1-0

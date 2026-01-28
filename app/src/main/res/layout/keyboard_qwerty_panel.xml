@@ -103,43 +103,43 @@
 
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_q" style="@style/KeyboardKeyText" android:text="q" />
-            <TextView style="@style/KeyboardKeyHint" android:text="1" />
+            <TextView android:id="@+id/hint_q" style="@style/KeyboardKeyHint" android:text="1" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_w" style="@style/KeyboardKeyText" android:text="w" />
-            <TextView style="@style/KeyboardKeyHint" android:text="2" />
+            <TextView android:id="@+id/hint_w" style="@style/KeyboardKeyHint" android:text="2" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_e" style="@style/KeyboardKeyText" android:text="e" />
-            <TextView style="@style/KeyboardKeyHint" android:text="3" />
+            <TextView android:id="@+id/hint_e" style="@style/KeyboardKeyHint" android:text="3" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_r" style="@style/KeyboardKeyText" android:text="r" />
-            <TextView style="@style/KeyboardKeyHint" android:text="4" />
+            <TextView android:id="@+id/hint_r" style="@style/KeyboardKeyHint" android:text="4" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_t" style="@style/KeyboardKeyText" android:text="t" />
-            <TextView style="@style/KeyboardKeyHint" android:text="5" />
+            <TextView android:id="@+id/hint_t" style="@style/KeyboardKeyHint" android:text="5" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_y" style="@style/KeyboardKeyText" android:text="y" />
-            <TextView style="@style/KeyboardKeyHint" android:text="6" />
+            <TextView android:id="@+id/hint_y" style="@style/KeyboardKeyHint" android:text="6" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_u" style="@style/KeyboardKeyText" android:text="u" />
-            <TextView style="@style/KeyboardKeyHint" android:text="7" />
+            <TextView android:id="@+id/hint_u" style="@style/KeyboardKeyHint" android:text="7" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_i" style="@style/KeyboardKeyText" android:text="i" />
-            <TextView style="@style/KeyboardKeyHint" android:text="8" />
+            <TextView android:id="@+id/hint_i" style="@style/KeyboardKeyHint" android:text="8" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_o" style="@style/KeyboardKeyText" android:text="o" />
-            <TextView style="@style/KeyboardKeyHint" android:text="9" />
+            <TextView android:id="@+id/hint_o" style="@style/KeyboardKeyHint" android:text="9" android:visibility="gone" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_p" style="@style/KeyboardKeyText" android:text="p" />
-            <TextView style="@style/KeyboardKeyHint" android:text="0" />
+            <TextView android:id="@+id/hint_p" style="@style/KeyboardKeyHint" android:text="0" android:visibility="gone" />
         </FrameLayout>
     </LinearLayout>
 
