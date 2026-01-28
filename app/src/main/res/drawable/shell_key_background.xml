@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Shell key background - no ripple, just solid rectangle -->
+<!-- Shell key background - 4dp Samsung-style corners -->
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_pressed="true">
         <shape android:shape="rectangle">
             <solid android:color="@color/primary" />
+            <corners android:radius="4dp" />
         </shape>
     </item>
     <item>
         <shape android:shape="rectangle">
             <solid android:color="@color/keyboard_key_background" />
+            <corners android:radius="4dp" />
         </shape>
     </item>
 </selector>
