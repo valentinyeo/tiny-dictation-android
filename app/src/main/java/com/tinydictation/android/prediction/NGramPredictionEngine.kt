@@ -335,7 +335,16 @@ class NGramPredictionEngine : PredictionEngine {
             "app", "application", "website", "page", "link", "url", "browser", "internet",
             "computer", "laptop", "desktop", "mobile", "tablet", "device", "screen", "display",
             "keyboard", "mouse", "touch", "scroll", "zoom", "rotate", "resize",
-            "error", "warning", "success", "failed", "loading", "processing", "complete"
+            "error", "warning", "success", "failed", "loading", "processing", "complete",
+            // More common words
+            "predict", "prediction", "predictions", "predicting", "predicted",
+            "sentence", "sentences", "word", "words", "text", "texts",
+            "auto", "automatic", "automatically", "correct", "correction", "correcting",
+            "suggest", "suggestion", "suggestions", "suggesting", "suggested",
+            "typing", "typed", "types", "feature", "features", "function", "functions",
+            "new", "old", "next", "previous", "first", "last", "second", "third",
+            "test", "testing", "tested", "tests", "example", "examples",
+            "input", "output", "enter", "exit", "start", "end", "begin", "finish"
         )
 
         // Common next words when no context

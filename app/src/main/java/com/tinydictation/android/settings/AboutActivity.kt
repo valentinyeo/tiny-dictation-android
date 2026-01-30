@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.38:
+            • More debug logging for prediction troubleshooting
+            • Added more common words (prediction, sentence, etc.)
+            • Check debug logs to see what's happening
+
             v1.18.37:
             • NEW: Typo correction for predictions!
             • "tseting" → suggests "testing"

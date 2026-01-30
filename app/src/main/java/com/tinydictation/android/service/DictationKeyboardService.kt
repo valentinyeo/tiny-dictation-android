@@ -1429,6 +1429,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
+        DebugLog.i("DictationKeyboardService: setupQwertyKeyboard - prediction TextViews: p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+
         // Prediction tap handlers
         prediction1?.setOnClickListener { onPredictionTapped(0) }
         prediction2?.setOnClickListener { onPredictionTapped(1) }
@@ -1593,6 +1595,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Layout: [LEFT: 2nd best] [CENTER: BEST] [RIGHT: 3rd best]
      */
     private fun displayPredictions(predictions: List<com.tinydictation.android.prediction.Prediction>) {
+        // Debug: Check if TextViews are available
+        if (prediction1 == null || prediction2 == null || prediction3 == null) {
+            DebugLog.w("DictationKeyboardService: displayPredictions - TextViews not initialized! p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+        }
+
         when (predictions.size) {
             0 -> {
                 prediction1?.text = ""
