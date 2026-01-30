@@ -42,6 +42,7 @@ import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
+import com.tinydictation.android.ai.TextImprover
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -167,6 +168,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var prediction2: TextView? = null
     private var prediction3: TextView? = null
     private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
+
+    // Text improvement (AI-powered readability enhancement)
+    private var textImprover: TextImprover? = null
+    private var isImproving = false  // Prevent multiple concurrent improvements
+    private var improveButton: FrameLayout? = null
+    private var improveIcon: ImageView? = null
 
     // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
@@ -324,6 +331,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Initialize and start clipboard history manager
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
         clipboardHistoryManager?.startListening()
+
+        // Initialize text improver (uses same Groq API as predictions)
+        textImprover = TextImprover(this)
 
         // Initialize prediction manager based on user's selected engine preference
         predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
@@ -844,6 +854,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Switch back to previous keyboard button
         keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.setOnClickListener {
             switchToPreviousKeyboard()
+        }
+
+        // Improve button - AI-powered text improvement
+        improveButton = keyboardView?.findViewById(R.id.btnImprove)
+        improveIcon = keyboardView?.findViewById(R.id.ivImprove)
+        improveButton?.setOnClickListener {
+            improveText()
         }
     }
 
@@ -3046,6 +3063,107 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
             val totalLength = before.length + after.length
             ic.setSelection(0, totalLength)
+        }
+    }
+
+    /**
+     * Improves the readability of text in the current input field using AI.
+     *
+     * This function:
+     * 1. Gets all text from the current input field
+     * 2. Sends it to Groq API for improvement
+     * 3. Replaces the original text with the improved version
+     *
+     * Improvements include:
+     * - Making text 20-30% shorter
+     * - Adding bullet points where appropriate
+     * - Using clear, professional, nonviolent language
+     * - Preserving the user's tone and intent
+     */
+    private fun improveText() {
+        if (isImproving) {
+            DebugLog.w("DictationKeyboardService: Text improvement already in progress")
+            Toast.makeText(this, "Already improving...", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val ic = currentInputConnection
+        if (ic == null) {
+            DebugLog.e("DictationKeyboardService: No input connection for text improvement")
+            Toast.makeText(this, "No text field selected", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        // Get all text from the input field
+        val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
+        val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
+        val fullText = "$before$after"
+
+        if (fullText.isBlank()) {
+            DebugLog.w("DictationKeyboardService: No text to improve")
+            Toast.makeText(this, "No text to improve", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        Log.i(TAG, "DictationKeyboardService: Improving text (${fullText.length} chars)")
+        DebugLog.i("DictationKeyboardService: Starting text improvement for ${fullText.length} chars")
+
+        isImproving = true
+
+        // Visual feedback - change icon tint to indicate processing
+        improveIcon?.let { icon ->
+            icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
+        }
+        Toast.makeText(this, "Improving text...", Toast.LENGTH_SHORT).show()
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = textImprover?.improve(fullText)
+
+                if (result?.isSuccess == true) {
+                    val improvedText = result.getOrNull() ?: fullText
+
+                    // Select all and replace with improved text
+                    ic.beginBatchEdit()
+                    try {
+                        // Select all text
+                        val totalLength = before.length + after.length
+                        ic.setSelection(0, totalLength)
+
+                        // Replace with improved text
+                        ic.commitText(improvedText, 1)
+
+                        val savedChars = fullText.length - improvedText.length
+                        val savedPercent = if (fullText.isNotEmpty()) {
+                            (savedChars * 100 / fullText.length)
+                        } else 0
+
+                        DebugLog.i("DictationKeyboardService: Text improved! ${fullText.length} -> ${improvedText.length} chars (saved $savedPercent%)")
+
+                        if (savedChars > 0) {
+                            Toast.makeText(this@DictationKeyboardService, "Improved! Saved $savedChars chars ($savedPercent%)", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(this@DictationKeyboardService, "Text improved!", Toast.LENGTH_SHORT).show()
+                        }
+                    } finally {
+                        ic.endBatchEdit()
+                    }
+                } else {
+                    val error = result?.exceptionOrNull()?.message ?: "Unknown error"
+                    DebugLog.e("DictationKeyboardService: Text improvement failed - $error")
+                    Toast.makeText(this@DictationKeyboardService, "Failed: $error", Toast.LENGTH_LONG).show()
+                }
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Text improvement exception - ${e.message}")
+                Toast.makeText(this@DictationKeyboardService, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                isImproving = false
+
+                // Reset icon color
+                improveIcon?.let { icon ->
+                    icon.setColorFilter(ContextCompat.getColor(this@DictationKeyboardService, R.color.keyboard_key_text))
+                }
+            }
         }
     }
 

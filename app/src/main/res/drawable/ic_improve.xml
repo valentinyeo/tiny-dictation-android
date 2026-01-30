@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Auto-awesome/sparkle icon for "Improve readability" feature -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <!-- Main sparkle -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M19,9l-1.41,-1.41l-1.18,1.18l1.41,1.41L19,9zM14.5,6.5L13.09,5.09l-1.18,1.18l1.41,1.41L14.5,6.5z" />
+    <!-- Large star -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,3L10.55,7.86L6,7.5L9.09,10.91L7.5,15L12,12.45L16.5,15L14.91,10.91L18,7.5L13.45,7.86L12,3z" />
+    <!-- Small sparkle bottom -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M7.5,18L6.09,16.59L4.91,17.77L6.32,19.18L7.5,18zM19.5,18l1.41,-1.41l-1.18,-1.18l-1.41,1.41L19.5,18z" />
+    <!-- Bottom star -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M12,17l-1.09,3.27L8,19.5l2.18,1.77L9.5,24l2.5,-1.86l2.5,1.86l-0.68,-2.73L16,19.5l-2.91,0.77L12,17z" />
+</vector>

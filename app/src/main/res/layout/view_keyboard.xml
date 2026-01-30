@@ -2,7 +2,7 @@
 <!-- Keyboard layout for Tiny Dictation IME.
      Structure: Expandable panel (emoji/keyboard) + Dictation bar
      IMPORTANT: Keep keyboardContainer ID - applyTheme() depends on it
-     Button order: Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History
+     Button order: Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History | Improve
      Scroll centers on MIC for thumb access
      SEE CLAUDE.md FOR CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING IT
 -->
@@ -231,6 +231,24 @@
                         android:layout_height="24dp"
                         android:layout_gravity="center"
                         android:src="@drawable/ic_history"
+                        app:tint="@color/keyboard_key_text" />
+                </FrameLayout>
+
+                <!-- 11. Improve button - AI-powered text improvement -->
+                <FrameLayout
+                    android:id="@+id/btnImprove"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Improve readability">
+
+                    <ImageView
+                        android:id="@+id/ivImprove"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_improve"
                         app:tint="@color/keyboard_key_text" />
                 </FrameLayout>
 

@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.19.0:
+            • NEW: "Improve" button on dictation bar!
+            • Tap to enhance text readability with AI
+            • Makes text ~20-30% shorter and clearer
+            • Adds structure (bullet points) where helpful
+            • Uses professional, nonviolent language
+            • Requires Groq API key (same as predictions)
+
             v1.18.49:
             • FIX: Prediction tap now replaces word in Termius!
             • Uses internal buffer to find partial word to delete

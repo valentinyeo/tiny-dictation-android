@@ -59,7 +59,7 @@ The keyboard has TWO distinct UI components:
 - **File:** `app/src/main/res/layout/view_keyboard.xml`
 - **Description:** The horizontal bar at the bottom with action buttons
 - **Key element:** The MIC button (centered for thumb access)
-- **Contains:** Chevron, SelectAll, Emoji, Space, Language, Backspace, **MIC**, Enter, Keyboard, History buttons
+- **Contains:** Chevron, SelectAll, Emoji, Space, Language, Backspace, **MIC**, Enter, Keyboard, History, Improve buttons
 - **Behavior:** Always visible when keyboard is open; scrollable horizontally
 
 ### 2. TABBED PANEL (slide-out, hidden by default)
@@ -107,8 +107,8 @@ The keyboard has TWO distinct UI components:
 ### ⚠️ CANONICAL BUTTON ORDER - DO NOT CHANGE WITHOUT UPDATING THIS FILE ⚠️
 
 ```
-Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History
-         └───── scroll left to see ──────┘        └───── visible, MIC centered ──────────────┘
+Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keyboard | History | Improve
+         └───── scroll left to see ──────┘        └───── visible, MIC centered ────────────────────────┘
 ```
 
 **Button functions:**
@@ -122,13 +122,14 @@ Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keybo
 8. **Enter** - Send enter key
 9. **Keyboard** - Toggle tabbed panel (QWERTY + Cursor/Numpad + other tabs)
 10. **History** - Open transcription history (icon: ic_history)
+11. **Improve** - AI-powered text improvement (icon: ic_improve, uses Groq API)
 
 **Scroll behavior:**
 - The HorizontalScrollView MUST center on the MIC button when keyboard opens
 - MIC button MUST remain visually centered on screen for thumb access
 - `scrollDictationBarToDefault()` in DictationKeyboardService.kt handles this
 - Buttons to the left of MIC (Chevron, SelectAll, Emoji, Space, Backspace, Language) are hidden by scroll
-- Buttons to the right of MIC (Enter, Keyboard, History) are visible by default
+- Buttons to the right of MIC (Enter, Keyboard, History, Improve) are visible by default
 
 ### Archived Modes (in `archived/` directory)
 The following experimental modes have been archived but preserved for reference:
