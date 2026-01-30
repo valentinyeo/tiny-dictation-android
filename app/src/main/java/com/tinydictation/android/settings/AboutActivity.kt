@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.47:
+            • FIX: Predictions now update in Termius!
+            • Added internal text buffer for terminal apps
+            • Tracks what you type when app doesn't share text
+            • Type "pred" → get "predict", "prediction", etc.
+
             v1.18.46:
             • Added DISPLAY logging to confirm predictions show on screen
             • Logs will show "DISPLAY left='x' center='y' right='z'"

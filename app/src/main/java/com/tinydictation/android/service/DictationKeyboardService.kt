@@ -137,6 +137,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isCapsLock = false
     private var isNumbersMode = false  // Numbers/symbols keyboard mode
 
+    // Internal text buffer for apps that don't expose text (like terminal apps)
+    // We track what we've typed ourselves when getTextBeforeCursor() returns empty
+    private val internalTextBuffer = StringBuilder()
+    private var useInternalBuffer = false  // True when app doesn't provide text context
+
     // Button references for expanded state indicators
     private var keyboardButton: FrameLayout? = null
     private var keyboardIcon: ImageView? = null
@@ -1449,6 +1454,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         for ((id, char) in numberKeys) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
+                trackTypedText(char)  // Track for terminal apps
                 updatePredictions()
             }
         }
@@ -1477,6 +1483,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 // Use the button's displayed text (works for both letters and numbers/symbols)
                 val textToCommit = button.text.toString()
                 currentInputConnection?.commitText(textToCommit, 1)
+                trackTypedText(textToCommit)  // Track for terminal apps
 
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
                 if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -1493,6 +1500,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 button?.setOnLongClickListener {
                     if (!isNumbersMode) {
                         currentInputConnection?.commitText(number, 1)
+                        trackTypedText(number)  // Track for terminal apps
                         updatePredictions()
                     }
                     true
@@ -1509,6 +1517,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Punctuation keys
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
+            trackTypedText(",")  // Track for terminal apps
             updatePredictions()
         }
         // Period key - tap for ".", long press for punctuation popup (! and ?)
@@ -1520,6 +1529,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Space bar - triggers next-word prediction
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
+            trackTypedText(" ")  // Track for terminal apps
             updatePredictions()
         }
 
@@ -1572,6 +1582,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     /**
      * Request updated predictions based on current input.
+     * For terminal apps that don't expose text, we use our internal buffer.
      */
     private fun updatePredictions() {
         val ic = currentInputConnection
@@ -1580,8 +1591,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return
         }
 
-        val textBefore = ic.getTextBeforeCursor(100, 0)?.toString() ?: ""
-        DebugLog.d("DictationKeyboardService: updatePredictions textBefore='$textBefore' (len=${textBefore.length})")
+        var textBefore = ic.getTextBeforeCursor(100, 0)?.toString() ?: ""
+
+        // If app doesn't provide text context (like terminal apps), use our internal buffer
+        if (textBefore.isEmpty() && internalTextBuffer.isNotEmpty()) {
+            textBefore = internalTextBuffer.toString()
+            useInternalBuffer = true
+            DebugLog.d("DictationKeyboardService: Using internal buffer: '$textBefore'")
+        } else if (textBefore.isNotEmpty()) {
+            // App provides text - don't need internal buffer, sync it
+            useInternalBuffer = false
+            // Keep internal buffer in sync (take last 100 chars)
+            internalTextBuffer.clear()
+            internalTextBuffer.append(textBefore.takeLast(100))
+        }
+
+        DebugLog.d("DictationKeyboardService: updatePredictions text='$textBefore' (len=${textBefore.length}, internal=$useInternalBuffer)")
 
         val manager = predictionManager
         if (manager == null) {
@@ -1589,16 +1614,31 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return
         }
 
-        // If terminal app returns empty text, we can't predict
-        if (textBefore.isEmpty()) {
-            DebugLog.w("DictationKeyboardService: updatePredictions - textBefore is EMPTY (terminal app?)")
-            // Still show default predictions
-        }
-
         manager.requestPredictions(textBefore) { predictions ->
             currentPredictions = predictions
             displayPredictions(predictions)
             DebugLog.d("DictationKeyboardService: updatePredictions got ${predictions.size} predictions: ${predictions.map { it.word }}")
+        }
+    }
+
+    /**
+     * Track typed character in internal buffer (for terminal apps).
+     */
+    private fun trackTypedText(text: String) {
+        internalTextBuffer.append(text)
+        // Keep buffer reasonable size (last 100 chars)
+        if (internalTextBuffer.length > 100) {
+            internalTextBuffer.delete(0, internalTextBuffer.length - 100)
+        }
+    }
+
+    /**
+     * Handle backspace in internal buffer.
+     */
+    private fun trackBackspace(count: Int = 1) {
+        val deleteCount = minOf(count, internalTextBuffer.length)
+        if (deleteCount > 0) {
+            internalTextBuffer.delete(internalTextBuffer.length - deleteCount, internalTextBuffer.length)
         }
     }
 
@@ -2974,6 +3014,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Use the built-in InputMethodService method - more reliable for terminals
         // This sends proper key events through the system's input dispatch chain
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
+        trackBackspace(1)  // Track for terminal apps
     }
 
     private fun selectAll() {
@@ -3070,6 +3111,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         super.onStartInputView(info, restarting)
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: onStartInputView called, restarting=$restarting")
+
+        // Clear internal text buffer on new input session (for terminal app tracking)
+        if (!restarting) {
+            internalTextBuffer.clear()
+            useInternalBuffer = false
+            DebugLog.d("DictationKeyboardService: Cleared internal text buffer (new session)")
+        }
 
         // Check for pending paste from HistoryActivity
         pendingPasteText?.let { text ->
