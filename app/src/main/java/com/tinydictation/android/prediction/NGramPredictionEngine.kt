@@ -78,20 +78,42 @@ class NGramPredictionEngine : PredictionEngine {
             val prefix = partialWord.lowercase()
             val completions = trie.findWordsWithPrefix(prefix, limit = 10)
 
-            // Score completions by frequency and bigram relevance
-            val scored = completions.map { word ->
-                val freq = wordFrequency[word] ?: 1
-                val bigramBoost = if (previousWord != null && bigrams[previousWord]?.contains(word) == true) 3 else 1
-                word to (freq * bigramBoost)
-            }.sortedByDescending { it.second }
+            if (completions.isNotEmpty()) {
+                // Score completions by frequency and bigram relevance
+                val scored = completions.map { word ->
+                    val freq = wordFrequency[word] ?: 1
+                    val bigramBoost = if (previousWord != null && bigrams[previousWord]?.contains(word) == true) 3 else 1
+                    word to (freq * bigramBoost)
+                }.sortedByDescending { it.second }
 
-            results.addAll(scored.take(3).map { (word, score) ->
-                Prediction(
-                    word = word,
-                    confidence = score.toFloat() / 1000f,
-                    isCompletion = true
-                )
-            })
+                results.addAll(scored.take(3).map { (word, score) ->
+                    Prediction(
+                        word = word,
+                        confidence = score.toFloat() / 1000f,
+                        isCompletion = true
+                    )
+                })
+            } else {
+                // No prefix matches - try fuzzy matching for typo correction
+                val fuzzyMatches = findFuzzyMatches(prefix, maxDistance = 2, limit = 10)
+
+                // Score by edit distance (lower is better) and frequency
+                val scored = fuzzyMatches.map { (word, distance) ->
+                    val freq = wordFrequency[word] ?: 1
+                    val bigramBoost = if (previousWord != null && bigrams[previousWord]?.contains(word) == true) 2 else 1
+                    // Penalize by distance: distance 1 = 0.8x, distance 2 = 0.6x
+                    val distancePenalty = 1.0 - (distance * 0.2)
+                    word to (freq * bigramBoost * distancePenalty)
+                }.sortedByDescending { it.second }
+
+                results.addAll(scored.take(3).map { (word, score) ->
+                    Prediction(
+                        word = word,
+                        confidence = (score / 1000.0).toFloat().coerceIn(0f, 1f),
+                        isCompletion = true  // Treat as completion (replace the typo)
+                    )
+                })
+            }
         } else if (previousWord != null) {
             // Next word prediction based on bigrams
             val nextWords = bigrams[previousWord] ?: emptyList()
@@ -392,6 +414,78 @@ class NGramPredictionEngine : PredictionEngine {
             "go" to listOf("to", "ahead", "back", "home", "out", "on", "with", "for", "now"),
             "back" to listOf("to", "home", "in", "on", "up", "later", "soon", "tomorrow", "again")
         )
+    }
+
+    /**
+     * Find words similar to the input using edit distance (Levenshtein distance).
+     * Used for typo correction when no prefix matches are found.
+     *
+     * @param input The misspelled word to find matches for
+     * @param maxDistance Maximum edit distance to consider (1-2 recommended)
+     * @param limit Maximum number of results to return
+     * @return List of pairs (word, editDistance) sorted by distance
+     */
+    private fun findFuzzyMatches(input: String, maxDistance: Int, limit: Int): List<Pair<String, Int>> {
+        val inputLower = input.lowercase()
+        val inputLen = inputLower.length
+
+        // Only check words with similar length (within maxDistance chars)
+        val candidates = wordFrequency.keys.filter { word ->
+            val lenDiff = kotlin.math.abs(word.length - inputLen)
+            lenDiff <= maxDistance
+        }
+
+        // Calculate edit distance for each candidate
+        val matches = candidates.mapNotNull { word ->
+            val distance = editDistance(inputLower, word)
+            if (distance <= maxDistance) {
+                word to distance
+            } else {
+                null
+            }
+        }
+
+        // Sort by distance (lower is better), then by frequency
+        return matches.sortedWith(
+            compareBy<Pair<String, Int>> { it.second }
+                .thenByDescending { wordFrequency[it.first] ?: 0 }
+        ).take(limit)
+    }
+
+    /**
+     * Calculate Levenshtein edit distance between two strings.
+     * Optimized with early termination for performance.
+     */
+    private fun editDistance(s1: String, s2: String): Int {
+        val m = s1.length
+        val n = s2.length
+
+        // Quick checks
+        if (m == 0) return n
+        if (n == 0) return m
+        if (s1 == s2) return 0
+
+        // Use two rows instead of full matrix for memory efficiency
+        var prevRow = IntArray(n + 1) { it }
+        var currRow = IntArray(n + 1)
+
+        for (i in 1..m) {
+            currRow[0] = i
+            for (j in 1..n) {
+                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
+                currRow[j] = minOf(
+                    prevRow[j] + 1,      // deletion
+                    currRow[j - 1] + 1,  // insertion
+                    prevRow[j - 1] + cost // substitution
+                )
+            }
+            // Swap rows
+            val temp = prevRow
+            prevRow = currRow
+            currRow = temp
+        }
+
+        return prevRow[n]
     }
 
     /**

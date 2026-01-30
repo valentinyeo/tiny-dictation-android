@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.37:
+            • NEW: Typo correction for predictions!
+            • "tseting" → suggests "testing"
+            • Uses edit distance when prefix matching fails
+
             v1.18.36:
             • Debug logging for prediction engine initialization
             • Better fallback handling when Groq fails
