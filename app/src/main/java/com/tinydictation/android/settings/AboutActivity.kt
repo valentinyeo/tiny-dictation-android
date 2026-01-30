@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.44:
+            • Debug logging for prediction updates in terminal apps
+            • Investigating Termius prediction issue
+
             v1.18.43:
             • NEW: Cloud-first prediction with offline fallback
             • Groq AI tried first for high-quality predictions

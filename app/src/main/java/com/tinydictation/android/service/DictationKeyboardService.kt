@@ -3119,9 +3119,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
 
         // Update predictions when cursor moves or text changes
-        // Only if keyboard panel is visible and we have prediction TextViews
+        // Always update if prediction TextViews exist AND panel is visible
+        // (predictions only show when QWERTY panel is open)
         if (isKeyboardPanelVisible && prediction1 != null) {
-            updatePredictions()
+            // Only update if cursor actually moved (not just selection change)
+            if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) {
+                DebugLog.d("DictationKeyboardService: onUpdateSelection cursor moved ($oldSelStart→$newSelStart), updating predictions")
+                updatePredictions()
+            }
         }
     }
 
