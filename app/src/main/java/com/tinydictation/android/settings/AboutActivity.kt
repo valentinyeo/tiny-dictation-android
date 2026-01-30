@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.35:
+            • Prediction suggestions styled as keyboard keys
+            • Rounded corners, same background as letter keys
+            • Removed separator lines between suggestions
+
             v1.18.34:
             • NEW: Separate "Word Predictions" settings section
             • Choose prediction engine: N-gram (offline) or Groq (cloud AI)
