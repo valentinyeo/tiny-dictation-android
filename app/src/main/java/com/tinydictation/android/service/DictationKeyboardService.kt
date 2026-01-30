@@ -1536,6 +1536,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Enter key (ImageView)
         qwertyPanel?.findViewById<android.view.View>(R.id.key_enter)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+            // Clear internal buffer after Enter (terminal command submitted)
+            internalTextBuffer.clear()
+            DebugLog.d("DictationKeyboardService: Enter pressed, cleared internal buffer")
+            updatePredictions()
         }
 
         // Backspace key (ImageView) - with hold-to-repeat (same behavior as dictation bar backspace)

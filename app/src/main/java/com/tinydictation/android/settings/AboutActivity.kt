@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.48:
+            • Clear internal buffer on Enter (after terminal commands)
+            • Better buffer management for terminal apps
+
             v1.18.47:
             • FIX: Predictions now update in Termius!
             • Added internal text buffer for terminal apps
