@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.19.1:
+            • FIX: Improve button now works in Beeper!
+            • Fallback to internal buffer for apps that don't expose text
+            • Uses backspace method to replace text in restricted apps
+            • Better debug logging for troubleshooting
+
             v1.19.0:
             • NEW: "Improve" button on dictation bar!
             • Tap to enhance text readability with AI

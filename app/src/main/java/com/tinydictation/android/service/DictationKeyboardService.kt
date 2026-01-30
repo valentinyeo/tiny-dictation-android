@@ -3081,6 +3081,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * - Preserving the user's tone and intent
      */
     private fun improveText() {
+        DebugLog.i("DictationKeyboardService: Improve button pressed")
+
         if (isImproving) {
             DebugLog.w("DictationKeyboardService: Text improvement already in progress")
             Toast.makeText(this, "Already improving...", Toast.LENGTH_SHORT).show()
@@ -3097,18 +3099,30 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Get all text from the input field
         val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
         val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
-        val fullText = "$before$after"
+        var fullText = "$before$after"
+        var useBuffer = false
+
+        DebugLog.d("DictationKeyboardService: Improve - before='${before.take(50)}' (${before.length}), after='${after.take(50)}' (${after.length})")
+
+        // Fallback to internal buffer for apps that don't expose text (like terminal apps, Beeper)
+        if (fullText.isBlank() && internalTextBuffer.isNotEmpty()) {
+            fullText = internalTextBuffer.toString()
+            useBuffer = true
+            DebugLog.i("DictationKeyboardService: Using internal buffer for improve (${fullText.length} chars)")
+        }
 
         if (fullText.isBlank()) {
-            DebugLog.w("DictationKeyboardService: No text to improve")
+            DebugLog.w("DictationKeyboardService: No text to improve (buffer also empty)")
             Toast.makeText(this, "No text to improve", Toast.LENGTH_SHORT).show()
             return
         }
 
-        Log.i(TAG, "DictationKeyboardService: Improving text (${fullText.length} chars)")
-        DebugLog.i("DictationKeyboardService: Starting text improvement for ${fullText.length} chars")
+        Log.i(TAG, "DictationKeyboardService: Improving text (${fullText.length} chars, buffer=$useBuffer)")
+        DebugLog.i("DictationKeyboardService: Starting text improvement for ${fullText.length} chars (useBuffer=$useBuffer)")
 
         isImproving = true
+        val originalLength = fullText.length
+        val textToImprove = fullText  // Capture for coroutine
 
         // Visual feedback - change icon tint to indicate processing
         improveIcon?.let { icon ->
@@ -3118,35 +3132,53 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
-                val result = textImprover?.improve(fullText)
+                val result = textImprover?.improve(textToImprove)
 
                 if (result?.isSuccess == true) {
-                    val improvedText = result.getOrNull() ?: fullText
+                    val improvedText = result.getOrNull() ?: textToImprove
 
-                    // Select all and replace with improved text
-                    ic.beginBatchEdit()
-                    try {
-                        // Select all text
-                        val totalLength = before.length + after.length
-                        ic.setSelection(0, totalLength)
+                    if (useBuffer) {
+                        // For apps that don't expose text, delete old text by sending backspaces
+                        // then type the improved text
+                        DebugLog.d("DictationKeyboardService: Using backspace method for replacement")
 
-                        // Replace with improved text
+                        // Delete all characters
+                        for (i in 0 until originalLength) {
+                            sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                        }
+
+                        // Type improved text
                         ic.commitText(improvedText, 1)
 
-                        val savedChars = fullText.length - improvedText.length
-                        val savedPercent = if (fullText.isNotEmpty()) {
-                            (savedChars * 100 / fullText.length)
-                        } else 0
+                        // Update internal buffer
+                        internalTextBuffer.clear()
+                        internalTextBuffer.append(improvedText)
+                    } else {
+                        // Standard approach: Select all and replace
+                        ic.beginBatchEdit()
+                        try {
+                            // Select all text
+                            val totalLength = before.length + after.length
+                            ic.setSelection(0, totalLength)
 
-                        DebugLog.i("DictationKeyboardService: Text improved! ${fullText.length} -> ${improvedText.length} chars (saved $savedPercent%)")
-
-                        if (savedChars > 0) {
-                            Toast.makeText(this@DictationKeyboardService, "Improved! Saved $savedChars chars ($savedPercent%)", Toast.LENGTH_SHORT).show()
-                        } else {
-                            Toast.makeText(this@DictationKeyboardService, "Text improved!", Toast.LENGTH_SHORT).show()
+                            // Replace with improved text
+                            ic.commitText(improvedText, 1)
+                        } finally {
+                            ic.endBatchEdit()
                         }
-                    } finally {
-                        ic.endBatchEdit()
+                    }
+
+                    val savedChars = textToImprove.length - improvedText.length
+                    val savedPercent = if (textToImprove.isNotEmpty()) {
+                        (savedChars * 100 / textToImprove.length)
+                    } else 0
+
+                    DebugLog.i("DictationKeyboardService: Text improved! ${textToImprove.length} -> ${improvedText.length} chars (saved $savedPercent%)")
+
+                    if (savedChars > 0) {
+                        Toast.makeText(this@DictationKeyboardService, "Improved! Saved $savedChars chars ($savedPercent%)", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Toast.makeText(this@DictationKeyboardService, "Text improved!", Toast.LENGTH_SHORT).show()
                     }
                 } else {
                     val error = result?.exceptionOrNull()?.message ?: "Unknown error"
