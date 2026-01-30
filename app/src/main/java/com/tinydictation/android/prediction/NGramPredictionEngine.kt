@@ -344,7 +344,26 @@ class NGramPredictionEngine : PredictionEngine {
             "typing", "typed", "types", "feature", "features", "function", "functions",
             "new", "old", "next", "previous", "first", "last", "second", "third",
             "test", "testing", "tested", "tests", "example", "examples",
-            "input", "output", "enter", "exit", "start", "end", "begin", "finish"
+            "input", "output", "enter", "exit", "start", "end", "begin", "finish",
+            // Essential common words that were missing (needed for prefix completion)
+            "need", "needed", "needs", "needing", "never", "every", "everything", "everyone",
+            "always", "sometimes", "often", "usually", "probably", "maybe", "might", "must",
+            "should", "could", "would", "shall", "will", "going", "gonna", "wanna", "gotta",
+            "know", "knowing", "knew", "known", "think", "thinking", "thought", "believe",
+            "want", "wanting", "wanted", "hope", "hoping", "hoped", "wish", "wishing", "wished",
+            "feel", "feeling", "felt", "seem", "seems", "seemed", "look", "looking", "looked",
+            "actually", "basically", "certainly", "definitely", "exactly", "honestly", "seriously",
+            "absolutely", "completely", "totally", "entirely", "really", "truly", "quite", "rather",
+            "pretty", "fairly", "almost", "nearly", "just", "only", "even", "still", "already",
+            "yet", "soon", "later", "now", "then", "today", "tonight", "tomorrow", "yesterday",
+            "again", "once", "twice", "before", "after", "during", "while", "until", "since",
+            "because", "although", "though", "unless", "whether", "while", "when", "where",
+            "something", "anything", "nothing", "someone", "anyone", "nobody", "somewhere",
+            "another", "other", "others", "each", "both", "either", "neither", "none", "all",
+            "many", "much", "few", "little", "some", "any", "most", "least", "more", "less",
+            "same", "different", "similar", "various", "several", "certain", "specific", "particular",
+            "important", "necessary", "possible", "available", "able", "unable", "likely", "unlikely",
+            "happy", "sad", "angry", "tired", "busy", "free", "late", "early", "fast", "slow"
         )
 
         // Common next words when no context

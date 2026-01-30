@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.42:
+            • Fixed "need" not predicting from "nee"
+            • Added 100+ common words to prediction dictionary
+            • "nee" → need, "nev" → never, "eve" → every, etc.
+            • Better prefix completion for everyday words
+
             v1.18.41:
             • Multilingual predictions! Auto-detects language
             • Type German → get German predictions
