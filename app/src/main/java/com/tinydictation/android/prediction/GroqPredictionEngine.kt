@@ -16,6 +16,11 @@ import java.util.concurrent.TimeUnit
 /**
  * Cloud-based prediction engine using Groq's ultra-fast LLM API.
  * Groq typically responds in <100ms, making it viable for real-time predictions.
+ *
+ * Features:
+ * - Word completion for partial words
+ * - Next word prediction
+ * - Sentence completion (when 3+ words of context)
  */
 class GroqPredictionEngine : PredictionEngine {
 
@@ -25,6 +30,9 @@ class GroqPredictionEngine : PredictionEngine {
 
     private var apiKey: String? = null
     private var isInitialized = false
+
+    // Minimum words needed for sentence completion mode
+    private val SENTENCE_COMPLETION_MIN_WORDS = 3
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
@@ -65,14 +73,27 @@ class GroqPredictionEngine : PredictionEngine {
         val startTime = System.nanoTime()
 
         try {
-            val context = contextWords.takeLast(5).joinToString(" ")
-            val prompt = buildPrompt(context, partialWord)
+            val context = contextWords.takeLast(8).joinToString(" ")
 
-            val response = callGroqApi(prompt)
-            val predictions = parseResponse(response, partialWord.isNotEmpty())
+            // Determine prediction mode based on context
+            val useSentenceCompletion = contextWords.size >= SENTENCE_COMPLETION_MIN_WORDS && partialWord.isEmpty()
+
+            val prompt = if (useSentenceCompletion) {
+                buildSentenceCompletionPrompt(context)
+            } else {
+                buildWordPrompt(context, partialWord)
+            }
+
+            val response = callGroqApi(prompt, useSentenceCompletion)
+            val predictions = if (useSentenceCompletion) {
+                parseSentenceResponse(response)
+            } else {
+                parseWordResponse(response, partialWord.isNotEmpty())
+            }
 
             val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
-            DebugLog.i("GroqPrediction: '$partialWord' after '$context' -> ${predictions.map { it.word }} in ${String.format("%.0f", elapsedMs)}ms")
+            val mode = if (useSentenceCompletion) "sentence" else "word"
+            DebugLog.i("GroqPrediction[$mode]: '$partialWord' after '$context' -> ${predictions.map { it.word }} in ${String.format("%.0f", elapsedMs)}ms")
 
             predictions
         } catch (e: Exception) {
@@ -82,7 +103,10 @@ class GroqPredictionEngine : PredictionEngine {
         }
     }
 
-    private fun buildPrompt(context: String, partialWord: String): String {
+    /**
+     * Build prompt for word completion or next word prediction.
+     */
+    private fun buildWordPrompt(context: String, partialWord: String): String {
         return if (partialWord.isNotEmpty()) {
             """Complete this partial word. Context: "$context" Partial: "$partialWord"
 Return exactly 3 word completions, one per line, nothing else. Just the complete words."""
@@ -92,13 +116,33 @@ Return exactly 3 likely next words, one per line, nothing else. Just single word
         }
     }
 
-    private fun callGroqApi(prompt: String): String {
+    /**
+     * Build prompt for sentence completion (multi-word predictions).
+     */
+    private fun buildSentenceCompletionPrompt(context: String): String {
+        return """Complete this sentence naturally. Context: "$context"
+Return exactly 3 different completions, one per line.
+Each completion should be 2-6 words that naturally continue the sentence.
+Just the completion words, no quotes or punctuation at start.
+Example format:
+going to the store
+be there soon
+help you with that"""
+    }
+
+    private fun callGroqApi(prompt: String, isSentenceMode: Boolean = false): String {
+        val systemPrompt = if (isSentenceMode) {
+            "You are a sentence completion assistant. Return natural continuations of sentences, one per line, no explanations or numbering."
+        } else {
+            "You are a word prediction assistant. Return only the requested words, one per line, no explanations."
+        }
+
         val jsonBody = JSONObject().apply {
             put("model", "llama-3.1-8b-instant") // Fast model
             put("messages", JSONArray().apply {
                 put(JSONObject().apply {
                     put("role", "system")
-                    put("content", "You are a word prediction assistant. Return only the requested words, one per line, no explanations.")
+                    put("content", systemPrompt)
                 })
                 put(JSONObject().apply {
                     put("role", "user")
@@ -106,7 +150,7 @@ Return exactly 3 likely next words, one per line, nothing else. Just single word
                 })
             })
             put("temperature", 0.3)
-            put("max_tokens", 30)
+            put("max_tokens", if (isSentenceMode) 60 else 30)
         }
 
         val request = Request.Builder()
@@ -132,7 +176,10 @@ Return exactly 3 likely next words, one per line, nothing else. Just single word
             .getString("content")
     }
 
-    private fun parseResponse(response: String, isCompletion: Boolean): List<Prediction> {
+    /**
+     * Parse response for single word predictions.
+     */
+    private fun parseWordResponse(response: String, isCompletion: Boolean): List<Prediction> {
         return response
             .split("\n")
             .map { it.trim() }
@@ -143,6 +190,35 @@ Return exactly 3 likely next words, one per line, nothing else. Just single word
                     word = word.lowercase(),
                     confidence = 1f - (index * 0.2f),
                     isCompletion = isCompletion
+                )
+            }
+    }
+
+    /**
+     * Parse response for sentence completions (multi-word).
+     */
+    private fun parseSentenceResponse(response: String): List<Prediction> {
+        return response
+            .split("\n")
+            .map { line ->
+                // Clean up: remove numbering, quotes, leading punctuation
+                line.trim()
+                    .removePrefix("1.")
+                    .removePrefix("2.")
+                    .removePrefix("3.")
+                    .removePrefix("-")
+                    .removePrefix("•")
+                    .trim()
+                    .removeSurrounding("\"")
+                    .trim()
+            }
+            .filter { it.isNotBlank() && it.length >= 2 && it.length <= 50 }
+            .take(3)
+            .mapIndexed { index, phrase ->
+                Prediction(
+                    word = phrase,
+                    confidence = 1f - (index * 0.2f),
+                    isCompletion = false  // Not a word completion, it's a phrase to append
                 )
             }
     }

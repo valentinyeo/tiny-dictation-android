@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.40:
+            • NEW: AI sentence completion with Groq!
+            • Type 3+ words → get phrase suggestions
+            • "I want to" → "go to the store", "help you", etc.
+            • Requires Groq API key in Settings > Word Predictions
+
             v1.18.39:
             • Predictions now work in terminal apps (Termius, etc.)
             • Predictions update on ANY text change, not just typing
