@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.41:
+            • Multilingual predictions! Auto-detects language
+            • Type German → get German predictions
+            • Type English → get English predictions
+            • Works for any language Groq supports
+
             v1.18.40:
             • NEW: AI sentence completion with Groq!
             • Type 3+ words → get phrase suggestions

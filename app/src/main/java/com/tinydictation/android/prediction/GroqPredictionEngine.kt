@@ -105,36 +105,38 @@ class GroqPredictionEngine : PredictionEngine {
 
     /**
      * Build prompt for word completion or next word prediction.
+     * Auto-detects language from context.
      */
     private fun buildWordPrompt(context: String, partialWord: String): String {
         return if (partialWord.isNotEmpty()) {
             """Complete this partial word. Context: "$context" Partial: "$partialWord"
+Detect the language from context and return completions in the SAME language.
 Return exactly 3 word completions, one per line, nothing else. Just the complete words."""
         } else {
             """Predict the next word. Context: "$context"
+Detect the language from context and return predictions in the SAME language.
 Return exactly 3 likely next words, one per line, nothing else. Just single words."""
         }
     }
 
     /**
      * Build prompt for sentence completion (multi-word predictions).
+     * Auto-detects language from context.
      */
     private fun buildSentenceCompletionPrompt(context: String): String {
         return """Complete this sentence naturally. Context: "$context"
+IMPORTANT: Detect the language and respond in the SAME language as the context.
+If context is German, respond in German. If English, respond in English. Etc.
 Return exactly 3 different completions, one per line.
 Each completion should be 2-6 words that naturally continue the sentence.
-Just the completion words, no quotes or punctuation at start.
-Example format:
-going to the store
-be there soon
-help you with that"""
+Just the completion words, no quotes or punctuation at start."""
     }
 
     private fun callGroqApi(prompt: String, isSentenceMode: Boolean = false): String {
         val systemPrompt = if (isSentenceMode) {
-            "You are a sentence completion assistant. Return natural continuations of sentences, one per line, no explanations or numbering."
+            "You are a multilingual sentence completion assistant. Detect the language of the input and respond in the SAME language. Return natural continuations of sentences, one per line, no explanations or numbering."
         } else {
-            "You are a word prediction assistant. Return only the requested words, one per line, no explanations."
+            "You are a multilingual word prediction assistant. Detect the language of the input and respond in the SAME language. Return only the requested words, one per line, no explanations."
         }
 
         val jsonBody = JSONObject().apply {
