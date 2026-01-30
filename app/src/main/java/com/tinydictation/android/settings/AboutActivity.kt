@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.49:
+            • FIX: Prediction tap now replaces word in Termius!
+            • Uses internal buffer to find partial word to delete
+            • Type "did" → tap prediction → replaces correctly
+
             v1.18.48:
             • Clear internal buffer on Enter (after terminal commands)
             • Better buffer management for terminal apps

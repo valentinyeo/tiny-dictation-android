@@ -1705,21 +1705,37 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         if (prediction.isCompletion) {
             // Complete the partial word - delete it first, then insert the full word
-            val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
+            var textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
+
+            // For terminal apps: use internal buffer if app doesn't provide text
+            if (textBefore.isEmpty() && internalTextBuffer.isNotEmpty()) {
+                textBefore = internalTextBuffer.toString()
+                DebugLog.d("DictationKeyboardService: onPredictionTapped using internal buffer: '$textBefore'")
+            }
+
             val partialWord = textBefore.split(Regex("\\s+")).lastOrNull() ?: ""
 
             if (partialWord.isNotEmpty()) {
-                ic.deleteSurroundingText(partialWord.length, 0)
+                // Delete the partial word (send backspaces for terminal apps)
+                for (i in 0 until partialWord.length) {
+                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
+                }
+                // Also update internal buffer
+                trackBackspace(partialWord.length)
+                DebugLog.d("DictationKeyboardService: Deleted partial word '$partialWord' (${partialWord.length} chars)")
             }
             ic.commitText(prediction.word + " ", 1)
+            trackTypedText(prediction.word + " ")
         } else {
             // Insert next word
             ic.commitText(prediction.word + " ", 1)
+            trackTypedText(prediction.word + " ")
         }
 
         // Let the engine learn from this selection
-        val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
-        val words = textBefore.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(3)
+        val textAfter = ic.getTextBeforeCursor(50, 0)?.toString()
+            ?: internalTextBuffer.toString()
+        val words = textAfter.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(3)
         predictionManager?.onWordsConfirmed(words)
 
         // Clear and refresh predictions
