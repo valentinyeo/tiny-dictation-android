@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.34:
+            • NEW: Separate "Word Predictions" settings section
+            • Choose prediction engine: N-gram (offline) or Groq (cloud AI)
+            • Enter Groq API key for predictions independently of transcription provider
+
             v1.18.33:
             • Fix: Apply number row setting when panel opens
 

@@ -60,6 +60,11 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private lateinit var spinnerFallbackModel: Spinner
     private lateinit var tvFallbackModelNote: TextView
 
+    // Prediction views
+    private lateinit var predictionEngineDropdown: AutoCompleteTextView
+    private lateinit var tilPredictionGroqApiKey: TextInputLayout
+    private lateinit var predictionGroqApiKeyInput: TextInputEditText
+
     private lateinit var saveButton: MaterialButton
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -105,7 +110,13 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
 
         saveButton = findViewById(R.id.btnSave)
 
+        // Prediction views
+        predictionEngineDropdown = findViewById(R.id.actvPredictionEngine)
+        tilPredictionGroqApiKey = findViewById(R.id.tilPredictionGroqApiKey)
+        predictionGroqApiKeyInput = findViewById(R.id.etPredictionGroqApiKey)
+
         setupProviderDropdown()
+        setupPredictionEngineDropdown()
     }
 
     private fun loadSettings() {
@@ -115,6 +126,9 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         preferenceManager.getOpenAIApiKey()?.let { openAIApiKeyInput.setText(it) }
         preferenceManager.getAssemblyAIApiKey()?.let { assemblyAIApiKeyInput.setText(it) }
         preferenceManager.getGeminiApiKey()?.let { geminiApiKeyInput.setText(it) }
+
+        // Load prediction Groq key (same as transcription Groq key)
+        preferenceManager.getGroqApiKey()?.let { predictionGroqApiKeyInput.setText(it) }
 
         // Load auto-detect
         autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
@@ -166,6 +180,43 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
             preferenceManager.setUnifiedProvider(selected.second)
             updateProviderUI(selected.second)
             DebugLog.i("Provider changed to: ${selected.second}")
+        }
+    }
+
+    private fun setupPredictionEngineDropdown() {
+        val engines = listOf(
+            "N-gram (Offline)" to PreferenceManager.PREDICTION_ENGINE_NGRAM,
+            "Groq (Cloud AI)" to PreferenceManager.PREDICTION_ENGINE_GROQ
+        )
+        val displayNames = engines.map { it.first }
+        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
+        predictionEngineDropdown.setAdapter(adapter)
+
+        // Set current selection
+        val currentEngine = preferenceManager.getPredictionEngine()
+        val currentIndex = engines.indexOfFirst { it.second == currentEngine }
+        if (currentIndex >= 0) {
+            predictionEngineDropdown.setText(engines[currentIndex].first, false)
+        } else {
+            predictionEngineDropdown.setText(engines[0].first, false)
+        }
+
+        // Show/hide Groq API key based on current selection
+        updatePredictionApiKeyVisibility(currentEngine)
+
+        predictionEngineDropdown.setOnItemClickListener { _, _, position, _ ->
+            val selected = engines[position]
+            preferenceManager.setPredictionEngine(selected.second)
+            updatePredictionApiKeyVisibility(selected.second)
+            DebugLog.i("Prediction engine changed to: ${selected.second}")
+        }
+    }
+
+    private fun updatePredictionApiKeyVisibility(engine: String) {
+        tilPredictionGroqApiKey.visibility = if (engine == PreferenceManager.PREDICTION_ENGINE_GROQ) {
+            View.VISIBLE
+        } else {
+            View.GONE
         }
     }
 
@@ -398,9 +449,12 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         val openAIApiKey = openAIApiKeyInput.text?.toString()?.trim()
         val assemblyAIApiKey = assemblyAIApiKeyInput.text?.toString()?.trim()
         val geminiApiKey = geminiApiKeyInput.text?.toString()?.trim()
+        val predictionGroqApiKey = predictionGroqApiKeyInput.text?.toString()?.trim()
 
         val unifiedProvider = preferenceManager.getUnifiedProvider()
+        val predictionEngine = preferenceManager.getPredictionEngine()
 
+        // Validate transcription API keys
         if (unifiedProvider.startsWith("cloud:")) {
             when (unifiedProvider) {
                 PreferenceManager.UNIFIED_DEEPGRAM -> {
@@ -436,11 +490,26 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
             }
         }
 
+        // Validate prediction API key if Groq predictions selected
+        if (predictionEngine == PreferenceManager.PREDICTION_ENGINE_GROQ) {
+            if (predictionGroqApiKey.isNullOrEmpty()) {
+                predictionGroqApiKeyInput.error = "API key is required for Groq predictions"
+                return
+            }
+        }
+
+        // Save API keys
         if (!apiKey.isNullOrEmpty()) preferenceManager.setApiKey(apiKey)
-        if (!groqApiKey.isNullOrEmpty()) preferenceManager.setGroqApiKey(groqApiKey)
         if (!openAIApiKey.isNullOrEmpty()) preferenceManager.setOpenAIApiKey(openAIApiKey)
         if (!assemblyAIApiKey.isNullOrEmpty()) preferenceManager.setAssemblyAIApiKey(assemblyAIApiKey)
         if (!geminiApiKey.isNullOrEmpty()) preferenceManager.setGeminiApiKey(geminiApiKey)
+
+        // Save Groq API key - use prediction key if set, otherwise transcription key
+        // Both fields share the same underlying preference
+        val effectiveGroqKey = predictionGroqApiKey?.takeIf { it.isNotEmpty() } ?: groqApiKey
+        if (!effectiveGroqKey.isNullOrEmpty()) {
+            preferenceManager.setGroqApiKey(effectiveGroqKey)
+        }
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()
