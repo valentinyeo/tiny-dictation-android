@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.46:
+            • Added DISPLAY logging to confirm predictions show on screen
+            • Logs will show "DISPLAY left='x' center='y' right='z'"
+
             v1.18.45:
             • Better debug logging for Termius issue
             • Logs textBefore content to diagnose prediction problems

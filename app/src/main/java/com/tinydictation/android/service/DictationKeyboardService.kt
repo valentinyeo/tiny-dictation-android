@@ -1610,7 +1610,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun displayPredictions(predictions: List<com.tinydictation.android.prediction.Prediction>) {
         // Debug: Check if TextViews are available
         if (prediction1 == null || prediction2 == null || prediction3 == null) {
-            DebugLog.w("DictationKeyboardService: displayPredictions - TextViews not initialized! p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+            DebugLog.w("DictationKeyboardService: displayPredictions - TextViews NULL! p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+            return
         }
 
         when (predictions.size) {
@@ -1618,24 +1619,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 prediction1?.text = ""
                 prediction2?.text = ""
                 prediction3?.text = ""
+                DebugLog.d("DictationKeyboardService: DISPLAY cleared (0 predictions)")
             }
             1 -> {
-                // Only one prediction - show in center only
                 prediction1?.text = ""
                 prediction2?.text = predictions[0].word
                 prediction3?.text = ""
+                DebugLog.d("DictationKeyboardService: DISPLAY center='${predictions[0].word}'")
             }
             2 -> {
-                // Two predictions - best in center, second on left
                 prediction1?.text = predictions[1].word
                 prediction2?.text = predictions[0].word
                 prediction3?.text = ""
+                DebugLog.d("DictationKeyboardService: DISPLAY left='${predictions[1].word}' center='${predictions[0].word}'")
             }
             else -> {
-                // Three+ predictions - best in center, others on sides
-                prediction1?.text = predictions[1].word  // 2nd best on left
-                prediction2?.text = predictions[0].word  // BEST in center
-                prediction3?.text = predictions[2].word  // 3rd best on right
+                prediction1?.text = predictions[1].word
+                prediction2?.text = predictions[0].word
+                prediction3?.text = predictions[2].word
+                DebugLog.d("DictationKeyboardService: DISPLAY left='${predictions[1].word}' center='${predictions[0].word}' right='${predictions[2].word}'")
             }
         }
     }
