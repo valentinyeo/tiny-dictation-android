@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.33:
+            • Fix: Apply number row setting when panel opens
+
             v1.18.32:
             • Debug logging for number row toggle issue
 

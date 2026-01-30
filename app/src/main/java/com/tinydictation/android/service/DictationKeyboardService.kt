@@ -1225,6 +1225,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             displayPredictions(emptyList())
         }
 
+        // Apply number row visibility when panel becomes visible
+        if (isKeyboardPanelVisible) {
+            updateNumberRowVisibility()
+        }
+
         Log.d(TAG, "Keyboard panel visibility: $isKeyboardPanelVisible")
         DebugLog.i("DictationKeyboardService: Keyboard panel ${if (isKeyboardPanelVisible) "shown" else "hidden"}")
     }
@@ -3029,7 +3034,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
         super.onStartInputView(info, restarting)
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
-        DebugLog.d("DictationKeyboardService: Started input for field: ${info?.fieldName}")
+        DebugLog.d("DictationKeyboardService: onStartInputView called, restarting=$restarting")
 
         // Check for pending paste from HistoryActivity
         pendingPasteText?.let { text ->
