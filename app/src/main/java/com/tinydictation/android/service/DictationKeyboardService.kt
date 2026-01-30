@@ -2448,8 +2448,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val prefs = PreferenceManager(this)
         val showNumberRow = prefs.getShowNumberRow()
 
+        DebugLog.d("DictationKeyboardService: updateNumberRowVisibility - showNumberRow=$showNumberRow, qwertyPanel=${qwertyPanel != null}")
+
         // Update number row visibility
         val numberRow = qwertyPanel?.findViewById<LinearLayout>(R.id.numberRow)
+        DebugLog.d("DictationKeyboardService: numberRow found=${numberRow != null}")
         numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE
 
         // Update number hints visibility (show hints when number row is hidden)

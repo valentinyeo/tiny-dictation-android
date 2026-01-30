@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.32:
+            • Debug logging for number row toggle issue
+
             v1.18.31:
             • Fixed number row toggle (now refreshes on keyboard open)
             • Number hints only shown when number row is OFF
