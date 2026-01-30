@@ -2,45 +2,66 @@ package com.tinydictation.android.prediction
 
 import android.content.Context
 import com.tinydictation.android.util.DebugLog
+import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.*
 
 /**
- * Manages word prediction engines and provides predictions to the keyboard UI.
- * Supports swapping engines at runtime for A/B testing different approaches.
+ * Manages word prediction engines with cloud-first, offline-fallback strategy.
+ *
+ * Architecture:
+ * - Groq (cloud AI) is tried first for high-quality predictions
+ * - NGram (offline) provides instant fallback if Groq fails/times out
+ * - Both engines stay initialized for seamless switching
  */
 class PredictionManager(private val context: Context) {
 
-    private var currentEngine: PredictionEngine? = null
+    // Cloud engine (Groq) - optional, requires API key
+    private var groqEngine: GroqPredictionEngine? = null
+    private var groqInitialized = false
+
+    // Offline engine (NGram) - always available
+    private var ngramEngine: NGramPredictionEngine? = null
+    private var ngramInitialized = false
+
     private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // Debounce tracking
     private var pendingPredictionJob: Job? = null
     private val debounceMs = 50L // Wait 50ms after last keystroke before predicting
 
-    // Available engines
-    private val engines = mapOf(
-        "ngram" to { NGramPredictionEngine() },
-        "groq" to { GroqPredictionEngine() }
-    )
+    // Groq timeout - if Groq takes longer, use offline fallback
+    private val groqTimeoutMs = 2000L
 
     /**
-     * Initialize with the specified engine.
-     * @param engineId Engine identifier (e.g., "ngram", "cloud_openai")
+     * Initialize both engines. Groq is optional (requires API key), NGram always initializes.
      */
-    suspend fun initialize(engineId: String = "ngram"): Result<Unit> {
+    suspend fun initialize(preferredEngine: String = "groq"): Result<Unit> {
         return try {
-            val engineFactory = engines[engineId]
-                ?: return Result.failure(IllegalArgumentException("Unknown engine: $engineId"))
+            // Always initialize NGram (offline) first - it's our fallback
+            ngramEngine = NGramPredictionEngine()
+            val ngramResult = ngramEngine?.initialize(context)
+            ngramInitialized = ngramResult?.isSuccess == true
+            DebugLog.i("PredictionManager: NGram init: success=$ngramInitialized")
 
-            currentEngine?.release()
-            val engine = engineFactory()
-            val result = engine.initialize(context)
+            // Try to initialize Groq if API key is configured
+            val prefs = PreferenceManager(context)
+            val groqApiKey = prefs.getGroqApiKey()
 
-            if (result.isSuccess) {
-                currentEngine = engine
-                DebugLog.i("PredictionManager: Initialized with engine '$engineId'")
+            if (!groqApiKey.isNullOrBlank()) {
+                groqEngine = GroqPredictionEngine()
+                val groqResult = groqEngine?.initialize(context)
+                groqInitialized = groqResult?.isSuccess == true
+                DebugLog.i("PredictionManager: Groq init: success=$groqInitialized")
+            } else {
+                DebugLog.i("PredictionManager: Groq skipped (no API key)")
             }
-            result
+
+            if (ngramInitialized) {
+                DebugLog.i("PredictionManager: Ready! Groq=$groqInitialized, NGram=$ngramInitialized")
+                Result.success(Unit)
+            } else {
+                Result.failure(IllegalStateException("NGram engine failed to initialize"))
+            }
         } catch (e: Exception) {
             DebugLog.e("PredictionManager: Failed to initialize - ${e.message}")
             Result.failure(e)
@@ -48,26 +69,26 @@ class PredictionManager(private val context: Context) {
     }
 
     /**
-     * Switch to a different prediction engine.
+     * Switch to a different prediction engine (for compatibility).
      */
     suspend fun switchEngine(engineId: String): Result<Unit> {
-        DebugLog.i("PredictionManager: Switching to engine '$engineId'")
+        DebugLog.i("PredictionManager: switchEngine('$engineId') called - now using cloud-first with fallback")
         return initialize(engineId)
     }
 
     /**
      * Get available engine IDs.
      */
-    fun getAvailableEngines(): List<String> = engines.keys.toList()
+    fun getAvailableEngines(): List<String> = listOf("ngram", "groq")
 
     /**
      * Get current engine ID.
      */
-    fun getCurrentEngineId(): String? = currentEngine?.engineId
+    fun getCurrentEngineId(): String? = if (groqInitialized) "groq" else if (ngramInitialized) "ngram" else null
 
     /**
      * Request predictions for the given input text.
-     * Uses debouncing to avoid excessive calls during rapid typing.
+     * Strategy: Try Groq first with timeout, fallback to NGram if Groq fails.
      *
      * @param textBeforeCursor Text before the cursor position
      * @param onPredictions Callback with prediction results
@@ -82,12 +103,9 @@ class PredictionManager(private val context: Context) {
         pendingPredictionJob = scope.launch {
             delay(debounceMs) // Debounce
 
-            val engine = currentEngine
-            if (engine == null) {
-                DebugLog.w("PredictionManager: requestPredictions called but currentEngine is null (not initialized yet?)")
-                withContext(Dispatchers.Main) {
-                    onPredictions(emptyList())
-                }
+            if (!ngramInitialized) {
+                DebugLog.w("PredictionManager: Not initialized!")
+                withContext(Dispatchers.Main) { onPredictions(emptyList()) }
                 return@launch
             }
 
@@ -107,10 +125,42 @@ class PredictionManager(private val context: Context) {
             }
 
             val startTime = System.nanoTime()
-            val predictions = engine.predict(contextWords, partialWord)
-            val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
+            var predictions: List<Prediction>
+            var usedEngine: String
 
-            DebugLog.d("PredictionManager: Got ${predictions.size} predictions in ${String.format("%.2f", elapsedMs)}ms")
+            // Strategy: Try Groq first (if available), fallback to NGram
+            if (groqInitialized && groqEngine != null) {
+                try {
+                    // Try Groq with timeout
+                    predictions = withTimeout(groqTimeoutMs) {
+                        groqEngine!!.predict(contextWords, partialWord)
+                    }
+                    usedEngine = "groq"
+
+                    // If Groq returns empty, fallback to NGram
+                    if (predictions.isEmpty()) {
+                        predictions = ngramEngine!!.predict(contextWords, partialWord)
+                        usedEngine = "ngram (groq empty)"
+                    }
+                } catch (e: TimeoutCancellationException) {
+                    // Groq timed out - use NGram
+                    DebugLog.w("PredictionManager: Groq timeout, using NGram")
+                    predictions = ngramEngine!!.predict(contextWords, partialWord)
+                    usedEngine = "ngram (groq timeout)"
+                } catch (e: Exception) {
+                    // Groq failed - use NGram
+                    DebugLog.w("PredictionManager: Groq failed (${e.message}), using NGram")
+                    predictions = ngramEngine!!.predict(contextWords, partialWord)
+                    usedEngine = "ngram (groq error)"
+                }
+            } else {
+                // No Groq available - use NGram directly
+                predictions = ngramEngine!!.predict(contextWords, partialWord)
+                usedEngine = "ngram"
+            }
+
+            val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
+            DebugLog.d("PredictionManager[$usedEngine]: ${predictions.size} predictions in ${String.format("%.0f", elapsedMs)}ms")
 
             withContext(Dispatchers.Main) {
                 onPredictions(predictions)
@@ -123,7 +173,7 @@ class PredictionManager(private val context: Context) {
      * Allows engines to learn from user behavior.
      */
     fun onWordsConfirmed(words: List<String>) {
-        currentEngine?.learn(words)
+        ngramEngine?.learn(words)
     }
 
     /**
@@ -131,8 +181,12 @@ class PredictionManager(private val context: Context) {
      */
     fun release() {
         scope.cancel()
-        currentEngine?.release()
-        currentEngine = null
+        groqEngine?.release()
+        ngramEngine?.release()
+        groqEngine = null
+        ngramEngine = null
+        groqInitialized = false
+        ngramInitialized = false
         DebugLog.i("PredictionManager: Released")
     }
 }

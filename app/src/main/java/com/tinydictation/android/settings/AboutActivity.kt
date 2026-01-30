@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.43:
+            • NEW: Cloud-first prediction with offline fallback
+            • Groq AI tried first for high-quality predictions
+            • NGram (offline) kicks in if Groq fails/times out
+            • Best of both worlds: AI quality + instant fallback
+
             v1.18.42:
             • Fixed "need" not predicting from "nee"
             • Added 100+ common words to prediction dictionary
