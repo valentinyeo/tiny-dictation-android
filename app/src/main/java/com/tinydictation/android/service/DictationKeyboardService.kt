@@ -3106,6 +3106,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.d(TAG, "DictationKeyboardService onStartInput - inputType: ${attribute?.inputType}")
     }
 
+    /**
+     * Called when the cursor position or text selection changes.
+     * We use this to update predictions regardless of how text was input
+     * (typing, dictation, paste, terminal apps like Termius, etc.)
+     */
+    override fun onUpdateSelection(
+        oldSelStart: Int, oldSelEnd: Int,
+        newSelStart: Int, newSelEnd: Int,
+        candidatesStart: Int, candidatesEnd: Int
+    ) {
+        super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
+
+        // Update predictions when cursor moves or text changes
+        // Only if keyboard panel is visible and we have prediction TextViews
+        if (isKeyboardPanelVisible && prediction1 != null) {
+            updatePredictions()
+        }
+    }
+
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")

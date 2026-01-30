@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.39:
+            • Predictions now work in terminal apps (Termius, etc.)
+            • Predictions update on ANY text change, not just typing
+            • Works with dictation, paste, and all input methods
+
             v1.18.38:
             • More debug logging for prediction troubleshooting
             • Added more common words (prediction, sentence, etc.)
