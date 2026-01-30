@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.45:
+            • Better debug logging for Termius issue
+            • Logs textBefore content to diagnose prediction problems
+            • Please test in Termius and share debug logs
+
             v1.18.44:
             • Debug logging for prediction updates in terminal apps
             • Investigating Termius prediction issue

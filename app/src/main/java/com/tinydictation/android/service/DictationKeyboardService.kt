@@ -1574,12 +1574,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Request updated predictions based on current input.
      */
     private fun updatePredictions() {
-        val textBefore = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString() ?: ""
+        val ic = currentInputConnection
+        if (ic == null) {
+            DebugLog.w("DictationKeyboardService: updatePredictions - NO InputConnection!")
+            return
+        }
+
+        val textBefore = ic.getTextBeforeCursor(100, 0)?.toString() ?: ""
+        DebugLog.d("DictationKeyboardService: updatePredictions textBefore='$textBefore' (len=${textBefore.length})")
 
         val manager = predictionManager
         if (manager == null) {
             DebugLog.w("DictationKeyboardService: updatePredictions called but predictionManager is null")
             return
+        }
+
+        // If terminal app returns empty text, we can't predict
+        if (textBefore.isEmpty()) {
+            DebugLog.w("DictationKeyboardService: updatePredictions - textBefore is EMPTY (terminal app?)")
+            // Still show default predictions
         }
 
         manager.requestPredictions(textBefore) { predictions ->
