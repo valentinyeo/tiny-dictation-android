@@ -326,12 +326,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             val prefs = com.tinydictation.android.util.PreferenceManager(this@DictationKeyboardService)
             // Use the engine selected in settings (ngram or groq)
             val engineId = prefs.getPredictionEngine()
-            DebugLog.i("DictationKeyboardService: Using prediction engine '$engineId' (from settings)")
+            DebugLog.i("DictationKeyboardService: Initializing prediction engine '$engineId' (from settings)")
             val result = predictionManager?.initialize(engineId)
-            if (result?.isFailure == true && engineId == "groq") {
-                // Fall back to ngram if Groq fails (e.g., missing API key)
-                DebugLog.w("DictationKeyboardService: Groq engine failed, falling back to ngram")
-                predictionManager?.initialize("ngram")
+            DebugLog.i("DictationKeyboardService: Prediction engine '$engineId' init result: success=${result?.isSuccess}, failure=${result?.isFailure}")
+            if (result?.isFailure == true) {
+                // Fall back to ngram if selected engine fails
+                if (engineId != "ngram") {
+                    DebugLog.w("DictationKeyboardService: Engine '$engineId' failed, falling back to ngram")
+                    val fallbackResult = predictionManager?.initialize("ngram")
+                    DebugLog.i("DictationKeyboardService: Fallback ngram init result: success=${fallbackResult?.isSuccess}")
+                } else {
+                    DebugLog.e("DictationKeyboardService: NGram engine failed to initialize! Predictions disabled.")
+                }
             }
         }
     }
@@ -1568,9 +1574,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun updatePredictions() {
         val textBefore = currentInputConnection?.getTextBeforeCursor(100, 0)?.toString() ?: ""
 
-        predictionManager?.requestPredictions(textBefore) { predictions ->
+        val manager = predictionManager
+        if (manager == null) {
+            DebugLog.w("DictationKeyboardService: updatePredictions called but predictionManager is null")
+            return
+        }
+
+        manager.requestPredictions(textBefore) { predictions ->
             currentPredictions = predictions
             displayPredictions(predictions)
+            DebugLog.d("DictationKeyboardService: updatePredictions got ${predictions.size} predictions: ${predictions.map { it.word }}")
         }
     }
 

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.18.36:
+            • Debug logging for prediction engine initialization
+            • Better fallback handling when Groq fails
+            • Helps diagnose why predictions might not appear
+
             v1.18.35:
             • Prediction suggestions styled as keyboard keys
             • Rounded corners, same background as letter keys

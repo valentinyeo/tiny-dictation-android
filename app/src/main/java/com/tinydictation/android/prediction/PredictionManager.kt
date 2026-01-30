@@ -84,6 +84,7 @@ class PredictionManager(private val context: Context) {
 
             val engine = currentEngine
             if (engine == null) {
+                DebugLog.w("PredictionManager: requestPredictions called but currentEngine is null (not initialized yet?)")
                 withContext(Dispatchers.Main) {
                     onPredictions(emptyList())
                 }
