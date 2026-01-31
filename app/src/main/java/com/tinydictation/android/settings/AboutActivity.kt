@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.19.2:
+            • Revert prediction engine to simple word mode only
+            • Removed sentence completion (multi-word predictions)
+            • Predictions now always return single words
+
             v1.19.1:
             • FIX: Improve button now works in Beeper!
             • Fallback to internal buffer for apps that don't expose text

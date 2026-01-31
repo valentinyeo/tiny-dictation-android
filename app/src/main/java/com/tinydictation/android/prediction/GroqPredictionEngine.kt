@@ -20,7 +20,6 @@ import java.util.concurrent.TimeUnit
  * Features:
  * - Word completion for partial words
  * - Next word prediction
- * - Sentence completion (when 3+ words of context)
  */
 class GroqPredictionEngine : PredictionEngine {
 
@@ -30,9 +29,6 @@ class GroqPredictionEngine : PredictionEngine {
 
     private var apiKey: String? = null
     private var isInitialized = false
-
-    // Minimum words needed for sentence completion mode
-    private val SENTENCE_COMPLETION_MIN_WORDS = 3
 
     private val httpClient by lazy {
         OkHttpClient.Builder()
@@ -74,26 +70,12 @@ class GroqPredictionEngine : PredictionEngine {
 
         try {
             val context = contextWords.takeLast(8).joinToString(" ")
-
-            // Determine prediction mode based on context
-            val useSentenceCompletion = contextWords.size >= SENTENCE_COMPLETION_MIN_WORDS && partialWord.isEmpty()
-
-            val prompt = if (useSentenceCompletion) {
-                buildSentenceCompletionPrompt(context)
-            } else {
-                buildWordPrompt(context, partialWord)
-            }
-
-            val response = callGroqApi(prompt, useSentenceCompletion)
-            val predictions = if (useSentenceCompletion) {
-                parseSentenceResponse(response)
-            } else {
-                parseWordResponse(response, partialWord.isNotEmpty())
-            }
+            val prompt = buildWordPrompt(context, partialWord)
+            val response = callGroqApi(prompt)
+            val predictions = parseWordResponse(response, partialWord.isNotEmpty())
 
             val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
-            val mode = if (useSentenceCompletion) "sentence" else "word"
-            DebugLog.i("GroqPrediction[$mode]: '$partialWord' after '$context' -> ${predictions.map { it.word }} in ${String.format("%.0f", elapsedMs)}ms")
+            DebugLog.i("GroqPrediction: '$partialWord' after '$context' -> ${predictions.map { it.word }} in ${String.format("%.0f", elapsedMs)}ms")
 
             predictions
         } catch (e: Exception) {
@@ -119,25 +101,8 @@ Return exactly 3 likely next words, one per line, nothing else. Just single word
         }
     }
 
-    /**
-     * Build prompt for sentence completion (multi-word predictions).
-     * Auto-detects language from context.
-     */
-    private fun buildSentenceCompletionPrompt(context: String): String {
-        return """Complete this sentence naturally. Context: "$context"
-IMPORTANT: Detect the language and respond in the SAME language as the context.
-If context is German, respond in German. If English, respond in English. Etc.
-Return exactly 3 different completions, one per line.
-Each completion should be 2-6 words that naturally continue the sentence.
-Just the completion words, no quotes or punctuation at start."""
-    }
-
-    private fun callGroqApi(prompt: String, isSentenceMode: Boolean = false): String {
-        val systemPrompt = if (isSentenceMode) {
-            "You are a multilingual sentence completion assistant. Detect the language of the input and respond in the SAME language. Return natural continuations of sentences, one per line, no explanations or numbering."
-        } else {
-            "You are a multilingual word prediction assistant. Detect the language of the input and respond in the SAME language. Return only the requested words, one per line, no explanations."
-        }
+    private fun callGroqApi(prompt: String): String {
+        val systemPrompt = "You are a multilingual word prediction assistant. Detect the language of the input and respond in the SAME language. Return only the requested words, one per line, no explanations."
 
         val jsonBody = JSONObject().apply {
             put("model", "llama-3.1-8b-instant") // Fast model
@@ -152,7 +117,7 @@ Just the completion words, no quotes or punctuation at start."""
                 })
             })
             put("temperature", 0.3)
-            put("max_tokens", if (isSentenceMode) 60 else 30)
+            put("max_tokens", 30)
         }
 
         val request = Request.Builder()
@@ -192,35 +157,6 @@ Just the completion words, no quotes or punctuation at start."""
                     word = word.lowercase(),
                     confidence = 1f - (index * 0.2f),
                     isCompletion = isCompletion
-                )
-            }
-    }
-
-    /**
-     * Parse response for sentence completions (multi-word).
-     */
-    private fun parseSentenceResponse(response: String): List<Prediction> {
-        return response
-            .split("\n")
-            .map { line ->
-                // Clean up: remove numbering, quotes, leading punctuation
-                line.trim()
-                    .removePrefix("1.")
-                    .removePrefix("2.")
-                    .removePrefix("3.")
-                    .removePrefix("-")
-                    .removePrefix("•")
-                    .trim()
-                    .removeSurrounding("\"")
-                    .trim()
-            }
-            .filter { it.isNotBlank() && it.length >= 2 && it.length <= 50 }
-            .take(3)
-            .mapIndexed { index, phrase ->
-                Prediction(
-                    word = phrase,
-                    confidence = 1f - (index * 0.2f),
-                    isCompletion = false  // Not a word completion, it's a phrase to append
                 )
             }
     }

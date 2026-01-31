@@ -1,5 +1,13 @@
 # Tiny Dictation Android - Development Notes
 
+## 📋 Hypertask Board
+
+**Board:** Tiny Dictation Android
+**Project ID:** 1425
+**URL:** https://app.hypertask.ai/project?id=1425
+
+⚠️ This is the ANDROID app board. Do NOT put tickets in the Windows "Tiny Dictation" board (ID 1409).
+
 ## ⚠️ MANDATORY WORKFLOW - READ FIRST ⚠️
 
 **Every code change MUST follow this exact sequence. NO EXCEPTIONS.**
