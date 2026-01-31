@@ -42,6 +42,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_GIPHY_API_KEY = "giphy_api_key"
         private const val KEY_PREDICTION_ENGINE = "prediction_engine"
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
+        private const val KEY_PREDICTIONS_ENABLED = "predictions_enabled"
 
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"
@@ -1017,5 +1018,24 @@ class PreferenceManager(context: Context) {
      */
     fun setShowNumberRow(show: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_NUMBER_ROW, show).apply()
+    }
+
+    // ========== AI Predictions Setting ==========
+
+    /**
+     * Gets whether AI word predictions are enabled.
+     * When disabled, no prediction API calls are made and the prediction strip is hidden.
+     * @return true if predictions are enabled (default: true)
+     */
+    fun getPredictionsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PREDICTIONS_ENABLED, true)
+    }
+
+    /**
+     * Sets whether AI word predictions are enabled.
+     * @param enabled true to enable predictions, false to disable
+     */
+    fun setPredictionsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PREDICTIONS_ENABLED, enabled).apply()
     }
 }

@@ -22,6 +22,7 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var giphyApiKeyInput: TextInputEditText
     private lateinit var numberRowSwitch: MaterialSwitch
+    private lateinit var predictionsSwitch: MaterialSwitch
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,6 +42,7 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         giphyApiKeyInput = findViewById(R.id.etGiphyApiKey)
         numberRowSwitch = findViewById(R.id.switchNumberRow)
+        predictionsSwitch = findViewById(R.id.switchPredictions)
 
         setupKeyboardThemeDropdown()
     }
@@ -48,6 +50,7 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         preferenceManager.getGiphyApiKey()?.let { giphyApiKeyInput.setText(it) }
         numberRowSwitch.isChecked = preferenceManager.getShowNumberRow()
+        predictionsSwitch.isChecked = preferenceManager.getPredictionsEnabled()
     }
 
     private fun setupClickListeners() {
@@ -56,6 +59,13 @@ class AppearanceSettingsActivity : AppCompatActivity() {
             preferenceManager.setShowNumberRow(isChecked)
             DebugLog.i("Number row setting changed to: $isChecked")
             // Note: Keyboard needs to be reopened to see the change
+        }
+
+        // AI predictions toggle
+        predictionsSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setPredictionsEnabled(isChecked)
+            DebugLog.i("AI predictions setting changed to: $isChecked")
+            // Effect is immediate when keyboard next opens
         }
 
         // Giphy API key saves on text change

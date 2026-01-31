@@ -167,7 +167,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
     private var prediction3: TextView? = null
+    private var predictionStrip: View? = null
     private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
+    private var isTerminalApp = false  // True when keyboard is in a terminal app
+    private var predictionsEnabled = true  // User preference for predictions
+
+    // Known terminal app package names
+    private val terminalPackages = setOf(
+        "com.server.auditor",      // Terminus
+        "com.termius",             // Termius
+        "org.connectbot",          // ConnectBot
+        "com.sonelli.juicessh",    // JuiceSSH
+        "com.termux",              // Termux
+        "yarolegovich.materialterminal",  // Material Terminal
+        "com.offsec.nethunter.kex" // Kali NetHunter
+    )
 
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
@@ -1447,6 +1461,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         qwertyPanel ?: return
 
         // Set up prediction strip
+        predictionStrip = qwertyPanel?.findViewById(R.id.predictionStrip)
         prediction1 = qwertyPanel?.findViewById(R.id.prediction1)
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
@@ -1606,6 +1621,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * For terminal apps that don't expose text, we use our internal buffer.
      */
     private fun updatePredictions() {
+        // Skip predictions if disabled or in terminal apps
+        if (!predictionsEnabled || isTerminalApp) {
+            return
+        }
+
         val ic = currentInputConnection
         if (ic == null) {
             DebugLog.w("DictationKeyboardService: updatePredictions - NO InputConnection!")
@@ -1661,6 +1681,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (deleteCount > 0) {
             internalTextBuffer.delete(internalTextBuffer.length - deleteCount, internalTextBuffer.length)
         }
+    }
+
+    /**
+     * Show/hide prediction strip based on user preference and terminal app detection.
+     * Predictions are hidden when: disabled in settings OR in terminal apps.
+     */
+    private fun updatePredictionStripVisibility() {
+        val shouldHide = !predictionsEnabled || isTerminalApp
+        predictionStrip?.visibility = if (shouldHide) View.GONE else View.VISIBLE
+        val reason = when {
+            !predictionsEnabled -> "disabled in settings"
+            isTerminalApp -> "terminal app"
+            else -> "enabled"
+        }
+        DebugLog.d("DictationKeyboardService: Prediction strip visibility: ${if (shouldHide) "HIDDEN" else "VISIBLE"} ($reason)")
     }
 
     /**
@@ -1837,17 +1872,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun setupClaudePanel() {
         claudePanel ?: return
 
-        // Find all buttons and set them up to insert their tag as text
+        // Find all TextViews with tags and set them up to insert their tag as text
         fun setupButtonsInViewGroup(viewGroup: android.view.ViewGroup) {
             for (i in 0 until viewGroup.childCount) {
                 val child = viewGroup.getChildAt(i)
                 when (child) {
-                    is android.widget.Button -> {
-                        val tag = child.tag as? String ?: return
+                    is android.widget.TextView -> {
+                        val tag = child.tag as? String ?: continue
                         child.setOnClickListener {
                             // Insert the command text followed by Enter to execute
                             currentInputConnection?.commitText(tag, 1)
+                            trackTypedText(tag)  // Track for terminal apps
                             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
+                            // Clear internal buffer after Enter (command submitted)
+                            internalTextBuffer.clear()
                             DebugLog.d("DictationKeyboardService: Claude command '$tag' inserted")
                         }
                     }
@@ -3287,6 +3325,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             internalTextBuffer.clear()
             useInternalBuffer = false
             DebugLog.d("DictationKeyboardService: Cleared internal text buffer (new session)")
+        }
+
+        // Load predictions preference and detect terminal apps
+        val prefManager = com.tinydictation.android.util.PreferenceManager(this)
+        val wasPredictionsEnabled = predictionsEnabled
+        predictionsEnabled = prefManager.getPredictionsEnabled()
+        val currentPackage = info?.packageName ?: ""
+        val wasTerminalApp = isTerminalApp
+        isTerminalApp = terminalPackages.contains(currentPackage)
+        if (isTerminalApp != wasTerminalApp || predictionsEnabled != wasPredictionsEnabled) {
+            DebugLog.i("DictationKeyboardService: Predictions: enabled=$predictionsEnabled, terminal=$isTerminalApp (package: $currentPackage)")
+            updatePredictionStripVisibility()
         }
 
         // Check for pending paste from HistoryActivity

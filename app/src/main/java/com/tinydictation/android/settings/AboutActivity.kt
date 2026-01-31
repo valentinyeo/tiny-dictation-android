@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.20.0:
+            • FIX: Claude panel commands now work in Terminus!
+            • NEW: Predictions auto-hide in terminal apps
+            • NEW: Toggle to disable AI predictions in Settings
+            • Supports: Terminus, Termius, ConnectBot, JuiceSSH, Termux
+
             v1.19.2:
             • Revert prediction engine to simple word mode only
             • Removed sentence completion (multi-word predictions)
