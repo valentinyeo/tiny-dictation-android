@@ -528,10 +528,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             snippetsPanel = null
             clipboardPanel = null
             historyTabPanel = null
+            emojiPanel = null
             isClaudePanelInflated = false
             isShellPanelInflated = false
             isSnippetsPanelInflated = false
             isClipboardPanelInflated = false
+            isHistoryTabPanelInflated = false
+            isEmojiPanelInflated = false
 
             keyboardView = layoutInflater.inflate(R.layout.view_keyboard, null)
 
@@ -565,6 +568,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             setupCursorNumpadPanel()
             setupKeyboardTabs()
             applyTheme()
+            applyCompactMode()
+            applyButtonVisibility()
             updateMicButton()
             updateLanguageButton()
             setupVersionDisplay()
@@ -806,6 +811,119 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 button.setTextColor(textColor)
             }
         }
+    }
+
+    /**
+     * Applies compact mode to the dictation bar if enabled.
+     * Reduces button sizes by ~40% for a minimalist look.
+     */
+    private fun applyCompactMode() {
+        val prefs = PreferenceManager(this)
+        if (!prefs.getCompactDictationBar()) return
+
+        val density = resources.displayMetrics.density
+
+        // Compact sizes (approximately 40% reduction)
+        val compactButtonSize = (32 * density).toInt()   // 48dp -> 32dp
+        val compactIconSize = (16 * density).toInt()     // 24dp -> 16dp
+        val compactSmallButtonWidth = (24 * density).toInt()  // 36dp -> 24dp for chevron
+        val compactSmallIconSize = (12 * density).toInt()     // 18dp -> 12dp for chevron icon
+        val compactPadding = (4 * density).toInt()       // 10dp -> 4dp vertical padding
+        val compactMargin = (4 * density).toInt()        // 6dp -> 4dp button margins
+        val compactMinHeight = (40 * density).toInt()    // 64dp -> 40dp
+
+        // Apply to keyboard container
+        keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.apply {
+            setPadding(paddingLeft, compactPadding, paddingRight, compactPadding)
+            minimumHeight = compactMinHeight
+        }
+
+        // Dictation bar button IDs (standard size buttons)
+        val standardButtons = listOf(
+            R.id.btnSelectAll, R.id.btnEmoji, R.id.btnSpace, R.id.btnLanguage,
+            R.id.btnBackspace, R.id.btnKeyboardMic, R.id.btnEnter,
+            R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove
+        )
+
+        // Standard icons inside those buttons
+        val standardIcons = listOf(
+            R.id.ivSelectAll, R.id.ivEmoji, R.id.ivSpace, R.id.ivBackspace,
+            R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove
+        )
+
+        // Apply compact size to standard buttons
+        for (id in standardButtons) {
+            keyboardView?.findViewById<FrameLayout>(id)?.let { button ->
+                val layoutParams = button.layoutParams as LinearLayout.LayoutParams
+                layoutParams.width = compactButtonSize
+                layoutParams.height = compactButtonSize
+                layoutParams.marginStart = compactMargin
+                button.layoutParams = layoutParams
+            }
+        }
+
+        // Apply compact size to icons
+        for (id in standardIcons) {
+            keyboardView?.findViewById<ImageView>(id)?.let { icon ->
+                val layoutParams = icon.layoutParams
+                layoutParams.width = compactIconSize
+                layoutParams.height = compactIconSize
+                icon.layoutParams = layoutParams
+            }
+        }
+
+        // Handle chevron button (smaller button)
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.let { button ->
+            val layoutParams = button.layoutParams as LinearLayout.LayoutParams
+            layoutParams.width = compactSmallButtonWidth
+            layoutParams.height = compactButtonSize
+            button.layoutParams = layoutParams
+        }
+        keyboardView?.findViewById<ImageView>(R.id.ivSwitchBack)?.let { icon ->
+            val layoutParams = icon.layoutParams
+            layoutParams.width = compactSmallIconSize
+            layoutParams.height = compactSmallIconSize
+            icon.layoutParams = layoutParams
+        }
+
+        // Handle language text (TextView, not ImageView)
+        keyboardView?.findViewById<TextView>(R.id.tvLanguage)?.let { text ->
+            text.textSize = 11f  // 14sp -> 11sp
+        }
+
+        DebugLog.i("DictationKeyboardService: Compact mode applied")
+    }
+
+    /**
+     * Applies button visibility settings to the dictation bar.
+     * Hides buttons that the user has disabled in settings.
+     */
+    private fun applyButtonVisibility() {
+        val prefs = PreferenceManager(this)
+
+        // Apply visibility to each button (MIC is always visible)
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.visibility =
+            if (prefs.getBtnSwitchBackEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.visibility =
+            if (prefs.getBtnSelectAllEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnEmoji)?.visibility =
+            if (prefs.getBtnEmojiEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnSpace)?.visibility =
+            if (prefs.getBtnSpaceEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)?.visibility =
+            if (prefs.getBtnLanguageEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnBackspace)?.visibility =
+            if (prefs.getBtnBackspaceEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.visibility =
+            if (prefs.getBtnEnterEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboard)?.visibility =
+            if (prefs.getBtnKeyboardEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.visibility =
+            if (prefs.getBtnHistoryEnabled()) View.VISIBLE else View.GONE
+        keyboardView?.findViewById<FrameLayout>(R.id.btnImprove)?.visibility =
+            if (prefs.getBtnImproveEnabled()) View.VISIBLE else View.GONE
+
+        DebugLog.i("DictationKeyboardService: Button visibility applied")
     }
 
     private fun setupButtonHandlers() {
@@ -1270,6 +1388,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Apply number row visibility when panel becomes visible
         if (isKeyboardPanelVisible) {
             updateNumberRowVisibility()
+            // Always reset to ABC tab when opening panel (no tab memory)
+            if (currentKeyboardTab != 0) {
+                currentKeyboardTab = 0
+                updateKeyboardTabContent()
+            }
         }
 
         Log.d(TAG, "Keyboard panel visibility: $isKeyboardPanelVisible")
@@ -1289,6 +1412,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
+        // Load panel visibility preferences
+        val prefs = PreferenceManager(this)
+
         // Tab click listeners for all 7 tabs
         tabABC?.setOnClickListener { switchToTab(0) }
         tabNumpad?.setOnClickListener { switchToTab(1) }
@@ -1297,6 +1423,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         tabSnippets?.setOnClickListener { switchToTab(4) }
         tabClipboard?.setOnClickListener { switchToTab(5) }
         tabHistory?.setOnClickListener { switchToTab(6) }
+
+        // Hide tabs based on preferences
+        tabClaude?.visibility = if (prefs.getPanelClaudeEnabled()) View.VISIBLE else View.GONE
+        tabShell?.visibility = if (prefs.getPanelShellEnabled()) View.VISIBLE else View.GONE
+        tabSnippets?.visibility = if (prefs.getPanelSnippetsEnabled()) View.VISIBLE else View.GONE
+        tabClipboard?.visibility = if (prefs.getPanelClipboardEnabled()) View.VISIBLE else View.GONE
+        tabHistory?.visibility = if (prefs.getPanelHistoryEnabled()) View.VISIBLE else View.GONE
 
         // Pass all touch events through to the target panel (no swipe gestures)
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
@@ -3352,6 +3485,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateKeyboardButtonState()
         updateEmojiButtonState()
         updateNumberRowVisibility()
+
+        // Reset to ABC tab when starting new input (no tab memory between sessions)
+        if (!restarting && currentKeyboardTab != 0) {
+            currentKeyboardTab = 0
+            updateKeyboardTabContent()
+        }
 
         // Auto-start dictation when keyboard opens (mic red/active by default)
         // Skip auto-start if mute is locked

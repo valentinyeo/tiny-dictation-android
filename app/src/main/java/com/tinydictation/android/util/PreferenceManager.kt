@@ -43,6 +43,24 @@ class PreferenceManager(context: Context) {
         private const val KEY_PREDICTION_ENGINE = "prediction_engine"
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
         private const val KEY_PREDICTIONS_ENABLED = "predictions_enabled"
+        private const val KEY_COMPACT_DICTATION_BAR = "compact_dictation_bar"
+        private const val KEY_PANEL_CLAUDE_ENABLED = "panel_claude_enabled"
+        private const val KEY_PANEL_SHELL_ENABLED = "panel_shell_enabled"
+        private const val KEY_PANEL_SNIPPETS_ENABLED = "panel_snippets_enabled"
+        private const val KEY_PANEL_CLIPBOARD_ENABLED = "panel_clipboard_enabled"
+        private const val KEY_PANEL_HISTORY_ENABLED = "panel_history_enabled"
+
+        // Dictation bar button visibility keys
+        private const val KEY_BTN_SWITCH_BACK = "btn_switch_back_enabled"
+        private const val KEY_BTN_SELECT_ALL = "btn_select_all_enabled"
+        private const val KEY_BTN_EMOJI = "btn_emoji_enabled"
+        private const val KEY_BTN_SPACE = "btn_space_enabled"
+        private const val KEY_BTN_LANGUAGE = "btn_language_enabled"
+        private const val KEY_BTN_BACKSPACE = "btn_backspace_enabled"
+        private const val KEY_BTN_ENTER = "btn_enter_enabled"
+        private const val KEY_BTN_KEYBOARD = "btn_keyboard_enabled"
+        private const val KEY_BTN_HISTORY = "btn_history_enabled"
+        private const val KEY_BTN_IMPROVE = "btn_improve_enabled"
 
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"
@@ -1038,4 +1056,117 @@ class PreferenceManager(context: Context) {
     fun setPredictionsEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PREDICTIONS_ENABLED, enabled).apply()
     }
+
+    // ========== Compact Dictation Bar Setting ==========
+
+    /**
+     * Gets whether compact dictation bar mode is enabled.
+     * When enabled, the dictation bar is ~50% smaller for a minimalist look.
+     * @return true if compact mode is enabled (default: false)
+     */
+    fun getCompactDictationBar(): Boolean {
+        return prefs.getBoolean(KEY_COMPACT_DICTATION_BAR, false)
+    }
+
+    /**
+     * Sets whether compact dictation bar mode is enabled.
+     * @param enabled true to enable compact mode, false for normal size
+     */
+    fun setCompactDictationBar(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_COMPACT_DICTATION_BAR, enabled).apply()
+    }
+
+    // ========== Panel Visibility Settings ==========
+
+    /**
+     * Gets whether the Claude panel tab is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getPanelClaudeEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PANEL_CLAUDE_ENABLED, true)
+    }
+
+    fun setPanelClaudeEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PANEL_CLAUDE_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Gets whether the Shell panel tab is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getPanelShellEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PANEL_SHELL_ENABLED, true)
+    }
+
+    fun setPanelShellEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PANEL_SHELL_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Gets whether the Snippets panel tab is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getPanelSnippetsEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PANEL_SNIPPETS_ENABLED, true)
+    }
+
+    fun setPanelSnippetsEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PANEL_SNIPPETS_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Gets whether the Clipboard panel tab is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getPanelClipboardEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PANEL_CLIPBOARD_ENABLED, true)
+    }
+
+    fun setPanelClipboardEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PANEL_CLIPBOARD_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Gets whether the History panel tab is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getPanelHistoryEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PANEL_HISTORY_ENABLED, true)
+    }
+
+    fun setPanelHistoryEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PANEL_HISTORY_ENABLED, enabled).apply()
+    }
+
+    // ========== Dictation Bar Button Visibility Settings ==========
+
+    fun getBtnSwitchBackEnabled(): Boolean = prefs.getBoolean(KEY_BTN_SWITCH_BACK, true)
+    fun setBtnSwitchBackEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_SWITCH_BACK, enabled).apply()
+
+    fun getBtnSelectAllEnabled(): Boolean = prefs.getBoolean(KEY_BTN_SELECT_ALL, true)
+    fun setBtnSelectAllEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_SELECT_ALL, enabled).apply()
+
+    fun getBtnEmojiEnabled(): Boolean = prefs.getBoolean(KEY_BTN_EMOJI, true)
+    fun setBtnEmojiEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_EMOJI, enabled).apply()
+
+    fun getBtnSpaceEnabled(): Boolean = prefs.getBoolean(KEY_BTN_SPACE, true)
+    fun setBtnSpaceEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_SPACE, enabled).apply()
+
+    fun getBtnLanguageEnabled(): Boolean = prefs.getBoolean(KEY_BTN_LANGUAGE, true)
+    fun setBtnLanguageEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_LANGUAGE, enabled).apply()
+
+    fun getBtnBackspaceEnabled(): Boolean = prefs.getBoolean(KEY_BTN_BACKSPACE, true)
+    fun setBtnBackspaceEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_BACKSPACE, enabled).apply()
+
+    fun getBtnEnterEnabled(): Boolean = prefs.getBoolean(KEY_BTN_ENTER, true)
+    fun setBtnEnterEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_ENTER, enabled).apply()
+
+    fun getBtnKeyboardEnabled(): Boolean = prefs.getBoolean(KEY_BTN_KEYBOARD, true)
+    fun setBtnKeyboardEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_KEYBOARD, enabled).apply()
+
+    fun getBtnHistoryEnabled(): Boolean = prefs.getBoolean(KEY_BTN_HISTORY, true)
+    fun setBtnHistoryEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_HISTORY, enabled).apply()
+
+    fun getBtnImproveEnabled(): Boolean = prefs.getBoolean(KEY_BTN_IMPROVE, true)
+    fun setBtnImproveEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_IMPROVE, enabled).apply()
 }

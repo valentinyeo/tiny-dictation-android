@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.21.0:
+            • NEW: Customizable dictation bar - toggle buttons on/off!
+            • NEW: Customizable panels - show only the tabs you need
+            • NEW: Compact mode - reduce dictation bar size by 40%
+            • FIX: Emoji button now works after keyboard recreation
+            • FIX: Keyboard button always opens ABC panel (no tab memory)
+            • All settings in: Settings → Appearance
+
             v1.20.0:
             • FIX: Claude panel commands now work in Terminus!
             • NEW: Predictions auto-hide in terminal apps
