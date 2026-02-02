@@ -35,7 +35,7 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.24.0:
+            v1.25.0:
             • NEW: Two-stage AI text correction ("Phat Fingers")!
             • Stage 1: Instant local typo fixes after each word
             • Stage 2: AI-powered sentence correction at punctuation/pause
@@ -44,6 +44,8 @@ class AboutActivity : AppCompatActivity() {
             • Settings: Text Correction (new settings page)
             • Import contacts to skip list (won't correct names)
             • Learns from your corrections over time
+            • FIX: NGram predictions now work instantly when offline
+            • Skip Groq API when no network, use NGram directly
 
             v1.23.1:
             • NEW: Cursor trackpad mode on space bar!
