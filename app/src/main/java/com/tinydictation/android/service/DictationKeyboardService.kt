@@ -43,6 +43,7 @@ import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import com.tinydictation.android.ai.TextImprover
+import com.tinydictation.android.ai.SpellingCorrector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -188,6 +189,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isImproving = false  // Prevent multiple concurrent improvements
     private var improveButton: FrameLayout? = null
     private var improveIcon: ImageView? = null
+
+    // Auto-correct (AI-powered spelling/spacing correction at sentence end)
+    private var spellingCorrector: SpellingCorrector? = null
+    private var isAutoCorrectingPending = false  // Track if a correction is pending
+    private var lastSentenceEndChar: Char? = null  // Track the last sentence-ending punctuation
 
     // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
@@ -348,6 +354,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Initialize text improver (uses same Groq API as predictions)
         textImprover = TextImprover(this)
+
+        // Initialize spelling corrector for auto-correct at sentence end
+        spellingCorrector = SpellingCorrector(this)
 
         // Initialize prediction manager based on user's selected engine preference
         predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
@@ -1691,11 +1700,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             handlePeriodTouch(view, event)
         }
 
-        // Space bar - triggers next-word prediction
+        // Space bar - triggers next-word prediction and auto-correct at sentence end
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)?.setOnClickListener {
             currentInputConnection?.commitText(" ", 1)
             trackTypedText(" ")  // Track for terminal apps
             updatePredictions()
+
+            // Check for sentence-end auto-correct
+            checkAndTriggerAutoCorrect()
         }
 
         // Enter key (ImageView)
@@ -3366,6 +3378,146 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 improveIcon?.let { icon ->
                     icon.setColorFilter(ContextCompat.getColor(this@DictationKeyboardService, R.color.keyboard_key_text))
                 }
+            }
+        }
+    }
+
+    /**
+     * Check if the user just typed a sentence-ending punctuation followed by space,
+     * and if auto-correct is enabled, trigger spelling correction for the last sentence.
+     */
+    private fun checkAndTriggerAutoCorrect() {
+        val prefs = PreferenceManager(this)
+
+        // Check if auto-correct is enabled
+        if (!prefs.getAutoCorrectEnabled()) {
+            return
+        }
+
+        // Check if Groq API key is configured
+        if (!prefs.hasGroqApiKey()) {
+            DebugLog.d("DictationKeyboardService: Auto-correct skipped - no Groq API key")
+            return
+        }
+
+        val ic = currentInputConnection ?: return
+
+        // Get text before cursor (including the space we just typed)
+        val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: ""
+
+        // Need at least a few characters to have a sentence
+        if (textBefore.length < 3) return
+
+        // Check if there's a sentence-ending punctuation before the space
+        // Pattern: sentence text + (. or ? or !) + space
+        val trimmed = textBefore.trimEnd()
+        if (trimmed.isEmpty()) return
+
+        val lastChar = trimmed.lastOrNull() ?: return
+        if (lastChar !in listOf('.', '?', '!')) {
+            return
+        }
+
+        // Extract the last sentence (from previous sentence-end to current)
+        // Look for the second-to-last sentence ending
+        val sentenceEndPattern = Regex("[.!?]\\s")
+        val matches = sentenceEndPattern.findAll(trimmed.dropLast(1)).toList()
+
+        val sentenceStart = if (matches.isEmpty()) {
+            0  // This is the first sentence
+        } else {
+            matches.last().range.last + 1  // Start after previous sentence end
+        }
+
+        val lastSentence = trimmed.substring(sentenceStart).trim()
+
+        // Skip if sentence is too short or too long
+        if (lastSentence.length < 5 || lastSentence.length > 200) {
+            DebugLog.d("DictationKeyboardService: Auto-correct skipped - sentence length ${lastSentence.length}")
+            return
+        }
+
+        DebugLog.i("DictationKeyboardService: Auto-correct triggered for sentence: '$lastSentence'")
+
+        // Perform the correction
+        performAutoCorrect(lastSentence, sentenceStart, textBefore.length)
+    }
+
+    /**
+     * Perform auto-correct on the given sentence and replace it in the text field.
+     */
+    @Suppress("UNUSED_PARAMETER")
+    private fun performAutoCorrect(sentence: String, sentenceStart: Int, totalLength: Int) {
+        if (isAutoCorrectingPending) {
+            DebugLog.d("DictationKeyboardService: Auto-correct already in progress")
+            return
+        }
+
+        isAutoCorrectingPending = true
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = spellingCorrector?.correct(sentence)
+
+                if (result?.isSuccess == true) {
+                    val correctedSentence = result.getOrNull() ?: sentence
+
+                    // Only replace if something actually changed
+                    if (correctedSentence != sentence) {
+                        val ic = currentInputConnection
+                        if (ic != null) {
+                            DebugLog.i("DictationKeyboardService: Auto-correct replacing '$sentence' with '$correctedSentence'")
+
+                            ic.beginBatchEdit()
+                            try {
+                                // Calculate the position of the sentence in the current text
+                                // We need to select from sentenceStart to the end of the sentence (not including trailing space)
+                                val sentenceLength = sentence.length
+
+                                // Get current cursor position (after the space)
+                                val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: ""
+
+                                // The sentence ends at (textBefore.length - 1) because we typed a space after it
+                                // The sentence starts at (textBefore.length - 1 - sentenceLength)
+                                val selStart = textBefore.length - sentenceLength - 1  // -1 for the trailing space
+                                val selEnd = textBefore.length - 1  // Just before the trailing space
+
+                                if (selStart >= 0) {
+                                    // Select the original sentence
+                                    ic.setSelection(selStart, selEnd)
+
+                                    // Replace with corrected sentence
+                                    ic.commitText(correctedSentence, 1)
+
+                                    // Re-add the space after the corrected sentence
+                                    ic.commitText(" ", 1)
+
+                                    // Update internal buffer
+                                    if (internalTextBuffer.isNotEmpty()) {
+                                        val bufferStr = internalTextBuffer.toString()
+                                        if (bufferStr.length >= sentenceLength + 1) {
+                                            val newBuffer = bufferStr.substring(0, bufferStr.length - sentenceLength - 1) +
+                                                    correctedSentence + " "
+                                            internalTextBuffer.clear()
+                                            internalTextBuffer.append(newBuffer.takeLast(100))
+                                        }
+                                    }
+                                }
+                            } finally {
+                                ic.endBatchEdit()
+                            }
+                        }
+                    } else {
+                        DebugLog.d("DictationKeyboardService: Auto-correct - no changes needed")
+                    }
+                } else {
+                    val error = result?.exceptionOrNull()?.message ?: "Unknown error"
+                    DebugLog.e("DictationKeyboardService: Auto-correct failed - $error")
+                }
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Auto-correct exception - ${e.message}")
+            } finally {
+                isAutoCorrectingPending = false
             }
         }
     }

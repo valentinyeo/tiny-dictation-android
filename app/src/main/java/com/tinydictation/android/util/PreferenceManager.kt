@@ -62,6 +62,9 @@ class PreferenceManager(context: Context) {
         private const val KEY_BTN_HISTORY = "btn_history_enabled"
         private const val KEY_BTN_IMPROVE = "btn_improve_enabled"
 
+        // Auto-correct settings
+        private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
+
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"
         const val PREDICTION_ENGINE_GROQ = "groq"
@@ -849,14 +852,8 @@ class PreferenceManager(context: Context) {
      * @return true if manual language selection should be shown
      */
     fun currentProviderNeedsLanguageToggle(): Boolean {
-        val unified = getUnifiedProvider()
-        return when {
-            unified == UNIFIED_VOSK -> true  // Vosk needs language-specific models
-            unified == UNIFIED_WHISPER -> false  // Whisper auto-detects, no toggle needed
-            // For cloud providers, show toggle only if auto-detect is disabled
-            unified.startsWith("cloud:") -> !getAutoDetectLanguage() && !currentProviderSupportsAutoDetect()
-            else -> true
-        }
+        // Always show language toggle - user controls language via button, no auto-detect
+        return true
     }
 
     // ========== Unified Provider ==========
@@ -1169,4 +1166,24 @@ class PreferenceManager(context: Context) {
 
     fun getBtnImproveEnabled(): Boolean = prefs.getBoolean(KEY_BTN_IMPROVE, true)
     fun setBtnImproveEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_IMPROVE, enabled).apply()
+
+    // ========== Auto-Correct Setting ==========
+
+    /**
+     * Gets whether auto-correct at sentence end is enabled.
+     * When enabled, spelling and spacing errors are automatically corrected
+     * after typing sentence-ending punctuation (. ? !) followed by space.
+     * @return true if auto-correct is enabled (default: false)
+     */
+    fun getAutoCorrectEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_CORRECT_ENABLED, false)
+    }
+
+    /**
+     * Sets whether auto-correct at sentence end is enabled.
+     * @param enabled true to enable auto-correct, false to disable
+     */
+    fun setAutoCorrectEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled).apply()
+    }
 }

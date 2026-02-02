@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.0:
+            • NEW: Auto-correct for QWERTY keyboard
+            • Fixes spelling and spacing errors at sentence end
+            • Triggers after typing period/question/exclamation + space
+            • Enable in: Settings → Appearance → Auto-Correct
+            • Language button now always visible (all transcription models)
+
             v1.21.0:
             • NEW: Customizable dictation bar - toggle buttons on/off!
             • NEW: Customizable panels - show only the tabs you need
