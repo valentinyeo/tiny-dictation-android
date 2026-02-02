@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.2:
+            • FIX: Word prediction tap now works reliably
+            • Fixed race condition causing garbled text when tapping predictions
+            • Note: Predictions don't work in terminal apps (Termius, etc.)
+
             v1.22.1:
             • FIX: Word predictions now English-only
             • No more random Italian/foreign words in suggestions

@@ -1902,22 +1902,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         if (prediction.isCompletion) {
             // Complete the partial word - delete it first, then insert the full word
-            var textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
-
-            // For terminal apps: use internal buffer if app doesn't provide text
-            if (textBefore.isEmpty() && internalTextBuffer.isNotEmpty()) {
-                textBefore = internalTextBuffer.toString()
-                DebugLog.d("DictationKeyboardService: onPredictionTapped using internal buffer: '$textBefore'")
-            }
-
+            val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
             val partialWord = textBefore.split(Regex("\\s+")).lastOrNull() ?: ""
 
             if (partialWord.isNotEmpty()) {
-                // Delete the partial word (send backspaces for terminal apps)
-                for (i in 0 until partialWord.length) {
-                    sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
-                }
-                // Also update internal buffer
+                // Use deleteSurroundingText for atomic deletion (no race conditions)
+                ic.deleteSurroundingText(partialWord.length, 0)
                 trackBackspace(partialWord.length)
                 DebugLog.d("DictationKeyboardService: Deleted partial word '$partialWord' (${partialWord.length} chars)")
             }
@@ -1930,8 +1920,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         // Let the engine learn from this selection
-        val textAfter = ic.getTextBeforeCursor(50, 0)?.toString()
-            ?: internalTextBuffer.toString()
+        val textAfter = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
         val words = textAfter.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(3)
         predictionManager?.onWordsConfirmed(words)
 
