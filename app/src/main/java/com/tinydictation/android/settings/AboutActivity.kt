@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.23.1:
+            • NEW: Cursor trackpad mode on space bar!
+            • Long-press space bar and drag to move cursor
+            • Works like iOS/GBoard trackpad for text navigation
+            • Haptic feedback when entering mode and on each cursor move
+
             v1.23.0:
             • NEW: German umlaut support on QWERTY keyboard
             • Long-press A for ä/Ä

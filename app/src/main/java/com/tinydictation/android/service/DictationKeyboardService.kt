@@ -264,6 +264,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("DictationKeyboardService: German mode ${if (isGermanMode) "ON" else "OFF"}")
     }
 
+    // Space bar cursor trackpad mode (long-press and drag to move cursor)
+    private var spaceKeyButton: android.widget.TextView? = null
+    private var isSpaceTrackpadMode = false
+    private var spaceTrackpadStartX = 0f
+    private var spaceTrackpadLastX = 0f
+    private var spaceTrackpadAccumulatedDelta = 0f
+    private val TRACKPAD_LONG_PRESS_THRESHOLD = 250L  // ms to enter trackpad mode
+    private val TRACKPAD_MOVE_THRESHOLD_DP = 20f  // dp per cursor move
+    private val spaceTrackpadHandler = Handler(Looper.getMainLooper())
+    private val spaceTrackpadRunnable = Runnable {
+        // Enter trackpad mode
+        isSpaceTrackpadMode = true
+        spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        DebugLog.d("DictationKeyboardService: Cursor trackpad mode ACTIVATED")
+    }
+
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -1759,14 +1775,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             handlePeriodTouch(view, event)
         }
 
-        // Space bar - triggers next-word prediction and auto-correct at sentence end
-        qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)?.setOnClickListener {
-            currentInputConnection?.commitText(" ", 1)
-            trackTypedText(" ")  // Track for terminal apps
-            updatePredictions()
-
-            // Check for sentence-end auto-correct
-            checkAndTriggerAutoCorrect()
+        // Space bar - tap for space, long-press + drag for cursor trackpad mode
+        spaceKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)
+        spaceKeyButton?.setOnTouchListener { _, event ->
+            handleSpaceKeyTouch(event)
         }
 
         // Enter key (ImageView)
@@ -3097,6 +3109,88 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_CANCEL -> {
                 shiftLongPressHandler.removeCallbacks(shiftLongPressRunnable)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Handles touch events for the space key with cursor trackpad mode.
+     * - Tap: insert space
+     * - Long press (250ms): enter cursor trackpad mode
+     * - Drag in trackpad mode: move cursor left/right (20dp = 1 cursor move)
+     * - Release: exit trackpad mode or insert space if not activated
+     */
+    private fun handleSpaceKeyTouch(event: MotionEvent): Boolean {
+        val moveThreshold = TRACKPAD_MOVE_THRESHOLD_DP * resources.displayMetrics.density
+
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Reset state
+                isSpaceTrackpadMode = false
+                spaceTrackpadStartX = event.rawX
+                spaceTrackpadLastX = event.rawX
+                spaceTrackpadAccumulatedDelta = 0f
+
+                // Start long-press timer
+                spaceTrackpadHandler.postDelayed(
+                    spaceTrackpadRunnable,
+                    TRACKPAD_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_MOVE -> {
+                if (isSpaceTrackpadMode) {
+                    // In trackpad mode - move cursor based on drag distance
+                    val deltaX = event.rawX - spaceTrackpadLastX
+                    spaceTrackpadAccumulatedDelta += deltaX
+                    spaceTrackpadLastX = event.rawX
+
+                    // Check if accumulated movement exceeds threshold
+                    while (Math.abs(spaceTrackpadAccumulatedDelta) >= moveThreshold) {
+                        if (spaceTrackpadAccumulatedDelta >= moveThreshold) {
+                            // Move cursor right
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
+                            spaceTrackpadAccumulatedDelta -= moveThreshold
+                            spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        } else if (spaceTrackpadAccumulatedDelta <= -moveThreshold) {
+                            // Move cursor left
+                            sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
+                            spaceTrackpadAccumulatedDelta += moveThreshold
+                            spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
+                        }
+                    }
+                } else {
+                    // Not in trackpad mode yet - check if moved too far before long press
+                    val dx = event.rawX - spaceTrackpadStartX
+                    if (Math.abs(dx) > moveThreshold * 2) {
+                        // Moved too far - cancel long press timer
+                        spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
+                    }
+                }
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
+
+                if (!isSpaceTrackpadMode) {
+                    // Short tap - insert space
+                    currentInputConnection?.commitText(" ", 1)
+                    trackTypedText(" ")  // Track for terminal apps
+                    updatePredictions()
+
+                    // Check for sentence-end auto-correct
+                    checkAndTriggerAutoCorrect()
+                } else {
+                    DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
+                }
+                isSpaceTrackpadMode = false
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
+                isSpaceTrackpadMode = false
                 return true
             }
         }
