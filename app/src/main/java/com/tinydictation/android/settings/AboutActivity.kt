@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.3:
+            • FIX: Common words now appear first in predictions
+            • "the", "that", "this" etc. now show before longer words
+            • Fixed Trie traversal order issue
+
             v1.22.2:
             • FIX: Word prediction tap now works reliably
             • Fixed race condition causing garbled text when tapping predictions
