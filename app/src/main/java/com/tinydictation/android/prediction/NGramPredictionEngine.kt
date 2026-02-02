@@ -76,10 +76,10 @@ class NGramPredictionEngine : PredictionEngine {
         if (partialWord.isNotEmpty()) {
             // Complete the partial word
             val prefix = partialWord.lowercase()
-            // Get many candidates (100) so frequency sorting can pick the best ones
-            // HashMap iteration order in Trie is random, so we need enough candidates
-            // to ensure common words like "the" are included
-            val completions = trie.findWordsWithPrefix(prefix, limit = 100)
+            // Get enough candidates for frequency sorting to work
+            // With TreeMap (sorted), traversal is alphabetical so common short words
+            // like "the" are found early. 50 is enough while keeping it fast.
+            val completions = trie.findWordsWithPrefix(prefix, limit = 50)
 
             if (completions.isNotEmpty()) {
                 // Score completions by frequency and bigram relevance

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.5:
+            • PERF: Reduced Trie candidate limit from 100 to 50
+            • Predictions should be faster now
+            • TreeMap ensures alphabetical order, so 50 is enough
+
             v1.22.4:
             • FIX: Trie now uses sorted (TreeMap) children
             • "the" now correctly appears before "things"
