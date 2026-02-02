@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.23.0:
+            • NEW: German umlaut support on QWERTY keyboard
+            • Long-press A for ä/Ä
+            • Long-press O for ö/Ö
+            • Long-press U for ü/Ü
+            • Long-press Shift to toggle German mode (shows "DE")
+            • Umlauts respect shift/caps lock state
+
             v1.22.5:
             • PERF: Reduced Trie candidate limit from 100 to 50
             • Predictions should be faster now

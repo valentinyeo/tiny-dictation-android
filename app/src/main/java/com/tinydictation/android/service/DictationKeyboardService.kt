@@ -138,6 +138,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isShiftActive = false
     private var isCapsLock = false
     private var isNumbersMode = false  // Numbers/symbols keyboard mode
+    private var isGermanMode = false  // German keyboard mode (umlauts on long-press)
 
     // Internal text buffer for apps that don't expose text (like terminal apps)
     // We track what we've typed ourselves when getTextBeforeCursor() returns empty
@@ -208,16 +209,59 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private val PUNCTUATION_MOVE_THRESHOLD_DP = 20f
     private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
-    // 'A' key long-press for @ symbol
+    // 'A' key long-press for ä (German umlaut)
     private var aKeyButton: android.widget.TextView? = null
     private var isAKeyLongPressTriggered = false
     private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val aKeyLongPressRunnable = Runnable {
-        // Insert @ on long press
+        // Insert ä on long press (respects shift/caps for Ä)
         isAKeyLongPressTriggered = true
-        currentInputConnection?.commitText("@", 1)
+        val char = if (isShiftActive || isCapsLock) "Ä" else "ä"
+        currentInputConnection?.commitText(char, 1)
+        trackTypedText(char)  // Track for terminal apps
         aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         updatePredictions()
+    }
+
+    // 'O' key long-press for ö (German umlaut)
+    private var oKeyButton: android.widget.TextView? = null
+    private var isOKeyLongPressTriggered = false
+    private val oKeyLongPressHandler = Handler(Looper.getMainLooper())
+    private val oKeyLongPressRunnable = Runnable {
+        // Insert ö on long press (respects shift/caps for Ö)
+        isOKeyLongPressTriggered = true
+        val char = if (isShiftActive || isCapsLock) "Ö" else "ö"
+        currentInputConnection?.commitText(char, 1)
+        trackTypedText(char)  // Track for terminal apps
+        oKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        updatePredictions()
+    }
+
+    // 'U' key long-press for ü (German umlaut)
+    private var uKeyButton: android.widget.TextView? = null
+    private var isUKeyLongPressTriggered = false
+    private val uKeyLongPressHandler = Handler(Looper.getMainLooper())
+    private val uKeyLongPressRunnable = Runnable {
+        // Insert ü on long press (respects shift/caps for Ü)
+        isUKeyLongPressTriggered = true
+        val char = if (isShiftActive || isCapsLock) "Ü" else "ü"
+        currentInputConnection?.commitText(char, 1)
+        trackTypedText(char)  // Track for terminal apps
+        uKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        updatePredictions()
+    }
+
+    // Shift key long-press for German mode toggle
+    private var shiftKeyButton: android.widget.TextView? = null
+    private var isShiftLongPressTriggered = false
+    private val shiftLongPressHandler = Handler(Looper.getMainLooper())
+    private val shiftLongPressRunnable = Runnable {
+        // Toggle German mode on long press
+        isShiftLongPressTriggered = true
+        isGermanMode = !isGermanMode
+        shiftKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        updateShiftKeyDisplay()
+        DebugLog.d("DictationKeyboardService: German mode ${if (isGermanMode) "ON" else "OFF"}")
     }
 
     // Broadcast receiver for paste requests from HistoryActivity
@@ -513,6 +557,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         cursorHandler.removeCallbacksAndMessages(null)
         punctuationLongPressHandler.removeCallbacksAndMessages(null)
         aKeyLongPressHandler.removeCallbacksAndMessages(null)
+        oKeyLongPressHandler.removeCallbacksAndMessages(null)
+        uKeyLongPressHandler.removeCallbacksAndMessages(null)
+        shiftLongPressHandler.removeCallbacksAndMessages(null)
         hidePunctuationPopup()
         pulseAnimator?.cancel()
         pulseAnimator = null
@@ -1682,10 +1729,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // 'A' key - tap for 'a', long press for '@' (like iOS)
+        // 'A' key - tap for 'a', long press for 'ä' (German umlaut)
         aKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_a)
         aKeyButton?.setOnTouchListener { _, event ->
             handleAKeyTouch(event)
+        }
+
+        // 'O' key - tap for 'o', long press for 'ö' (German umlaut)
+        oKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_o)
+        oKeyButton?.setOnTouchListener { _, event ->
+            handleOKeyTouch(event)
+        }
+
+        // 'U' key - tap for 'u', long press for 'ü' (German umlaut)
+        uKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_u)
+        uKeyButton?.setOnTouchListener { _, event ->
+            handleUKeyTouch(event)
         }
 
         // Punctuation keys
@@ -1724,35 +1783,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             handleBackspaceTouch(event)
         }
 
-        // Shift key - tap for shift, double-tap for caps lock (or symbols toggle in numbers mode)
-        val shiftButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
-        var lastShiftTapTime = 0L
-        shiftButton?.setOnClickListener {
-            if (isNumbersMode) {
-                // In numbers mode, shift toggles secondary symbols
-                isShiftActive = !isShiftActive
-                updateSymbolsDisplay()
-            } else {
-                // In letters mode, normal shift/caps behavior
-                val currentTime = System.currentTimeMillis()
-                if (currentTime - lastShiftTapTime < 300) {
-                    // Double tap - toggle caps lock
-                    isCapsLock = !isCapsLock
-                    isShiftActive = isCapsLock
-                    DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
-                } else {
-                    // Single tap - toggle shift
-                    if (isCapsLock) {
-                        // Turn off caps lock
-                        isCapsLock = false
-                        isShiftActive = false
-                    } else {
-                        isShiftActive = !isShiftActive
-                    }
-                }
-                lastShiftTapTime = currentTime
-                updateShiftKeyDisplay()
-            }
+        // Shift key - tap for shift, double-tap for caps lock, long-press for German mode toggle
+        shiftKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
+        shiftKeyButton?.setOnTouchListener { _, event ->
+            handleShiftKeyTouch(event)
         }
 
         // 123/ABC key - toggle between letters and numbers/symbols
@@ -2716,10 +2750,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     /**
      * Updates the shift key display based on current state.
+     * Shows German mode indicator (DE) when active.
      */
     private fun updateShiftKeyDisplay() {
         val shiftButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
         shiftButton?.text = when {
+            isGermanMode && isCapsLock -> "DE⇪"  // German mode + caps lock
+            isGermanMode && isShiftActive -> "DE⇧"  // German mode + shift active
+            isGermanMode -> "DE"  // German mode indicator
             isCapsLock -> "⇪"  // Caps lock indicator
             isShiftActive -> "⇧"  // Shift active (filled)
             else -> "⇧"  // Normal shift
@@ -2879,9 +2917,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Handles touch events for the 'a' key with long-press for @ symbol.
+     * Handles touch events for the 'a' key with long-press for ä (German umlaut).
      * - Tap: insert 'a' (or 'A' if shifted)
-     * - Long press (200ms): insert '@'
+     * - Long press (200ms): insert 'ä' (or 'Ä' if shifted)
      */
     private fun handleAKeyTouch(event: MotionEvent): Boolean {
         when (event.action) {
@@ -2901,6 +2939,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // Short tap - insert 'a' or 'A' based on shift state
                     val char = if (isShiftActive || isCapsLock) "A" else "a"
                     currentInputConnection?.commitText(char, 1)
+                    trackTypedText(char)  // Track for terminal apps
 
                     // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -2913,6 +2952,151 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_CANCEL -> {
                 aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Handles touch events for the 'o' key with long-press for ö (German umlaut).
+     * - Tap: insert 'o' (or 'O' if shifted)
+     * - Long press (200ms): insert 'ö' (or 'Ö' if shifted)
+     */
+    private fun handleOKeyTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isOKeyLongPressTriggered = false
+                // Start long-press timer
+                oKeyLongPressHandler.postDelayed(
+                    oKeyLongPressRunnable,
+                    PUNCTUATION_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                oKeyLongPressHandler.removeCallbacks(oKeyLongPressRunnable)
+
+                if (!isOKeyLongPressTriggered) {
+                    // Short tap - insert 'o' or 'O' based on shift state
+                    val char = if (isShiftActive || isCapsLock) "O" else "o"
+                    currentInputConnection?.commitText(char, 1)
+                    trackTypedText(char)  // Track for terminal apps
+
+                    // Turn off shift after one character (unless caps lock)
+                    if (!isNumbersMode && isShiftActive && !isCapsLock) {
+                        isShiftActive = false
+                        updateShiftKeyDisplay()
+                    }
+                    updatePredictions()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                oKeyLongPressHandler.removeCallbacks(oKeyLongPressRunnable)
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Handles touch events for the 'u' key with long-press for ü (German umlaut).
+     * - Tap: insert 'u' (or 'U' if shifted)
+     * - Long press (200ms): insert 'ü' (or 'Ü' if shifted)
+     */
+    private fun handleUKeyTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isUKeyLongPressTriggered = false
+                // Start long-press timer
+                uKeyLongPressHandler.postDelayed(
+                    uKeyLongPressRunnable,
+                    PUNCTUATION_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                uKeyLongPressHandler.removeCallbacks(uKeyLongPressRunnable)
+
+                if (!isUKeyLongPressTriggered) {
+                    // Short tap - insert 'u' or 'U' based on shift state
+                    val char = if (isShiftActive || isCapsLock) "U" else "u"
+                    currentInputConnection?.commitText(char, 1)
+                    trackTypedText(char)  // Track for terminal apps
+
+                    // Turn off shift after one character (unless caps lock)
+                    if (!isNumbersMode && isShiftActive && !isCapsLock) {
+                        isShiftActive = false
+                        updateShiftKeyDisplay()
+                    }
+                    updatePredictions()
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                uKeyLongPressHandler.removeCallbacks(uKeyLongPressRunnable)
+                return true
+            }
+        }
+        return false
+    }
+
+    // Track last shift tap time for double-tap detection
+    private var lastShiftTapTime = 0L
+
+    /**
+     * Handles touch events for the shift key.
+     * - Tap: toggle shift (or secondary symbols in numbers mode)
+     * - Double-tap: toggle caps lock
+     * - Long press (200ms): toggle German umlaut mode
+     */
+    private fun handleShiftKeyTouch(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                isShiftLongPressTriggered = false
+                // Start long-press timer for German mode toggle
+                shiftLongPressHandler.postDelayed(
+                    shiftLongPressRunnable,
+                    PUNCTUATION_LONG_PRESS_THRESHOLD
+                )
+                return true
+            }
+            MotionEvent.ACTION_UP -> {
+                shiftLongPressHandler.removeCallbacks(shiftLongPressRunnable)
+
+                if (!isShiftLongPressTriggered) {
+                    // Short tap - normal shift behavior
+                    if (isNumbersMode) {
+                        // In numbers mode, shift toggles secondary symbols
+                        isShiftActive = !isShiftActive
+                        updateSymbolsDisplay()
+                    } else {
+                        // In letters mode, normal shift/caps behavior
+                        val currentTime = System.currentTimeMillis()
+                        if (currentTime - lastShiftTapTime < 300) {
+                            // Double tap - toggle caps lock
+                            isCapsLock = !isCapsLock
+                            isShiftActive = isCapsLock
+                            DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
+                        } else {
+                            // Single tap - toggle shift
+                            if (isCapsLock) {
+                                // Turn off caps lock
+                                isCapsLock = false
+                                isShiftActive = false
+                            } else {
+                                isShiftActive = !isShiftActive
+                            }
+                        }
+                        lastShiftTapTime = currentTime
+                        updateShiftKeyDisplay()
+                    }
+                }
+                return true
+            }
+            MotionEvent.ACTION_CANCEL -> {
+                shiftLongPressHandler.removeCallbacks(shiftLongPressRunnable)
                 return true
             }
         }
