@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.1:
+            • FIX: Word predictions now English-only
+            • No more random Italian/foreign words in suggestions
+
             v1.22.0:
             • NEW: Auto-correct for QWERTY keyboard
             • Fixes spelling and spacing errors at sentence end

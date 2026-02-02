@@ -87,22 +87,20 @@ class GroqPredictionEngine : PredictionEngine {
 
     /**
      * Build prompt for word completion or next word prediction.
-     * Auto-detects language from context.
+     * English only for consistent results.
      */
     private fun buildWordPrompt(context: String, partialWord: String): String {
         return if (partialWord.isNotEmpty()) {
-            """Complete this partial word. Context: "$context" Partial: "$partialWord"
-Detect the language from context and return completions in the SAME language.
-Return exactly 3 word completions, one per line, nothing else. Just the complete words."""
+            """Complete this partial word in ENGLISH ONLY. Context: "$context" Partial: "$partialWord"
+Return exactly 3 English word completions, one per line, nothing else. Just the complete words."""
         } else {
-            """Predict the next word. Context: "$context"
-Detect the language from context and return predictions in the SAME language.
-Return exactly 3 likely next words, one per line, nothing else. Just single words."""
+            """Predict the next word in ENGLISH ONLY. Context: "$context"
+Return exactly 3 likely English next words, one per line, nothing else. Just single words."""
         }
     }
 
     private fun callGroqApi(prompt: String): String {
-        val systemPrompt = "You are a multilingual word prediction assistant. Detect the language of the input and respond in the SAME language. Return only the requested words, one per line, no explanations."
+        val systemPrompt = "You are an English word prediction assistant. Return only common English words, one per line, no explanations."
 
         val jsonBody = JSONObject().apply {
             put("model", "llama-3.1-8b-instant") // Fast model
