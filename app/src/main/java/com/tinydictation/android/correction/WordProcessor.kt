@@ -19,6 +19,49 @@ class WordProcessor(private val context: Context) {
     companion object {
         private const val TAG = "WordProcessor"
         private const val MAX_PROCESS_TIME_MS = 50L
+        private val PUNCTUATION = charArrayOf('.', ',', '!', '?', ';', ':', '"', '\'', ')', ']', '}')
+
+        // Common stuck-together words
+        private val COMMON_STUCK_WORDS = mapOf(
+            "iwant" to "i want",
+            "iwas" to "i was",
+            "iwill" to "i will",
+            "iwould" to "i would",
+            "ihave" to "i have",
+            "ive" to "i've",
+            "im" to "i'm",
+            "ill" to "i'll",
+            "id" to "i'd",
+            "goto" to "go to",
+            "inthe" to "in the",
+            "onthe" to "on the",
+            "atthe" to "at the",
+            "tothe" to "to the",
+            "forthe" to "for the",
+            "ofthe" to "of the",
+            "withthe" to "with the",
+            "fromthe" to "from the",
+            "bythe" to "by the",
+            "isthe" to "is the",
+            "wasthe" to "was the",
+            "arethe" to "are the",
+            "werethe" to "were the",
+            "tobe" to "to be",
+            "canbe" to "can be",
+            "willbe" to "will be",
+            "maybe" to "may be",
+            "alot" to "a lot",
+            "abit" to "a bit",
+            "infact" to "in fact",
+            "aswell" to "as well",
+            "sofar" to "so far",
+            "awhile" to "a while",
+            "thankyou" to "thank you",
+            "goodmorning" to "good morning",
+            "goodnight" to "good night",
+            "goodevening" to "good evening",
+            "goodafternoon" to "good afternoon"
+        )
     }
 
     private val dictionary = Dictionary(context)
@@ -296,49 +339,4 @@ class WordProcessor(private val context: Context) {
         return false
     }
 
-    companion object {
-        private val PUNCTUATION = charArrayOf('.', ',', '!', '?', ';', ':', '"', '\'', ')', ']', '}')
-
-        // Common stuck-together words
-        private val COMMON_STUCK_WORDS = mapOf(
-            "iwant" to "i want",
-            "iwas" to "i was",
-            "iwill" to "i will",
-            "iwould" to "i would",
-            "ihave" to "i have",
-            "ive" to "i've",
-            "im" to "i'm",
-            "ill" to "i'll",
-            "id" to "i'd",
-            "goto" to "go to",
-            "inthe" to "in the",
-            "onthe" to "on the",
-            "atthe" to "at the",
-            "tothe" to "to the",
-            "forthe" to "for the",
-            "ofthe" to "of the",
-            "withthe" to "with the",
-            "fromthe" to "from the",
-            "bythe" to "by the",
-            "isthe" to "is the",
-            "wasthe" to "was the",
-            "arethe" to "are the",
-            "werethe" to "were the",
-            "tobe" to "to be",
-            "canbe" to "can be",
-            "willbe" to "will be",
-            "maybe" to "may be", // Note: "maybe" is also valid, context-dependent
-            "alot" to "a lot",
-            "abit" to "a bit",
-            "infact" to "in fact",
-            "aswell" to "as well",
-            "sofar" to "so far",
-            "awhile" to "a while",
-            "thankyou" to "thank you",
-            "goodmorning" to "good morning",
-            "goodnight" to "good night",
-            "goodevening" to "good evening",
-            "goodafternoon" to "good afternoon"
-        )
-    }
 }

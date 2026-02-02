@@ -28,6 +28,8 @@ class CorrectionManager(private val context: Context) {
     companion object {
         private const val TAG = "CorrectionManager"
         private const val MAX_UNDO_STACK = 10
+        private val PUNCTUATION = charArrayOf('.', ',', '!', '?', ';', ':', '-', '"', '\'', ')', ']', '}')
+        private val SENTENCE_ENDERS = charArrayOf('.', '!', '?')
     }
 
     // Processors
@@ -308,8 +310,4 @@ class CorrectionManager(private val context: Context) {
         fun onSentenceCorrected(correction: Correction)
     }
 
-    companion object {
-        private val PUNCTUATION = charArrayOf('.', ',', '!', '?', ';', ':', '-', '"', '\'', ')', ']', '}')
-        private val SENTENCE_ENDERS = charArrayOf('.', '!', '?')
-    }
 }
