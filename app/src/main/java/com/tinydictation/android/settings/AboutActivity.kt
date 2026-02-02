@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.23.2:
+            • FIX: NGram predictions now work instantly when offline
+            • Skip Groq API when no network, use NGram directly
+            • No more 2-second delay per keystroke when offline
+
             v1.23.1:
             • NEW: Cursor trackpad mode on space bar!
             • Long-press space bar and drag to move cursor

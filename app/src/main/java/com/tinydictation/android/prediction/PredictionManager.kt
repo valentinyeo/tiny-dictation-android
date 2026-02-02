@@ -1,6 +1,8 @@
 package com.tinydictation.android.prediction
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.*
@@ -31,6 +33,19 @@ class PredictionManager(private val context: Context) {
 
     // Groq timeout - if Groq takes longer, use offline fallback
     private val groqTimeoutMs = 2000L
+
+    /**
+     * Check if network is available. Used to skip Groq when offline
+     * and use NGram directly for instant predictions.
+     */
+    private fun isNetworkAvailable(): Boolean {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+            ?: return false
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+               capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+    }
 
     /**
      * Initialize both engines. Groq is optional (requires API key), NGram always initializes.
@@ -128,8 +143,11 @@ class PredictionManager(private val context: Context) {
             var predictions: List<Prediction>
             var usedEngine: String
 
-            // Strategy: Try Groq first (if available), fallback to NGram
-            if (groqInitialized && groqEngine != null) {
+            // Check network availability to skip Groq when offline (instant NGram fallback)
+            val hasNetwork = isNetworkAvailable()
+
+            // Strategy: Try Groq first (if available AND online), fallback to NGram
+            if (groqInitialized && groqEngine != null && hasNetwork) {
                 try {
                     // Try Groq with timeout
                     predictions = withTimeout(groqTimeoutMs) {
@@ -154,9 +172,9 @@ class PredictionManager(private val context: Context) {
                     usedEngine = "ngram (groq error)"
                 }
             } else {
-                // No Groq available - use NGram directly
+                // No Groq available or offline - use NGram directly
                 predictions = ngramEngine!!.predict(contextWords, partialWord)
-                usedEngine = "ngram"
+                usedEngine = if (!hasNetwork && groqInitialized) "ngram (offline)" else "ngram"
             }
 
             val elapsedMs = (System.nanoTime() - startTime) / 1_000_000.0
