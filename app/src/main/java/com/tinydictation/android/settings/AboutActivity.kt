@@ -35,6 +35,16 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.24.0:
+            • NEW: Two-stage AI text correction ("Phat Fingers")!
+            • Stage 1: Instant local typo fixes after each word
+            • Stage 2: AI-powered sentence correction at punctuation/pause
+            • Fixes typos, split stuck words (iwant → I want)
+            • Context-aware corrections (by → buy when shopping)
+            • Settings: Text Correction (new settings page)
+            • Import contacts to skip list (won't correct names)
+            • Learns from your corrections over time
+
             v1.23.1:
             • NEW: Cursor trackpad mode on space bar!
             • Long-press space bar and drag to move cursor

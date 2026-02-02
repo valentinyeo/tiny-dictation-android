@@ -44,6 +44,9 @@ import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import com.tinydictation.android.ai.TextImprover
 import com.tinydictation.android.ai.SpellingCorrector
+import com.tinydictation.android.correction.CorrectionManager
+import com.tinydictation.android.correction.Correction
+import com.tinydictation.android.correction.CorrectionStage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -195,6 +198,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var spellingCorrector: SpellingCorrector? = null
     private var isAutoCorrectingPending = false  // Track if a correction is pending
     private var lastSentenceEndChar: Char? = null  // Track the last sentence-ending punctuation
+
+    // Two-stage text correction system (new "phat fingers" feature)
+    private var correctionManager: CorrectionManager? = null
 
     // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
@@ -418,6 +424,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Initialize spelling corrector for auto-correct at sentence end
         spellingCorrector = SpellingCorrector(this)
 
+        // Initialize two-stage text correction system
+        correctionManager = CorrectionManager(this)
+        correctionManager?.correctionListener = object : CorrectionManager.CorrectionListener {
+            override fun onWordCorrected(correction: Correction) {
+                handleWordCorrection(correction)
+            }
+
+            override fun onSentenceCorrected(correction: Correction) {
+                handleSentenceCorrection(correction)
+            }
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            correctionManager?.initialize()
+        }
+
         // Initialize prediction manager based on user's selected engine preference
         predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
         CoroutineScope(Dispatchers.Main).launch {
@@ -561,6 +582,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardHistoryManager?.removeOnHistoryChangedListener(this)
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
+
+        // Release correction manager
+        correctionManager?.release()
+        correctionManager = null
 
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
@@ -1855,12 +1880,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     /**
      * Track typed character in internal buffer (for terminal apps).
+     * Also notifies the CorrectionManager for two-stage correction.
      */
     private fun trackTypedText(text: String) {
         internalTextBuffer.append(text)
         // Keep buffer reasonable size (last 100 chars)
         if (internalTextBuffer.length > 100) {
             internalTextBuffer.delete(0, internalTextBuffer.length - 100)
+        }
+
+        // Notify correction manager if enabled
+        if (text.length == 1 && correctionManager?.isEnabled() == true) {
+            val textBefore = currentInputConnection?.getTextBeforeCursor(200, 0)?.toString() ?: internalTextBuffer.toString()
+            correctionManager?.onCharacterTyped(text[0], textBefore)
         }
     }
 
@@ -4036,5 +4068,109 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     fun refreshTheme() {
         DebugLog.i("DictationKeyboardService: Refreshing theme from settings change")
         applyTheme()
+    }
+
+    // ==================== Two-Stage Text Correction Handlers ====================
+
+    /**
+     * Handle a word-level correction from Stage 1 (local, instant).
+     * Replaces the last word in the input with the corrected version.
+     */
+    private fun handleWordCorrection(correction: Correction) {
+        val ic = currentInputConnection ?: return
+
+        DebugLog.i("DictationKeyboardService: Word correction: '${correction.original}' -> '${correction.corrected}'")
+
+        ic.beginBatchEdit()
+        try {
+            // Get text before cursor to find the word to replace
+            val textBefore = ic.getTextBeforeCursor(200, 0)?.toString() ?: return
+
+            // Find the original word in the text
+            val wordEndIndex = textBefore.trimEnd().length
+            val wordStartIndex = wordEndIndex - correction.original.length
+
+            if (wordStartIndex < 0) return
+
+            // Verify the word matches
+            val foundWord = textBefore.substring(wordStartIndex, wordEndIndex)
+            if (!foundWord.equals(correction.original, ignoreCase = true)) {
+                DebugLog.w("DictationKeyboardService: Word mismatch - expected '${correction.original}', found '$foundWord'")
+                return
+            }
+
+            // Select and replace the word
+            // Calculate distance from cursor to word start
+            val distanceFromCursor = textBefore.length - wordStartIndex
+            ic.deleteSurroundingText(distanceFromCursor, 0)
+            ic.commitText(correction.corrected + " ", 1)
+
+        } finally {
+            ic.endBatchEdit()
+        }
+    }
+
+    /**
+     * Handle a sentence-level correction from Stage 2 (AI-powered).
+     * Replaces the entire sentence with the corrected version.
+     */
+    private fun handleSentenceCorrection(correction: Correction) {
+        val ic = currentInputConnection ?: return
+        val prefs = PreferenceManager(this)
+
+        DebugLog.i("DictationKeyboardService: Sentence correction: '${correction.original}' -> '${correction.corrected}'")
+
+        // Show toast for major changes if enabled
+        if (correction.isMajorChange && prefs.getCorrectionShowMajorChangeToast()) {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(
+                    this,
+                    "Corrected: ${correction.corrected.take(50)}...",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        ic.beginBatchEdit()
+        try {
+            // Get text before cursor
+            val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: return
+
+            // Find the original sentence in the text
+            val sentenceEndIndex = textBefore.lastIndexOf(correction.original)
+            if (sentenceEndIndex < 0) {
+                DebugLog.w("DictationKeyboardService: Sentence not found in text")
+                return
+            }
+
+            // Calculate positions
+            val sentenceStartIndex = sentenceEndIndex
+            val sentenceLength = correction.original.length
+
+            // Distance from cursor to sentence start
+            val distanceToStart = textBefore.length - sentenceStartIndex
+
+            // Delete the original sentence
+            ic.deleteSurroundingText(distanceToStart, 0)
+
+            // Insert the corrected sentence
+            ic.commitText(correction.corrected, 1)
+
+            // Restore any text that was after the sentence
+            val textAfterSentence = textBefore.substring(sentenceStartIndex + sentenceLength)
+            if (textAfterSentence.isNotEmpty()) {
+                ic.commitText(textAfterSentence, 1)
+            }
+
+        } finally {
+            ic.endBatchEdit()
+        }
+    }
+
+    /**
+     * Reload correction settings (call after settings change).
+     */
+    fun reloadCorrectionSettings() {
+        correctionManager?.reloadConfig()
     }
 }

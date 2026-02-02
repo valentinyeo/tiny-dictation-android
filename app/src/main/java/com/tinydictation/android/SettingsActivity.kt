@@ -15,6 +15,7 @@ import com.tinydictation.android.settings.AppearanceSettingsActivity
 import com.tinydictation.android.settings.AudioSettingsActivity
 import com.tinydictation.android.settings.OfflineModelsActivity
 import com.tinydictation.android.settings.PermissionsActivity
+import com.tinydictation.android.settings.TextCorrectionSettingsActivity
 import com.tinydictation.android.settings.TranscriptionSettingsActivity
 import com.tinydictation.android.settings.VoiceCommandsActivity
 
@@ -77,6 +78,12 @@ class SettingsActivity : AppCompatActivity() {
                 subtitle = "Keyboard theme"
             ),
             SettingsCategory(
+                id = "text_correction",
+                icon = R.drawable.ic_spellcheck,
+                title = "Text Correction",
+                subtitle = "Auto-fix typos and spacing"
+            ),
+            SettingsCategory(
                 id = "permissions",
                 icon = R.drawable.ic_shield,
                 title = "Permissions",
@@ -110,6 +117,7 @@ class SettingsActivity : AppCompatActivity() {
             "audio" -> Intent(this, AudioSettingsActivity::class.java)
             "offline_models" -> Intent(this, OfflineModelsActivity::class.java)
             "appearance" -> Intent(this, AppearanceSettingsActivity::class.java)
+            "text_correction" -> Intent(this, TextCorrectionSettingsActivity::class.java)
             "permissions" -> Intent(this, PermissionsActivity::class.java)
             "history" -> Intent(this, HistoryActivity::class.java)
             "dictionary" -> Intent(this, DictionaryActivity::class.java)

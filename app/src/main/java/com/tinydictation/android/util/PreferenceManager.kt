@@ -62,8 +62,28 @@ class PreferenceManager(context: Context) {
         private const val KEY_BTN_HISTORY = "btn_history_enabled"
         private const val KEY_BTN_IMPROVE = "btn_improve_enabled"
 
-        // Auto-correct settings
+        // Auto-correct settings (legacy)
         private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
+
+        // Two-stage text correction settings
+        private const val KEY_CORRECTION_ENABLED = "correction_enabled"
+        private const val KEY_CORRECTION_WORD_LEVEL = "correction_word_level"
+        private const val KEY_CORRECTION_SPLIT_STUCK = "correction_split_stuck"
+        private const val KEY_CORRECTION_SENTENCE_LEVEL = "correction_sentence_level"
+        private const val KEY_CORRECTION_PROVIDER = "correction_provider"
+        private const val KEY_CORRECTION_TRIGGER_PUNCTUATION = "correction_trigger_punctuation"
+        private const val KEY_CORRECTION_TRIGGER_PAUSE = "correction_trigger_pause"
+        private const val KEY_CORRECTION_PAUSE_DURATION = "correction_pause_duration"
+        private const val KEY_CORRECTION_TRIGGER_DOUBLE_SPACE = "correction_trigger_double_space"
+        private const val KEY_CORRECTION_HIGHLIGHT = "correction_highlight"
+        private const val KEY_CORRECTION_SHOW_MAJOR_TOAST = "correction_show_major_toast"
+        private const val KEY_CORRECTION_IMPORT_CONTACTS = "correction_import_contacts"
+        private const val KEY_CORRECTION_LEARN = "correction_learn"
+
+        // Correction provider constants
+        const val CORRECTION_PROVIDER_GROQ_FAST = "GROQ_FAST"
+        const val CORRECTION_PROVIDER_GROQ_SMART = "GROQ_SMART"
+        const val CORRECTION_PROVIDER_CLAUDE_HAIKU = "CLAUDE_HAIKU"
 
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"
@@ -1185,5 +1205,163 @@ class PreferenceManager(context: Context) {
      */
     fun setAutoCorrectEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled).apply()
+    }
+
+    // ========== Two-Stage Text Correction Settings ==========
+
+    /**
+     * Gets whether the two-stage text correction system is enabled.
+     * @return true if enabled (default: false)
+     */
+    fun getCorrectionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_ENABLED, false)
+    }
+
+    fun setCorrectionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_ENABLED, enabled).apply()
+    }
+
+    /**
+     * Gets whether Stage 1 (word-level) correction is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionWordLevelEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_WORD_LEVEL, true)
+    }
+
+    fun setCorrectionWordLevelEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_WORD_LEVEL, enabled).apply()
+    }
+
+    /**
+     * Gets whether stuck word splitting is enabled (iwant -> I want).
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionSplitStuckWords(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_SPLIT_STUCK, true)
+    }
+
+    fun setCorrectionSplitStuckWords(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_SPLIT_STUCK, enabled).apply()
+    }
+
+    /**
+     * Gets whether Stage 2 (sentence-level AI) correction is enabled.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionSentenceLevelEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_SENTENCE_LEVEL, true)
+    }
+
+    fun setCorrectionSentenceLevelEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_SENTENCE_LEVEL, enabled).apply()
+    }
+
+    /**
+     * Gets the AI provider for sentence-level correction.
+     * @return Provider ID (default: GROQ_FAST)
+     */
+    fun getCorrectionProvider(): String {
+        return prefs.getString(KEY_CORRECTION_PROVIDER, CORRECTION_PROVIDER_GROQ_FAST) ?: CORRECTION_PROVIDER_GROQ_FAST
+    }
+
+    fun setCorrectionProvider(provider: String) {
+        prefs.edit().putString(KEY_CORRECTION_PROVIDER, provider).apply()
+    }
+
+    /**
+     * Gets whether to trigger Stage 2 correction on sentence-ending punctuation.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionTriggerOnPunctuation(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_PUNCTUATION, true)
+    }
+
+    fun setCorrectionTriggerOnPunctuation(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_PUNCTUATION, enabled).apply()
+    }
+
+    /**
+     * Gets whether to trigger Stage 2 correction on typing pause.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionTriggerOnPause(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_PAUSE, true)
+    }
+
+    fun setCorrectionTriggerOnPause(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_PAUSE, enabled).apply()
+    }
+
+    /**
+     * Gets the pause duration (ms) before triggering Stage 2 correction.
+     * @return Duration in milliseconds (default: 2000)
+     */
+    fun getCorrectionPauseDuration(): Long {
+        return prefs.getLong(KEY_CORRECTION_PAUSE_DURATION, 2000L)
+    }
+
+    fun setCorrectionPauseDuration(durationMs: Long) {
+        prefs.edit().putLong(KEY_CORRECTION_PAUSE_DURATION, durationMs).apply()
+    }
+
+    /**
+     * Gets whether to trigger Stage 2 correction on double-space.
+     * @return true if enabled (default: false)
+     */
+    fun getCorrectionTriggerOnDoubleSpace(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_DOUBLE_SPACE, false)
+    }
+
+    fun setCorrectionTriggerOnDoubleSpace(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_DOUBLE_SPACE, enabled).apply()
+    }
+
+    /**
+     * Gets whether to briefly highlight corrections.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionHighlightEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_HIGHLIGHT, true)
+    }
+
+    fun setCorrectionHighlightEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_HIGHLIGHT, enabled).apply()
+    }
+
+    /**
+     * Gets whether to show toast for major changes.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionShowMajorChangeToast(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_SHOW_MAJOR_TOAST, true)
+    }
+
+    fun setCorrectionShowMajorChangeToast(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_SHOW_MAJOR_TOAST, enabled).apply()
+    }
+
+    /**
+     * Gets whether to import contacts as known words.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionImportContacts(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_IMPORT_CONTACTS, true)
+    }
+
+    fun setCorrectionImportContacts(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_IMPORT_CONTACTS, enabled).apply()
+    }
+
+    /**
+     * Gets whether to learn from corrections.
+     * @return true if enabled (default: true)
+     */
+    fun getCorrectionLearnEnabled(): Boolean {
+        return prefs.getBoolean(KEY_CORRECTION_LEARN, true)
+    }
+
+    fun setCorrectionLearnEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CORRECTION_LEARN, enabled).apply()
     }
 }
