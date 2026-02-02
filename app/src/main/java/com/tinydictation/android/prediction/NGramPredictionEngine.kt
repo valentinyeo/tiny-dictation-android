@@ -560,7 +560,9 @@ class NGramPredictionEngine : PredictionEngine {
         }
 
         private class TrieNode {
-            val children = mutableMapOf<Char, TrieNode>()
+            // Use sortedMapOf (TreeMap) so children are alphabetically ordered
+            // This ensures "the" (under 'e') is found before "things" (under 'i')
+            val children = sortedMapOf<Char, TrieNode>()
             var isWord = false
             var word: String? = null
         }

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.22.4:
+            • FIX: Trie now uses sorted (TreeMap) children
+            • "the" now correctly appears before "things"
+            • Alphabetical traversal guarantees short words first
+
             v1.22.3:
             • FIX: Common words now appear first in predictions
             • "the", "that", "this" etc. now show before longer words
