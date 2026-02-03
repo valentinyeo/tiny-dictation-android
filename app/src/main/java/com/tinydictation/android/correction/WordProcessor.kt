@@ -116,6 +116,13 @@ class WordProcessor(private val context: Context) {
                 return null
             }
 
+            // Skip potential proper nouns (capitalized mid-sentence words like "Simon")
+            // These are likely names and shouldn't be aggressively corrected
+            if (isPotentialProperNoun(word, isStartOfSentence)) {
+                DebugLog.d("$TAG: Skipping potential proper noun '$word' (capitalized mid-sentence)")
+                return null
+            }
+
             var corrected: String? = null
 
             // Helper to check if a correction was rejected by the user
@@ -165,7 +172,14 @@ class WordProcessor(private val context: Context) {
             }
 
             // 4. Try fuzzy matching for typos
-            corrected = dictionary.findSimilarWord(word, maxDistance = 2)
+            // Scale maxDistance by word length - short words need stricter matching
+            // to avoid bad corrections like "Simon" → "iron" (distance 2)
+            val maxDist = when {
+                word.length <= 4 -> 1  // Very short: only allow 1 edit
+                word.length <= 6 -> if (isPotentialProperNoun(word, isStartOfSentence)) 1 else 2
+                else -> 2
+            }
+            corrected = dictionary.findSimilarWord(word, maxDistance = maxDist)
             if (corrected != null) {
                 // Check if user rejected this fuzzy match
                 if (!checkRejected(word, corrected)) {
@@ -332,6 +346,21 @@ class WordProcessor(private val context: Context) {
             // Lowercase
             else -> corrected.lowercase()
         }
+    }
+
+    /**
+     * Check if a word is potentially a proper noun (name).
+     * Title-cased words not at sentence start are likely names.
+     */
+    private fun isPotentialProperNoun(word: String, isStartOfSentence: Boolean): Boolean {
+        if (word.isEmpty()) return false
+
+        // If word is capitalized (first letter upper, rest lower) and NOT at sentence start,
+        // it's likely a proper noun/name like "Simon", "John", "Sarah"
+        val isCapitalized = word.first().isUpperCase() &&
+            word.drop(1).all { !it.isLetter() || it.isLowerCase() }
+
+        return isCapitalized && !isStartOfSentence
     }
 
     /**

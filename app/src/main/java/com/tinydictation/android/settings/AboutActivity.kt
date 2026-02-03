@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.26.2:
+            • FIX: "Simon" no longer corrected to "iron"
+            • Proper nouns (capitalized mid-sentence) now skip correction
+            • Stricter fuzzy matching for short words (5 chars or less)
+            • Edit distance scaled by word length to prevent bad matches
+
             v1.26.1:
             • NEW: Smart AI rewrite on double-tap space!
             • Double-tap space triggers Claude Opus to rewrite your text
