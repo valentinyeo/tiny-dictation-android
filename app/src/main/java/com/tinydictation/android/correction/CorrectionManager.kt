@@ -53,6 +53,11 @@ class CorrectionManager(private val context: Context) {
     private var lastSpaceTime = 0L
     private val doubleSpaceThreshold = 300L // ms
 
+    // Track last correction for rejection detection
+    private var lastAppliedCorrection: Correction? = null
+    private var lastCorrectionTimestamp = 0L
+    private val CORRECTION_REJECTION_WINDOW = 5000L // 5 seconds to detect rejection
+
     // Coroutine scope
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -183,6 +188,56 @@ class CorrectionManager(private val context: Context) {
     }
 
     /**
+     * Get the last correction that was applied, if still within the rejection window.
+     * Returns null if no recent correction or if the window has expired.
+     */
+    fun getLastCorrection(): Correction? {
+        if (lastAppliedCorrection == null) return null
+        val elapsed = System.currentTimeMillis() - lastCorrectionTimestamp
+        return if (elapsed <= CORRECTION_REJECTION_WINDOW) {
+            lastAppliedCorrection
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Reject the last applied correction. The user manually reverted it,
+     * so we should never apply this correction pair again.
+     *
+     * @return The correction that was rejected, or null if no recent correction to reject
+     */
+    fun rejectLastCorrection(): Correction? {
+        val correction = getLastCorrection() ?: return null
+
+        // Add to rejected list (only for word-level corrections)
+        if (correction.stage == CorrectionStage.WORD) {
+            wordProcessor.addRejectedCorrection(correction.original, correction.corrected)
+            DebugLog.i("$TAG: User rejected correction: '${correction.original}' -> '${correction.corrected}'")
+        } else {
+            // For sentence-level, just add original words to skip list
+            correction.original.split(Regex("\\s+")).forEach { word ->
+                if (word.length >= 2) {
+                    wordProcessor.addToSkipList(word)
+                }
+            }
+            DebugLog.i("$TAG: User rejected sentence correction, added words to skip list")
+        }
+
+        // Clear the last correction since it's been handled
+        lastAppliedCorrection = null
+
+        return correction
+    }
+
+    /**
+     * Clear the last correction tracking (e.g., when user types new content).
+     */
+    fun clearLastCorrection() {
+        lastAppliedCorrection = null
+    }
+
+    /**
      * Check if correction is enabled.
      */
     fun isEnabled(): Boolean = config.enabled
@@ -278,6 +333,10 @@ class CorrectionManager(private val context: Context) {
             undoStack.pollFirst()
         }
         undoStack.addLast(correction)
+
+        // Track this as the last applied correction for rejection detection
+        lastAppliedCorrection = correction
+        lastCorrectionTimestamp = System.currentTimeMillis()
     }
 
     private fun learnFromCorrection(correction: Correction) {

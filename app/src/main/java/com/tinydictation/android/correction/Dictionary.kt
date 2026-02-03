@@ -23,6 +23,7 @@ class Dictionary(private val context: Context) {
         private const val KEY_SKIP_LIST = "skip_list"
         private const val KEY_LEARNED_CORRECTIONS = "learned_corrections"
         private const val KEY_PENDING_LEARN = "pending_learn"
+        private const val KEY_REJECTED_CORRECTIONS = "rejected_corrections"
         private const val LEARN_THRESHOLD = 3 // Occurrences before learning
 
         // Common English words (fallback if dictionary.txt not present)
@@ -171,6 +172,10 @@ class Dictionary(private val context: Context) {
     // Pending corrections (tracking occurrences before learning)
     private val pendingLearn = mutableMapOf<String, PendingLearn>()
 
+    // Rejected corrections - maps original word to set of corrections the user rejected
+    // e.g., "vwo" -> setOf("two", "tow") means never correct "vwo" to "two" or "tow"
+    private val rejectedCorrections = mutableMapOf<String, MutableSet<String>>()
+
     private var isInitialized = false
 
     /**
@@ -230,6 +235,50 @@ class Dictionary(private val context: Context) {
     fun addToSkipList(words: Collection<String>) {
         words.forEach { skipList.add(it.lowercase()) }
         savePersistedData()
+    }
+
+    /**
+     * Check if a specific correction was rejected by the user.
+     * E.g., if user typed "vwo" and we corrected to "two", but they reverted,
+     * this returns true for isRejectedCorrection("vwo", "two").
+     */
+    fun isRejectedCorrection(original: String, correction: String): Boolean {
+        val rejected = rejectedCorrections[original.lowercase()] ?: return false
+        return rejected.contains(correction.lowercase())
+    }
+
+    /**
+     * Add a rejected correction pair. The user manually reverted this correction,
+     * so we should never apply it again.
+     *
+     * @param original The original word the user typed (e.g., "vwo")
+     * @param rejectedCorrection The correction they rejected (e.g., "two")
+     */
+    fun addRejectedCorrection(original: String, rejectedCorrection: String) {
+        val originalLower = original.lowercase()
+        val rejectedLower = rejectedCorrection.lowercase()
+
+        val rejected = rejectedCorrections.getOrPut(originalLower) { mutableSetOf() }
+        rejected.add(rejectedLower)
+
+        DebugLog.i("$TAG: Added rejected correction: '$originalLower' -> '$rejectedLower' (never correct this pair again)")
+        savePersistedData()
+    }
+
+    /**
+     * Get all rejected corrections for debugging/settings UI.
+     */
+    fun getRejectedCorrections(): Map<String, Set<String>> {
+        return rejectedCorrections.mapValues { it.value.toSet() }
+    }
+
+    /**
+     * Clear all rejected corrections.
+     */
+    fun clearRejectedCorrections() {
+        rejectedCorrections.clear()
+        savePersistedData()
+        DebugLog.i("$TAG: Cleared all rejected corrections")
     }
 
     /**
@@ -442,7 +491,22 @@ class Dictionary(private val context: Context) {
                 }
             }
 
-            DebugLog.d("$TAG: Loaded persisted data - ${skipList.size} skip, ${learnedTypos.size} learned, ${pendingLearn.size} pending")
+            // Load rejected corrections
+            // Format: {"vwo": ["two", "tow"], "ai": ["a i"]}
+            val rejectedJson = prefs.getString(KEY_REJECTED_CORRECTIONS, null)
+            if (rejectedJson != null) {
+                val jsonObject = JSONObject(rejectedJson)
+                jsonObject.keys().forEach { original ->
+                    val corrections = jsonObject.getJSONArray(original)
+                    val rejectedSet = mutableSetOf<String>()
+                    for (i in 0 until corrections.length()) {
+                        rejectedSet.add(corrections.getString(i))
+                    }
+                    rejectedCorrections[original] = rejectedSet
+                }
+            }
+
+            DebugLog.d("$TAG: Loaded persisted data - ${skipList.size} skip, ${learnedTypos.size} learned, ${pendingLearn.size} pending, ${rejectedCorrections.size} rejected")
         } catch (e: Exception) {
             DebugLog.e("$TAG: Error loading persisted data - ${e.message}")
         }
@@ -476,6 +540,14 @@ class Dictionary(private val context: Context) {
                 })
             }
             prefs.edit().putString(KEY_PENDING_LEARN, pendingArray.toString()).apply()
+
+            // Save rejected corrections
+            // Format: {"vwo": ["two", "tow"], "ai": ["a i"]}
+            val rejectedJson = JSONObject()
+            rejectedCorrections.forEach { (original, corrections) ->
+                rejectedJson.put(original, JSONArray(corrections.toList()))
+            }
+            prefs.edit().putString(KEY_REJECTED_CORRECTIONS, rejectedJson.toString()).apply()
         } catch (e: Exception) {
             DebugLog.e("$TAG: Error saving persisted data - ${e.message}")
         }

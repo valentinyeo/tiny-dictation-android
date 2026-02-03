@@ -328,6 +328,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Counter to track how many backspaces have been sent (for debugging)
     private var backspaceCount = 0
 
+    // Override detection: track when user is reverting an autocorrection
+    // If user backspaces immediately after a correction and retypes the original, we reject it
+    private var isInCorrectionOverrideMode = false
+    private var overrideCorrectionOriginal: String? = null  // The original word before correction
+    private var overrideCorrectionCorrected: String? = null // The corrected word we applied
+    private var overrideBackspaceCount = 0                  // Track how many chars deleted
+
     // Cursor key repeat handling - similar to backspace but without word deletion
     private val cursorHandler = Handler(Looper.getMainLooper())
     @Volatile private var isCursorKeyHeld = false
@@ -1893,11 +1900,103 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             internalTextBuffer.delete(0, internalTextBuffer.length - 100)
         }
 
+        // Check for correction override: if user was in override mode and types a space,
+        // check if they re-typed the original word and reject the correction
+        if (isInCorrectionOverrideMode && text == " ") {
+            checkCorrectionOverride()
+        }
+
+        // Any non-backspace typing after a long time clears override mode
+        if (isInCorrectionOverrideMode && text != " ") {
+            // Still tracking, user is typing - we'll check when they complete the word
+        }
+
         // Notify correction manager if enabled
         if (text.length == 1 && correctionManager?.isEnabled() == true) {
             val textBefore = currentInputConnection?.getTextBeforeCursor(200, 0)?.toString() ?: internalTextBuffer.toString()
             correctionManager?.onCharacterTyped(text[0], textBefore)
         }
+    }
+
+    /**
+     * Check if user has typed back the original word, indicating they want to reject the correction.
+     * Called when user types a space after being in override detection mode.
+     */
+    private fun checkCorrectionOverride() {
+        if (!isInCorrectionOverrideMode) return
+
+        val original = overrideCorrectionOriginal ?: return
+        val corrected = overrideCorrectionCorrected ?: return
+
+        // Get the word the user just typed (before the space)
+        val textBefore = currentInputConnection?.getTextBeforeCursor(50, 0)?.toString() ?: return
+        val lastWord = textBefore.trimEnd().split(Regex("\\s+")).lastOrNull() ?: return
+
+        DebugLog.d("DictationKeyboardService: Override check - typed '$lastWord', original was '$original', corrected was '$corrected'")
+
+        // Check if what they typed matches (or is similar to) the original word
+        val isSimilar = lastWord.equals(original, ignoreCase = true) ||
+                        levenshteinDistanceSimple(lastWord.lowercase(), original.lowercase()) <= 1
+
+        if (isSimilar) {
+            // User re-typed the original word - they're rejecting the correction!
+            DebugLog.i("DictationKeyboardService: User rejected correction '$original' -> '$corrected'")
+
+            // Tell the correction manager to remember this rejection
+            correctionManager?.rejectLastCorrection()
+
+            // Show a brief toast to confirm
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(
+                    this,
+                    "Won't correct '$original' again",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
+        // Clear override mode
+        resetCorrectionOverrideMode()
+    }
+
+    /**
+     * Reset the correction override detection state.
+     */
+    private fun resetCorrectionOverrideMode() {
+        isInCorrectionOverrideMode = false
+        overrideCorrectionOriginal = null
+        overrideCorrectionCorrected = null
+        overrideBackspaceCount = 0
+    }
+
+    /**
+     * Simple Levenshtein distance for override detection.
+     */
+    private fun levenshteinDistanceSimple(s1: String, s2: String): Int {
+        val m = s1.length
+        val n = s2.length
+        if (m == 0) return n
+        if (n == 0) return m
+        if (s1 == s2) return 0
+
+        var prevRow = IntArray(n + 1) { it }
+        var currRow = IntArray(n + 1)
+
+        for (i in 1..m) {
+            currRow[0] = i
+            for (j in 1..n) {
+                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
+                currRow[j] = minOf(
+                    prevRow[j] + 1,
+                    currRow[j - 1] + 1,
+                    prevRow[j - 1] + cost
+                )
+            }
+            val temp = prevRow
+            prevRow = currRow
+            currRow = temp
+        }
+        return prevRow[n]
     }
 
     /**
@@ -2939,12 +3038,27 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             MotionEvent.ACTION_DOWN -> {
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_DOWN")
 
+                // Check if there's a recent correction - if so, enter override detection mode
+                val lastCorrection = correctionManager?.getLastCorrection()
+                if (lastCorrection != null && !isInCorrectionOverrideMode) {
+                    isInCorrectionOverrideMode = true
+                    overrideCorrectionOriginal = lastCorrection.original
+                    overrideCorrectionCorrected = lastCorrection.corrected
+                    overrideBackspaceCount = 0
+                    DebugLog.d("DictationKeyboardService: Entering correction override detection mode for '${lastCorrection.corrected}' -> '${lastCorrection.original}'")
+                }
+
                 // Reset counter for this hold session
                 backspaceCount = 0
 
                 // Send first backspace immediately
                 sendBackspace()
                 backspaceCount++
+
+                // Track backspaces for override detection
+                if (isInCorrectionOverrideMode) {
+                    overrideBackspaceCount++
+                }
 
                 // Record start time and set flag to indicate button is held
                 backspaceStartTime = System.currentTimeMillis()
@@ -2960,6 +3074,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 val holdDuration = System.currentTimeMillis() - backspaceStartTime
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL after ${holdDuration}ms, $backspaceCount deletions")
+
+                // Track total backspaces for override detection
+                if (isInCorrectionOverrideMode) {
+                    overrideBackspaceCount += (backspaceCount - 1) // -1 because first was already counted in ACTION_DOWN
+                    DebugLog.d("DictationKeyboardService: Override mode: deleted $overrideBackspaceCount chars total, corrected word was '${overrideCorrectionCorrected}' (${overrideCorrectionCorrected?.length} chars)")
+
+                    // If user deleted roughly the corrected word length + space, they're likely reverting
+                    val correctedLen = (overrideCorrectionCorrected?.length ?: 0) + 1 // +1 for trailing space
+                    if (overrideBackspaceCount >= correctedLen) {
+                        DebugLog.d("DictationKeyboardService: User likely deleted the corrected word, waiting to see what they type")
+                    }
+                }
 
                 // Clear the flag - this will cause the runnable to stop on next iteration
                 isBackspaceHeld = false
@@ -4099,6 +4225,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
+
+        // Reset correction override mode when keyboard is hidden
+        resetCorrectionOverrideMode()
+        correctionManager?.clearLastCorrection()
 
         // Stop transcription when keyboard is hidden to save battery
         if (isRecording || isProcessing) {

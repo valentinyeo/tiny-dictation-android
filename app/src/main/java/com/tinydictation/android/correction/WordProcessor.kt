@@ -118,11 +118,24 @@ class WordProcessor(private val context: Context) {
 
             var corrected: String? = null
 
+            // Helper to check if a correction was rejected by the user
+            fun checkRejected(original: String, correction: String): Boolean {
+                if (dictionary.isRejectedCorrection(original, correction)) {
+                    DebugLog.d("$TAG: Skipping rejected correction: '$original' -> '$correction'")
+                    return true
+                }
+                return false
+            }
+
             // 1. Check for known typo correction
             corrected = dictionary.getTypoCorrection(word)
             if (corrected != null) {
-                DebugLog.d("$TAG: Typo match: '$word' -> '$corrected'")
-                return applyCasing(word, corrected, isStartOfSentence)
+                // Check if user previously rejected this correction
+                if (!checkRejected(word, corrected)) {
+                    DebugLog.d("$TAG: Typo match: '$word' -> '$corrected'")
+                    return applyCasing(word, corrected, isStartOfSentence)
+                }
+                corrected = null  // Reset since this was rejected
             }
 
             // 2. Check if it's a valid word
@@ -139,11 +152,14 @@ class WordProcessor(private val context: Context) {
             if (config.splitStuckWords && word.length >= 4) {
                 val split = trySplitWord(word)
                 if (split != null) {
-                    DebugLog.d("$TAG: Split word: '$word' -> '$split'")
-                    return if (isStartOfSentence) {
-                        split.replaceFirstChar { it.uppercase() }
-                    } else {
-                        split
+                    // Check if user rejected this split
+                    if (!checkRejected(word, split)) {
+                        DebugLog.d("$TAG: Split word: '$word' -> '$split'")
+                        return if (isStartOfSentence) {
+                            split.replaceFirstChar { it.uppercase() }
+                        } else {
+                            split
+                        }
                     }
                 }
             }
@@ -151,8 +167,11 @@ class WordProcessor(private val context: Context) {
             // 4. Try fuzzy matching for typos
             corrected = dictionary.findSimilarWord(word, maxDistance = 2)
             if (corrected != null) {
-                DebugLog.d("$TAG: Fuzzy match: '$word' -> '$corrected'")
-                return applyCasing(word, corrected, isStartOfSentence)
+                // Check if user rejected this fuzzy match
+                if (!checkRejected(word, corrected)) {
+                    DebugLog.d("$TAG: Fuzzy match: '$word' -> '$corrected'")
+                    return applyCasing(word, corrected, isStartOfSentence)
+                }
             }
 
             // 5. No correction found, apply capitalization only
@@ -224,6 +243,14 @@ class WordProcessor(private val context: Context) {
      */
     fun recordCorrection(typo: String, correction: String) {
         dictionary.recordCorrection(typo, correction)
+    }
+
+    /**
+     * Add a rejected correction - user manually reverted this correction,
+     * so never apply it again.
+     */
+    fun addRejectedCorrection(original: String, rejectedCorrection: String) {
+        dictionary.addRejectedCorrection(original, rejectedCorrection)
     }
 
     /**

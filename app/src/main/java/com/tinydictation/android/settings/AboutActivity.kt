@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.26.0:
+            • NEW: Autocorrect override learning!
+            • If you backspace a correction and retype the original word, we remember it
+            • "Won't correct 'vwo' again" - never re-corrects rejected words
+            • Persisted across sessions - your preferences are saved
+            • Works for typos, fuzzy matches, and word splits
+
             v1.25.3:
             • NEW: Manual snippet creation (+ button on snippets panel)
             • NEW: Text correction enabled by default
