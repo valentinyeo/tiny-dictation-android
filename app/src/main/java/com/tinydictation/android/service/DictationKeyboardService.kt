@@ -442,6 +442,40 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             override fun onSentenceCorrected(correction: Correction) {
                 handleSentenceCorrection(correction)
             }
+
+            override fun onSmartRewriteStarted() {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        this@DictationKeyboardService,
+                        "✨ Rewriting...",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
+
+            override fun onSmartRewriteCompleted(correction: Correction?) {
+                if (correction != null) {
+                    handleSmartRewriteCorrection(correction)
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        Toast.makeText(
+                            this@DictationKeyboardService,
+                            "No changes needed",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                }
+            }
+
+            override fun onSmartRewriteFailed(error: String) {
+                Handler(Looper.getMainLooper()).post {
+                    Toast.makeText(
+                        this@DictationKeyboardService,
+                        "Rewrite failed: $error",
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
         }
         CoroutineScope(Dispatchers.IO).launch {
             correctionManager?.initialize()
@@ -4383,6 +4417,55 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             if (textAfterSentence.isNotEmpty()) {
                 ic.commitText(textAfterSentence, 1)
             }
+
+        } finally {
+            ic.endBatchEdit()
+        }
+    }
+
+    /**
+     * Handle smart rewrite correction from double-tap space (Claude Opus via OpenRouter).
+     * Replaces ALL text before cursor with the rewritten version.
+     */
+    private fun handleSmartRewriteCorrection(correction: Correction) {
+        val ic = currentInputConnection ?: return
+
+        DebugLog.i("DictationKeyboardService: Smart rewrite: '${correction.original.take(50)}...' -> '${correction.corrected.take(50)}...'")
+
+        // Show toast with preview of the rewrite
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(
+                this,
+                "✨ Rewritten!",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+
+        ic.beginBatchEdit()
+        try {
+            // Get text before cursor to verify it matches
+            val textBefore = ic.getTextBeforeCursor(2000, 0)?.toString() ?: return
+
+            // Find the original text in what's before cursor
+            // Smart rewrite operates on all text before cursor, so we look for it at the end
+            val originalTrimmed = correction.original.trimEnd()
+            val textBeforeTrimmed = textBefore.trimEnd()
+
+            // The original should be at the end of textBefore (possibly with trailing space difference)
+            if (!textBeforeTrimmed.endsWith(originalTrimmed) && textBeforeTrimmed != originalTrimmed) {
+                // Try to find it as a suffix with some tolerance
+                val matchIndex = textBefore.lastIndexOf(correction.original)
+                if (matchIndex < 0) {
+                    DebugLog.w("DictationKeyboardService: Smart rewrite text not found in current text")
+                    return
+                }
+            }
+
+            // Delete the original text (everything before cursor that was sent for rewrite)
+            ic.deleteSurroundingText(correction.original.length, 0)
+
+            // Insert the rewritten text
+            ic.commitText(correction.corrected, 1)
 
         } finally {
             ic.endBatchEdit()

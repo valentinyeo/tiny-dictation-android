@@ -3,6 +3,7 @@ package com.tinydictation.android.correction
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import com.tinydictation.android.ai.OpenRouterClient
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
@@ -35,6 +36,7 @@ class CorrectionManager(private val context: Context) {
     // Processors
     private val wordProcessor = WordProcessor(context)
     private val sentenceProcessor = SentenceProcessor(context)
+    private val openRouterClient = OpenRouterClient(context)
 
     // Configuration
     private val prefs = PreferenceManager(context)
@@ -125,9 +127,9 @@ class CorrectionManager(private val context: Context) {
         if (char == ' ') {
             val now = System.currentTimeMillis()
             if (config.triggerOnDoubleSpace && (now - lastSpaceTime) < doubleSpaceThreshold) {
-                // Double-space detected - trigger Stage 2
+                // Double-space detected - trigger smart rewrite
                 lastSpaceTime = 0L
-                triggerSentenceCorrection(textBeforeCursor)
+                triggerSmartRewrite(textBeforeCursor)
                 return null
             }
             lastSpaceTime = now
@@ -310,6 +312,77 @@ class CorrectionManager(private val context: Context) {
         }
     }
 
+    /**
+     * Trigger smart text rewrite using OpenRouter (Claude Opus) on double-tap space.
+     * Falls back to regular sentence correction if OpenRouter is not configured.
+     */
+    private fun triggerSmartRewrite(textBeforeCursor: String) {
+        // If OpenRouter is not configured, fall back to regular sentence correction
+        if (!openRouterClient.isConfigured()) {
+            DebugLog.d("$TAG: OpenRouter not configured, falling back to Groq sentence correction")
+            triggerSentenceCorrection(textBeforeCursor)
+            return
+        }
+
+        scope.launch {
+            try {
+                // Get all text before cursor (not just last sentence - we want to rewrite everything)
+                val textToRewrite = textBeforeCursor.trimEnd()
+                if (textToRewrite.length < 3) {
+                    DebugLog.d("$TAG: Text too short for smart rewrite")
+                    return@launch
+                }
+
+                DebugLog.i("$TAG: Triggering smart rewrite for ${textToRewrite.length} chars")
+
+                // Notify listener that smart rewrite is starting
+                mainHandler.post {
+                    correctionListener?.onSmartRewriteStarted()
+                }
+
+                val result = openRouterClient.rewriteText(textToRewrite)
+
+                if (result.isSuccess) {
+                    val rewritten = result.getOrNull() ?: return@launch
+
+                    // Skip if no change
+                    if (rewritten == textToRewrite || rewritten.isBlank()) {
+                        DebugLog.d("$TAG: Smart rewrite made no changes")
+                        mainHandler.post {
+                            correctionListener?.onSmartRewriteCompleted(null)
+                        }
+                        return@launch
+                    }
+
+                    val correction = Correction(
+                        original = textToRewrite,
+                        corrected = rewritten,
+                        stage = CorrectionStage.SENTENCE,
+                        isMajorChange = true // Smart rewrites can be major
+                    )
+
+                    pushUndo(correction)
+
+                    // Notify listener on main thread
+                    mainHandler.post {
+                        correctionListener?.onSmartRewriteCompleted(correction)
+                    }
+                } else {
+                    val error = result.exceptionOrNull()
+                    DebugLog.e("$TAG: Smart rewrite failed - ${error?.message}")
+                    mainHandler.post {
+                        correctionListener?.onSmartRewriteFailed(error?.message ?: "Unknown error")
+                    }
+                }
+            } catch (e: Exception) {
+                DebugLog.e("$TAG: Smart rewrite exception - ${e.message}")
+                mainHandler.post {
+                    correctionListener?.onSmartRewriteFailed(e.message ?: "Unknown error")
+                }
+            }
+        }
+    }
+
     private fun startPauseTimer(textBeforeCursor: String) {
         pauseJob?.cancel()
         pauseJob = scope.launch {
@@ -367,6 +440,23 @@ class CorrectionManager(private val context: Context) {
          * Called when Stage 2 makes a sentence-level correction.
          */
         fun onSentenceCorrected(correction: Correction)
+
+        /**
+         * Called when smart rewrite (double-tap space) starts processing.
+         */
+        fun onSmartRewriteStarted() {}
+
+        /**
+         * Called when smart rewrite completes successfully.
+         * @param correction The correction to apply, or null if no changes needed
+         */
+        fun onSmartRewriteCompleted(correction: Correction?) {}
+
+        /**
+         * Called when smart rewrite fails.
+         * @param error Error message describing the failure
+         */
+        fun onSmartRewriteFailed(error: String) {}
     }
 
 }

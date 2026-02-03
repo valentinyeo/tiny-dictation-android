@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.26.1:
+            • NEW: Smart AI rewrite on double-tap space!
+            • Double-tap space triggers Claude Opus to rewrite your text
+            • Fixes typos, garbled text, and unclear sentences
+            • Requires OpenRouter API key (Settings → API Keys)
+            • Falls back to Groq if OpenRouter not configured
+
             v1.26.0:
             • NEW: Autocorrect override learning!
             • If you backspace a correction and retype the original word, we remember it

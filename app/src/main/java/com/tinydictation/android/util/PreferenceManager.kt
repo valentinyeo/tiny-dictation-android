@@ -156,6 +156,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_OPENAI_API_KEY = "openai_api_key"
         private const val KEY_ASSEMBLYAI_API_KEY = "assemblyai_api_key"
         private const val KEY_GEMINI_API_KEY = "gemini_api_key"
+        private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
         private const val KEY_CLOUD_PROVIDER = "cloud_provider"
         private const val KEY_DEEPGRAM_MODEL = "deepgram_model"
         private const val KEY_GROQ_MODEL = "groq_model"
@@ -776,6 +777,30 @@ class PreferenceManager(context: Context) {
      */
     fun hasGeminiApiKey(): Boolean {
         return !getGeminiApiKey().isNullOrBlank()
+    }
+
+    /**
+     * Gets the OpenRouter API key for accessing models like Claude Opus.
+     * @return API key or null if not configured
+     */
+    fun getOpenRouterApiKey(): String? {
+        return prefs.getString(KEY_OPENROUTER_API_KEY, null)
+    }
+
+    /**
+     * Sets the OpenRouter API key.
+     * @param key The API key
+     */
+    fun setOpenRouterApiKey(key: String) {
+        prefs.edit().putString(KEY_OPENROUTER_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if an OpenRouter API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasOpenRouterApiKey(): Boolean {
+        return !getOpenRouterApiKey().isNullOrBlank()
     }
 
     // ========== Provider Model Selection ==========
