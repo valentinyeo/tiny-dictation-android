@@ -22,8 +22,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var giphyApiKeyInput: TextInputEditText
     private lateinit var numberRowSwitch: MaterialSwitch
-    private lateinit var predictionsSwitch: MaterialSwitch
-    private lateinit var autoCorrectSwitch: MaterialSwitch
     private lateinit var compactBarSwitch: MaterialSwitch
     private lateinit var panelClaudeSwitch: MaterialSwitch
     private lateinit var panelShellSwitch: MaterialSwitch
@@ -61,8 +59,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         giphyApiKeyInput = findViewById(R.id.etGiphyApiKey)
         numberRowSwitch = findViewById(R.id.switchNumberRow)
-        predictionsSwitch = findViewById(R.id.switchPredictions)
-        autoCorrectSwitch = findViewById(R.id.switchAutoCorrect)
         compactBarSwitch = findViewById(R.id.switchCompactBar)
         panelClaudeSwitch = findViewById(R.id.switchPanelClaude)
         panelShellSwitch = findViewById(R.id.switchPanelShell)
@@ -88,8 +84,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private fun loadSettings() {
         preferenceManager.getGiphyApiKey()?.let { giphyApiKeyInput.setText(it) }
         numberRowSwitch.isChecked = preferenceManager.getShowNumberRow()
-        predictionsSwitch.isChecked = preferenceManager.getPredictionsEnabled()
-        autoCorrectSwitch.isChecked = preferenceManager.getAutoCorrectEnabled()
         compactBarSwitch.isChecked = preferenceManager.getCompactDictationBar()
         panelClaudeSwitch.isChecked = preferenceManager.getPanelClaudeEnabled()
         panelShellSwitch.isChecked = preferenceManager.getPanelShellEnabled()
@@ -118,20 +112,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
             // Note: Keyboard needs to be reopened to see the change
         }
 
-        // AI predictions toggle
-        predictionsSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setPredictionsEnabled(isChecked)
-            DebugLog.i("AI predictions setting changed to: $isChecked")
-            // Effect is immediate when keyboard next opens
-        }
-
-        // Auto-correct at sentence end toggle
-        autoCorrectSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setAutoCorrectEnabled(isChecked)
-            DebugLog.i("Auto-correct setting changed to: $isChecked")
-            // Effect is immediate - corrects after typing punctuation + space
-        }
-
         // Compact dictation bar toggle
         compactBarSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setCompactDictationBar(isChecked)
@@ -142,7 +122,7 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         // Panel visibility toggles
         panelClaudeSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setPanelClaudeEnabled(isChecked)
-            DebugLog.i("Claude panel setting changed to: $isChecked")
+            DebugLog.i("Agent panel setting changed to: $isChecked")
         }
         panelShellSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setPanelShellEnabled(isChecked)

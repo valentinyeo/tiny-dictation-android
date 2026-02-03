@@ -276,6 +276,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var spaceTrackpadStartX = 0f
     private var spaceTrackpadLastX = 0f
     private var spaceTrackpadAccumulatedDelta = 0f
+    private var spaceTrackpadLastMoveTime = 0L  // For velocity-based acceleration
     private val TRACKPAD_LONG_PRESS_THRESHOLD = 250L  // ms to enter trackpad mode
     private val TRACKPAD_MOVE_THRESHOLD_DP = 20f  // dp per cursor move
     private val spaceTrackpadHandler = Handler(Looper.getMainLooper())
@@ -1561,7 +1562,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             2 -> inflateClaudePanelIfNeeded()
             3 -> inflateShellPanelIfNeeded()
             4 -> inflateSnippetsPanelIfNeeded()
-            5 -> inflateClipboardPanelIfNeeded()
+            5 -> {
+                inflateClipboardPanelIfNeeded()
+                refreshClipboardPanel()  // Always refresh to show latest clipboard content
+            }
             6 -> inflateHistoryTabPanelIfNeeded()
         }
 
@@ -1909,16 +1913,26 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     /**
      * Show/hide prediction strip based on user preference and terminal app detection.
      * Predictions are hidden when: disabled in settings OR in terminal apps.
+     * Also adjusts container height to prevent key size changes.
      */
     private fun updatePredictionStripVisibility() {
         val shouldHide = !predictionsEnabled || isTerminalApp
         predictionStrip?.visibility = if (shouldHide) View.GONE else View.VISIBLE
+        
+        // Adjust container height to prevent key size changes when prediction strip is hidden
+        // Prediction strip is ~50dp, so reduce from 320dp to 270dp when hidden
+        val container = keyboardTabbedPanel?.findViewById<View>(R.id.keyboardPagesContainer)
+        val heightDp = if (shouldHide) 270 else 320
+        val heightPx = (heightDp * resources.displayMetrics.density).toInt()
+        container?.layoutParams?.height = heightPx
+        container?.requestLayout()
+        
         val reason = when {
             !predictionsEnabled -> "disabled in settings"
             isTerminalApp -> "terminal app"
             else -> "enabled"
         }
-        DebugLog.d("DictationKeyboardService: Prediction strip visibility: ${if (shouldHide) "HIDDEN" else "VISIBLE"} ($reason)")
+        DebugLog.d("DictationKeyboardService: Prediction strip visibility: ${if (shouldHide) "HIDDEN" else "VISIBLE"} ($reason), container height: ${heightDp}dp")
     }
 
     /**
@@ -2237,6 +2251,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             // Load snippets and set up adapter
             loadSnippetsContent(recyclerView, emptyState)
 
+            // Set up FAB for adding new snippet
+            val fabAddSnippet = snippetsPanel?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAddSnippet)
+            fabAddSnippet?.setOnClickListener {
+                showAddSnippetDialog()
+            }
+
+            // Set up empty state button for creating first snippet
+            val btnCreateSnippetEmpty = snippetsPanel?.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnCreateSnippetEmpty)
+            btnCreateSnippetEmpty?.setOnClickListener {
+                showAddSnippetDialog()
+            }
+
             DebugLog.i("DictationKeyboardService: Snippets panel set up")
         } catch (e: Exception) {
             DebugLog.e("DictationKeyboardService: Failed to setup snippets panel: ${e.message}")
@@ -2282,6 +2308,45 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val recyclerView = snippetsPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.snippetsRecyclerView)
         val emptyState = snippetsPanel?.findViewById<View>(R.id.snippetsEmptyState)
         recyclerView?.let { loadSnippetsContent(it, emptyState) }
+    }
+
+    /**
+     * Shows a dialog for manually creating a new snippet.
+     */
+    private fun showAddSnippetDialog() {
+        try {
+            val themedContext = android.view.ContextThemeWrapper(this, R.style.Theme_TinyDictation)
+
+            val editText = android.widget.EditText(themedContext).apply {
+                hint = "Enter snippet text"
+                inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_FLAG_MULTI_LINE
+                minLines = 3
+                maxLines = 6
+                setPadding(48, 32, 48, 32)
+            }
+
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(themedContext)
+                .setTitle("New Snippet")
+                .setView(editText)
+                .setPositiveButton("Save") { _, _ ->
+                    val text = editText.text.toString().trim()
+                    if (text.isNotBlank()) {
+                        val snippetManager = com.tinydictation.android.snippet.SnippetManager.getInstance(this)
+                        if (snippetManager.add(text)) {
+                            refreshSnippetsPanel()
+                            android.widget.Toast.makeText(this, R.string.snippet_saved, android.widget.Toast.LENGTH_SHORT).show()
+                            DebugLog.i("DictationKeyboardService: Snippet created manually: ${text.take(30)}...")
+                        } else {
+                            android.widget.Toast.makeText(this, R.string.snippet_already_exists, android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+                .setNegativeButton("Cancel", null)
+                .show()
+        } catch (e: Exception) {
+            DebugLog.e("DictationKeyboardService: Failed to show add snippet dialog: ${e.message}")
+            Log.e(TAG, "Failed to show add snippet dialog", e)
+        }
     }
 
     /**
@@ -3089,6 +3154,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Track last shift tap time for double-tap detection
     private var lastShiftTapTime = 0L
 
+    // Track last space tap time for double-tap correction trigger
+    private var lastSpaceTapTime = 0L
+
     /**
      * Handles touch events for the shift key.
      * - Tap: toggle shift (or secondary symbols in numbers mode)
@@ -3164,6 +3232,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadStartX = event.rawX
                 spaceTrackpadLastX = event.rawX
                 spaceTrackpadAccumulatedDelta = 0f
+                spaceTrackpadLastMoveTime = System.currentTimeMillis()
 
                 // Start long-press timer
                 spaceTrackpadHandler.postDelayed(
@@ -3174,10 +3243,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isSpaceTrackpadMode) {
-                    // In trackpad mode - move cursor based on drag distance
+                    // In trackpad mode - move cursor based on drag distance with velocity-based acceleration
+                    val currentTime = System.currentTimeMillis()
+                    val timeDelta = (currentTime - spaceTrackpadLastMoveTime).coerceAtLeast(1)
                     val deltaX = event.rawX - spaceTrackpadLastX
-                    spaceTrackpadAccumulatedDelta += deltaX
+
+                    // Calculate velocity (pixels per millisecond)
+                    val velocity = Math.abs(deltaX) / timeDelta
+
+                    // Velocity-based acceleration: slow finger = 1x, fast finger = up to 4x
+                    // velocity of ~0.5 px/ms (moderate speed) = 1.5x
+                    // velocity of ~2.0 px/ms (fast swipe) = 3x
+                    val acceleration = (1f + velocity * 1.5f).coerceIn(1f, 4f)
+
+                    spaceTrackpadAccumulatedDelta += deltaX * acceleration
                     spaceTrackpadLastX = event.rawX
+                    spaceTrackpadLastMoveTime = currentTime
 
                     // Check if accumulated movement exceeds threshold
                     while (Math.abs(spaceTrackpadAccumulatedDelta) >= moveThreshold) {
@@ -3207,13 +3288,24 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
-                    // Short tap - insert space
-                    currentInputConnection?.commitText(" ", 1)
-                    trackTypedText(" ")  // Track for terminal apps
-                    updatePredictions()
+                    val currentTime = System.currentTimeMillis()
+                    if (currentTime - lastSpaceTapTime < 300) {
+                        // Double-tap detected - trigger manual correction immediately
+                        val textBeforeCursor = currentInputConnection?.getTextBeforeCursor(500, 0)?.toString() ?: ""
+                        correctionManager?.triggerManualCorrection(textBeforeCursor)
+                        spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        DebugLog.d("DictationKeyboardService: Double-tap space - triggering manual correction")
+                        // Don't insert space on double-tap - just trigger correction
+                    } else {
+                        // Single tap - insert space (normal behavior)
+                        currentInputConnection?.commitText(" ", 1)
+                        trackTypedText(" ")  // Track for terminal apps
+                        updatePredictions()
 
-                    // Check for sentence-end auto-correct
-                    checkAndTriggerAutoCorrect()
+                        // Check for sentence-end auto-correct
+                        checkAndTriggerAutoCorrect()
+                    }
+                    lastSpaceTapTime = currentTime
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }

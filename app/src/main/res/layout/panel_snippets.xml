@@ -48,6 +48,27 @@
             android:textColor="@color/on_surface_variant"
             android:alpha="0.7" />
 
+        <!-- Create snippet button in empty state -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnCreateSnippetEmpty"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:text="Create Snippet"
+            app:icon="@drawable/ic_add"
+            style="@style/Widget.Material3.Button.TonalButton" />
+
     </LinearLayout>
+
+    <!-- FAB for adding new snippet -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddSnippet"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_add"
+        android:contentDescription="Add snippet"
+        app:fabSize="mini" />
 
 </FrameLayout>

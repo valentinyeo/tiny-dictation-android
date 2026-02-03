@@ -1211,10 +1211,10 @@ class PreferenceManager(context: Context) {
 
     /**
      * Gets whether the two-stage text correction system is enabled.
-     * @return true if enabled (default: false)
+     * @return true if enabled (default: true)
      */
     fun getCorrectionEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_ENABLED, false)
+        return prefs.getBoolean(KEY_CORRECTION_ENABLED, true)
     }
 
     fun setCorrectionEnabled(enabled: Boolean) {

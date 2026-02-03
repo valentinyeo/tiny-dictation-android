@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Claude commands panel - Quick access to Claude Code commands -->
+<!-- Agent commands panel - Quick access to Claude Code commands -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/claudePanel"
     android:layout_width="match_parent"
@@ -30,6 +30,18 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
+            <TextView android:id="@+id/claude_quick_init"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/init"
+                android:tag="/init" />
+
+            <TextView android:id="@+id/claude_quick_clear"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/clear"
+                android:tag="/clear" />
+
             <TextView android:id="@+id/claude_quick_exit"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
@@ -41,18 +53,6 @@
                 android:layout_weight="1"
                 android:text="Esc"
                 android:tag="\u001b" />
-
-            <TextView android:id="@+id/claude_quick_y"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="y"
-                android:tag="y" />
-
-            <TextView android:id="@+id/claude_quick_n"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="n"
-                android:tag="n" />
         </LinearLayout>
 
         <LinearLayout
@@ -60,11 +60,17 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <TextView android:id="@+id/claude_quick_send"
+            <TextView android:id="@+id/claude_quick_compact"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/send"
-                android:tag="/send" />
+                android:text="/compact"
+                android:tag="/compact" />
+
+            <TextView android:id="@+id/claude_quick_usage"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/usage"
+                android:tag="/usage" />
 
             <TextView android:id="@+id/claude_quick_cost"
                 style="@style/ClaudeCommandKey"
@@ -72,17 +78,52 @@
                 android:text="/cost"
                 android:tag="/cost" />
 
-            <TextView android:id="@+id/claude_quick_compact"
+            <TextView android:id="@+id/claude_quick_send"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/compact"
-                android:tag="/compact" />
+                android:text="/send"
+                android:tag="/send" />
+        </LinearLayout>
 
-            <TextView android:id="@+id/claude_quick_clear"
+        <!-- Section: Agent Modes -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Agent Modes"
+            android:textSize="11sp"
+            android:textColor="@color/primary"
+            android:textStyle="bold"
+            android:paddingTop="8dp"
+            android:paddingBottom="2dp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <TextView android:id="@+id/claude_mode_worker"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/clear"
-                android:tag="/clear" />
+                android:text="/worker"
+                android:tag="/worker" />
+
+            <TextView android:id="@+id/claude_mode_planner"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/planner"
+                android:tag="/planner" />
+
+            <TextView android:id="@+id/claude_mode_qa"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/qa"
+                android:tag="/qa" />
+
+            <TextView android:id="@+id/claude_mode_hyper"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/hyper"
+                android:tag="/hyper" />
         </LinearLayout>
 
         <!-- Section: Shell Launch Commands -->
@@ -129,65 +170,6 @@
                 android:tag="claude --dangerously-skip-permissions --continue" />
         </LinearLayout>
 
-        <!-- Section: Permission Commands -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Permissions"
-            android:textSize="11sp"
-            android:textColor="@color/primary"
-            android:textStyle="bold"
-            android:paddingTop="8dp"
-            android:paddingBottom="2dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView android:id="@+id/claude_skip_permissions"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/permissions"
-                android:tag="/permissions" />
-
-            <TextView android:id="@+id/claude_yes"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="y"
-                android:tag="y" />
-
-            <TextView android:id="@+id/claude_no"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="n"
-                android:tag="n" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView android:id="@+id/claude_continue"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/continue"
-                android:tag="/continue" />
-
-            <TextView android:id="@+id/claude_resume"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/resume"
-                android:tag="/resume" />
-
-            <TextView android:id="@+id/claude_stop"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="Esc"
-                android:tag="\u001b" />
-        </LinearLayout>
-
         <!-- Section: Session Commands -->
         <TextView
             android:layout_width="match_parent"
@@ -204,12 +186,6 @@
             android:layout_height="wrap_content"
             android:orientation="horizontal">
 
-            <TextView android:id="@+id/claude_clear"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/clear"
-                android:tag="/clear" />
-
             <TextView android:id="@+id/claude_reset"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
@@ -221,65 +197,12 @@
                 android:layout_weight="1"
                 android:text="/undo"
                 android:tag="/undo" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView android:id="@+id/claude_compact"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/compact"
-                android:tag="/compact" />
-
-            <TextView android:id="@+id/claude_cost"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/cost"
-                android:tag="/cost" />
 
             <TextView android:id="@+id/claude_memory"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/memory"
                 android:tag="/memory" />
-        </LinearLayout>
-
-        <!-- Section: Mode Commands -->
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="Modes"
-            android:textSize="11sp"
-            android:textColor="@color/primary"
-            android:textStyle="bold"
-            android:paddingTop="8dp"
-            android:paddingBottom="2dp" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView android:id="@+id/claude_plan"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/plan"
-                android:tag="/plan" />
-
-            <TextView android:id="@+id/claude_model"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/model"
-                android:tag="/model" />
-
-            <TextView android:id="@+id/claude_config"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/config"
-                android:tag="/config" />
         </LinearLayout>
 
         <LinearLayout
@@ -372,11 +295,11 @@
                 android:text="/status"
                 android:tag="/status" />
 
-            <TextView android:id="@+id/claude_tasks"
+            <TextView android:id="@+id/claude_doctor"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
-                android:text="/tasks"
-                android:tag="/tasks" />
+                android:text="/doctor"
+                android:tag="/doctor" />
         </LinearLayout>
 
         <!-- Section: Review Commands -->
@@ -442,35 +365,11 @@
                 android:text="/vim"
                 android:tag="/vim" />
 
-            <TextView android:id="@+id/claude_doctor"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/doctor"
-                android:tag="/doctor" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView android:id="@+id/claude_init"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/init"
-                android:tag="/init" />
-
             <TextView android:id="@+id/claude_login"
                 style="@style/ClaudeCommandKey"
                 android:layout_weight="1"
                 android:text="/login"
                 android:tag="/login" />
-
-            <TextView android:id="@+id/claude_logout"
-                style="@style/ClaudeCommandKey"
-                android:layout_weight="1"
-                android:text="/logout"
-                android:tag="/logout" />
         </LinearLayout>
 
     </LinearLayout>

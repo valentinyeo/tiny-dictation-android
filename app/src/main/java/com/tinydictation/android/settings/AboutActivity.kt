@@ -35,6 +35,30 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.25.3:
+            • NEW: Manual snippet creation (+ button on snippets panel)
+            • NEW: Text correction enabled by default
+            • FIX: Clipboard panel now refreshes when switching tabs
+            • FIX: Cursor dragging acceleration improved
+            • FIX: Double-tap for auto-correction
+            • FIX: Stuck word separation fixed
+            • Removed duplicate AI settings from Appearance panel
+            • Keyboard height shrinks when AI predictions disabled
+
+            v1.25.2:
+            • Renamed "Claude" tab to "Agent"
+            • NEW: Agent Modes section with /worker, /planner, /qa, /hyper
+            • NEW: /usage command in Quick Actions
+            • Removed y/n buttons (never used)
+            • Reorganized commands by usage frequency
+            • /init and /clear now at top of Quick Actions
+
+            v1.25.1:
+            • FIX: Keyboard shrinks when AI predictions disabled
+            • Previously keys grew taller when prediction bar hidden
+            • Now container height reduces from 320dp to 270dp
+            • Keys stay consistent size regardless of predictions
+
             v1.25.0:
             • NEW: Two-stage AI text correction ("Phat Fingers")!
             • Stage 1: Instant local typo fixes after each word
