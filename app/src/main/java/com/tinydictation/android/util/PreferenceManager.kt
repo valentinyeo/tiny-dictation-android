@@ -157,6 +157,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_ASSEMBLYAI_API_KEY = "assemblyai_api_key"
         private const val KEY_GEMINI_API_KEY = "gemini_api_key"
         private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
+        private const val KEY_ANTHROPIC_API_KEY = "anthropic_api_key"
         private const val KEY_CLOUD_PROVIDER = "cloud_provider"
         private const val KEY_DEEPGRAM_MODEL = "deepgram_model"
         private const val KEY_GROQ_MODEL = "groq_model"
@@ -801,6 +802,30 @@ class PreferenceManager(context: Context) {
      */
     fun hasOpenRouterApiKey(): Boolean {
         return !getOpenRouterApiKey().isNullOrBlank()
+    }
+
+    /**
+     * Gets the Anthropic API key for direct Claude API access.
+     * @return The stored API key, or null if not set
+     */
+    fun getAnthropicApiKey(): String? {
+        return prefs.getString(KEY_ANTHROPIC_API_KEY, null)
+    }
+
+    /**
+     * Sets the Anthropic API key.
+     * @param key The API key to store
+     */
+    fun setAnthropicApiKey(key: String) {
+        prefs.edit().putString(KEY_ANTHROPIC_API_KEY, key).apply()
+    }
+
+    /**
+     * Checks if an Anthropic API key is configured.
+     * @return true if an API key is stored
+     */
+    fun hasAnthropicApiKey(): Boolean {
+        return !getAnthropicApiKey().isNullOrBlank()
     }
 
     // ========== Provider Model Selection ==========

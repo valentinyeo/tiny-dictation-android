@@ -11,6 +11,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tinydictation.android.settings.AboutActivity
+import com.tinydictation.android.settings.ApiKeysSettingsActivity
 import com.tinydictation.android.settings.AppearanceSettingsActivity
 import com.tinydictation.android.settings.AudioSettingsActivity
 import com.tinydictation.android.settings.OfflineModelsActivity
@@ -47,6 +48,12 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun getSettingsCategories(): List<SettingsCategory> {
         return listOf(
+            SettingsCategory(
+                id = "api_keys",
+                icon = R.drawable.ic_key,
+                title = "API Keys",
+                subtitle = "Manage cloud service keys"
+            ),
             SettingsCategory(
                 id = "transcription",
                 icon = R.drawable.ic_mic,
@@ -112,6 +119,7 @@ class SettingsActivity : AppCompatActivity() {
 
     private fun navigateToCategory(category: SettingsCategory) {
         val intent = when (category.id) {
+            "api_keys" -> Intent(this, ApiKeysSettingsActivity::class.java)
             "transcription" -> Intent(this, TranscriptionSettingsActivity::class.java)
             "voice_commands" -> Intent(this, VoiceCommandsActivity::class.java)
             "audio" -> Intent(this, AudioSettingsActivity::class.java)

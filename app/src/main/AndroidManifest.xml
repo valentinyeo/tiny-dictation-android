@@ -94,6 +94,11 @@
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />
 
+        <activity
+            android:name=".settings.ApiKeysSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TinyDictation" />
+
         <!-- Accessibility Service for Text Injection -->
         <service
             android:name=".service.DictationAccessibilityService"
