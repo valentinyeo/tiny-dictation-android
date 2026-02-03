@@ -1640,21 +1640,42 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     private fun inflateSnippetsPanelIfNeeded() {
         if (!isSnippetsPanelInflated) {
-            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.snippetsPanelStub)
-            snippetsPanel = stub?.inflate()
-            isSnippetsPanelInflated = true
-            setupSnippetsPanel()
-            DebugLog.i("DictationKeyboardService: Snippets panel inflated")
+            try {
+                val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.snippetsPanelStub)
+                if (stub == null) {
+                    DebugLog.e("DictationKeyboardService: snippetsPanelStub not found!")
+                    return
+                }
+                // Use themed LayoutInflater for Material components (FAB, MaterialButton)
+                val themedContext = android.view.ContextThemeWrapper(this, R.style.Theme_TinyDictation)
+                stub.setLayoutInflater(android.view.LayoutInflater.from(themedContext))
+                snippetsPanel = stub.inflate()
+                isSnippetsPanelInflated = true
+                setupSnippetsPanel()
+                DebugLog.i("DictationKeyboardService: Snippets panel inflated")
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Failed to inflate snippets panel: ${e.message}")
+                Log.e(TAG, "Failed to inflate snippets panel", e)
+            }
         }
     }
 
     private fun inflateClipboardPanelIfNeeded() {
         if (!isClipboardPanelInflated) {
-            val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.clipboardPanelStub)
-            clipboardPanel = stub?.inflate()
-            isClipboardPanelInflated = true
-            setupClipboardPanel()
-            DebugLog.i("DictationKeyboardService: Clipboard panel inflated")
+            try {
+                val stub = keyboardTabbedPanel?.findViewById<ViewStub>(R.id.clipboardPanelStub)
+                if (stub == null) {
+                    DebugLog.e("DictationKeyboardService: clipboardPanelStub not found!")
+                    return
+                }
+                clipboardPanel = stub.inflate()
+                isClipboardPanelInflated = true
+                setupClipboardPanel()
+                DebugLog.i("DictationKeyboardService: Clipboard panel inflated")
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Failed to inflate clipboard panel: ${e.message}")
+                Log.e(TAG, "Failed to inflate clipboard panel", e)
+            }
         }
     }
 

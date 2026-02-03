@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.26.3:
+            • FIX: Snippet panel crash fixed
+            • Added themed LayoutInflater for Material components
+            • Added try-catch to prevent crashes on panel inflation
+            • Clipboard panel also fixed for robustness
+
             v1.26.2:
             • FIX: "Simon" no longer corrected to "iron"
             • Proper nouns (capitalized mid-sentence) now skip correction
