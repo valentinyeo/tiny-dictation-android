@@ -216,19 +216,30 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private val PUNCTUATION_MOVE_THRESHOLD_DP = 20f
     private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
-    // 'A' key long-press for ä (German umlaut)
+    // 'A' key long-press: German mode → popup with ä and @, English mode → @
     private var aKeyButton: android.widget.TextView? = null
     private var isAKeyLongPressTriggered = false
     private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
+    private var aKeyPopup: View? = null
+    private var isAKeyPopupShowing = false
+    private var aKeyUmlautView: android.widget.TextView? = null
+    private var aKeyAtView: android.widget.TextView? = null
+    private var selectedAKeyOption: String? = null
+    private var aKeyTouchStartX = 0f
+    private var aKeyTouchStartY = 0f
     private val aKeyLongPressRunnable = Runnable {
-        // Insert ä on long press (respects shift/caps for Ä), skip in numbers mode
         isAKeyLongPressTriggered = true
         if (!isNumbersMode) {
-            val char = if (isShiftActive || isCapsLock) "Ä" else "ä"
-            currentInputConnection?.commitText(char, 1)
-            trackTypedText(char)  // Track for terminal apps
-            aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            updatePredictions()
+            if (isGermanMode) {
+                // German: show popup with ä and @
+                showAKeyPopup()
+            } else {
+                // English: directly insert @
+                currentInputConnection?.commitText("@", 1)
+                trackTypedText("@")
+                aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                updatePredictions()
+            }
         }
     }
 
@@ -274,6 +285,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         isGermanMode = !isGermanMode
         shiftKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         updateShiftKeyDisplay()
+        updateLongPressHints()  // Update A key hint (ä vs @)
         DebugLog.d("DictationKeyboardService: German mode ${if (isGermanMode) "ON" else "OFF"}")
     }
 
@@ -651,6 +663,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         uKeyLongPressHandler.removeCallbacksAndMessages(null)
         shiftLongPressHandler.removeCallbacksAndMessages(null)
         hidePunctuationPopup()
+        hideAKeyPopup()
         pulseAnimator?.cancel()
         pulseAnimator = null
 
@@ -3082,6 +3095,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         for (id in umlauthintIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
         }
+        // A key hint: show "@" in English, "ä" in German
+        val aHint = qwertyPanel?.findViewById<android.widget.TextView>(R.id.hint_a)
+        aHint?.text = if (isGermanMode) "ä" else "@"
     }
 
     /**
@@ -3235,31 +3251,55 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Handles touch events for the 'a' key with long-press for ä (German umlaut).
+     * Handles touch events for the 'a' key.
      * - Tap: insert 'a' (or 'A' if shifted)
-     * - Long press (200ms): insert 'ä' (or 'Ä' if shifted)
+     * - Long press (English): insert '@'
+     * - Long press (German): show popup with 'ä' and '@', drag to select
      */
     private fun handleAKeyTouch(event: MotionEvent): Boolean {
+        val moveThreshold = PUNCTUATION_MOVE_THRESHOLD_DP * resources.displayMetrics.density
+
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isAKeyLongPressTriggered = false
-                // Start long-press timer
+                selectedAKeyOption = null
+                aKeyTouchStartX = event.rawX
+                aKeyTouchStartY = event.rawY
                 aKeyLongPressHandler.postDelayed(
                     aKeyLongPressRunnable,
                     PUNCTUATION_LONG_PRESS_THRESHOLD
                 )
                 return true
             }
+            MotionEvent.ACTION_MOVE -> {
+                if (isAKeyPopupShowing) {
+                    updateAKeySelection(event.rawX, event.rawY)
+                } else {
+                    val dx = event.rawX - aKeyTouchStartX
+                    val dy = event.rawY - aKeyTouchStartY
+                    if (Math.sqrt((dx * dx + dy * dy).toDouble()) > moveThreshold) {
+                        aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
+                    }
+                }
+                return true
+            }
             MotionEvent.ACTION_UP -> {
                 aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
 
-                if (!isAKeyLongPressTriggered) {
-                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
+                if (isAKeyPopupShowing) {
+                    // Popup mode: commit selected option or default to ä
+                    val char = selectedAKeyOption ?: (if (isShiftActive || isCapsLock) "Ä" else "ä")
+                    currentInputConnection?.commitText(char, 1)
+                    trackTypedText(char)
+                    updatePredictions()
+                    hideAKeyPopup()
+                    DebugLog.d("DictationKeyboardService: A key popup selected '$char'")
+                } else if (!isAKeyLongPressTriggered) {
+                    // Short tap - use displayed text
                     val char = aKeyButton?.text?.toString() ?: "a"
                     currentInputConnection?.commitText(char, 1)
-                    trackTypedText(char)  // Track for terminal apps
+                    trackTypedText(char)
 
-                    // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
                         isShiftActive = false
                         updateShiftKeyDisplay()
@@ -3270,10 +3310,153 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_CANCEL -> {
                 aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
+                hideAKeyPopup()
                 return true
             }
         }
         return false
+    }
+
+    /**
+     * Shows the A key popup above the key with ä and @ options.
+     */
+    private fun showAKeyPopup() {
+        isAKeyPopupShowing = true
+        selectedAKeyOption = null
+
+        aKeyButton ?: return
+        val density = resources.displayMetrics.density
+
+        aKeyPopup = createAKeyPopupView()
+
+        aKeyPopup?.measure(
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
+            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
+        )
+        val popupWidth = aKeyPopup?.measuredWidth ?: 0
+        val popupHeight = aKeyPopup?.measuredHeight ?: 0
+
+        val buttonLocation = IntArray(2)
+        val panelLocation = IntArray(2)
+        aKeyButton?.getLocationInWindow(buttonLocation)
+        keyboardTabbedPanel?.getLocationInWindow(panelLocation)
+
+        val relativeX = buttonLocation[0] - panelLocation[0]
+        val relativeY = buttonLocation[1] - panelLocation[1]
+        val buttonWidth = aKeyButton?.width ?: 0
+
+        val params = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT
+        ).apply {
+            leftMargin = (relativeX + (buttonWidth / 2) - (popupWidth / 2)).coerceAtLeast(0)
+            topMargin = relativeY - popupHeight - (8 * density).toInt()
+        }
+
+        val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
+        container?.addView(aKeyPopup, params)
+
+        aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+        DebugLog.d("DictationKeyboardService: Showing A key popup (ä / @)")
+    }
+
+    /**
+     * Creates the A key popup view with ä and @ options.
+     */
+    private fun createAKeyPopupView(): View {
+        val density = resources.displayMetrics.density
+        val popupWidth = (120 * density).toInt()
+        val popupHeight = (56 * density).toInt()
+
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(popupWidth, popupHeight)
+            gravity = android.view.Gravity.CENTER
+            background = android.graphics.drawable.GradientDrawable().apply {
+                setColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.surface))
+                cornerRadius = 12 * density
+                setStroke((1 * density).toInt(), ContextCompat.getColor(this@DictationKeyboardService, R.color.outline))
+            }
+            elevation = 8 * density
+        }
+
+        val umlautChar = if (isShiftActive || isCapsLock) "Ä" else "ä"
+        val umlautText = android.widget.TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (60 * density).toInt(),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+            text = umlautChar
+            textSize = 24f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.on_surface))
+            tag = umlautChar
+            id = View.generateViewId()
+        }
+
+        val atText = android.widget.TextView(this).apply {
+            layoutParams = LinearLayout.LayoutParams(
+                (60 * density).toInt(),
+                LinearLayout.LayoutParams.MATCH_PARENT
+            )
+            text = "@"
+            textSize = 24f
+            gravity = android.view.Gravity.CENTER
+            setTextColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.on_surface))
+            tag = "@"
+            id = View.generateViewId()
+        }
+
+        container.addView(umlautText)
+        container.addView(atText)
+
+        aKeyUmlautView = umlautText
+        aKeyAtView = atText
+
+        return container
+    }
+
+    /**
+     * Updates the selected A key option based on finger position.
+     */
+    private fun updateAKeySelection(rawX: Float, rawY: Float) {
+        aKeyPopup ?: return
+
+        val location = IntArray(2)
+        aKeyPopup?.getLocationOnScreen(location)
+        val popupX = location[0]
+        val popupCenterX = popupX + (aKeyPopup?.width ?: 0) / 2
+
+        val highlightColor = ContextCompat.getColor(this, R.color.primary)
+        val normalColor = ContextCompat.getColor(this, R.color.on_surface)
+
+        if (rawX < popupCenterX) {
+            // Left side: umlaut
+            val umlautChar = if (isShiftActive || isCapsLock) "Ä" else "ä"
+            selectedAKeyOption = umlautChar
+            aKeyUmlautView?.setTextColor(highlightColor)
+            aKeyAtView?.setTextColor(normalColor)
+        } else {
+            // Right side: @
+            selectedAKeyOption = "@"
+            aKeyUmlautView?.setTextColor(normalColor)
+            aKeyAtView?.setTextColor(highlightColor)
+        }
+    }
+
+    /**
+     * Hides and cleans up the A key popup.
+     */
+    private fun hideAKeyPopup() {
+        isAKeyPopupShowing = false
+        selectedAKeyOption = null
+
+        aKeyPopup?.let { popup ->
+            (popup.parent as? android.view.ViewGroup)?.removeView(popup)
+        }
+        aKeyPopup = null
+        aKeyUmlautView = null
+        aKeyAtView = null
     }
 
     /**

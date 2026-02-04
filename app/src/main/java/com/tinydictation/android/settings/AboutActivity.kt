@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.4:
+            • A key long-press: German mode → popup with ä and @
+            • A key long-press: English mode → inserts @ directly
+            • Hint on A key shows @ in English, ä in German
+
             v1.27.3:
             • FIX: Proper nouns like "Simon" no longer autocorrected to "iron"
             • First-character guard prevents corrections where first letter changes to non-adjacent key
