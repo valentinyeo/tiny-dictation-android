@@ -38,8 +38,8 @@ class AboutActivity : AppCompatActivity() {
             v1.26.4:
             • NEW: API Keys settings screen
             • All API keys in one place (Settings → API Keys)
-            • Supports: Deepgram, Groq, OpenAI, AssemblyAI, Gemini
-            • Also supports: OpenRouter (for Claude Opus), Giphy
+            • Transcription: Deepgram, Groq, OpenAI, AssemblyAI, Gemini
+            • AI Services: OpenRouter, Anthropic (direct Claude access)
             • Keys stored securely on device with password toggle
 
             v1.26.3:
