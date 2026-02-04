@@ -160,7 +160,8 @@ class TextCorrectionSettingsActivity : AppCompatActivity() {
         val providers = listOf(
             "Groq Fast (llama-3.1-8b)" to PreferenceManager.CORRECTION_PROVIDER_GROQ_FAST,
             "Groq Smart (llama-3.3-70b)" to PreferenceManager.CORRECTION_PROVIDER_GROQ_SMART,
-            "Claude Haiku" to PreferenceManager.CORRECTION_PROVIDER_CLAUDE_HAIKU
+            "Claude Haiku" to PreferenceManager.CORRECTION_PROVIDER_CLAUDE_HAIKU,
+            "Claude Opus 4.5" to PreferenceManager.CORRECTION_PROVIDER_CLAUDE_OPUS
         )
 
         val displayNames = providers.map { it.first }

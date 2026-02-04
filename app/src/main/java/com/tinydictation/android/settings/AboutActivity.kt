@@ -39,6 +39,8 @@ class AboutActivity : AppCompatActivity() {
             • A key long-press: German mode → popup with ä and @
             • A key long-press: English mode → inserts @ directly
             • Hint on A key shows @ in English, ä in German
+            • FIX: "Simon" no longer autocorrected to "soon" (stricter fuzzy matching for short words)
+            • FIX: Snippet creation + button now shows dialog (was silently failing)
 
             v1.27.3:
             • FIX: Proper nouns like "Simon" no longer autocorrected to "iron"
@@ -50,6 +52,11 @@ class AboutActivity : AppCompatActivity() {
             • NEW: Always-visible language indicator (EN/DE) at bottom-left
             • Tap the indicator to toggle language without scrolling
             • NEW: /coordinator command added to Agent Modes panel
+
+            v1.27.5:
+            • NEW: Claude Opus 4.5 for sentence-level AI correction
+            • Claude Haiku also available (uses Anthropic API directly)
+            • Requires Anthropic API key (Settings → API Keys)
 
             v1.27.1:
             • FIX: Shell panel buttons now work (@ | ~ ` $ # % ^ & * \ /)

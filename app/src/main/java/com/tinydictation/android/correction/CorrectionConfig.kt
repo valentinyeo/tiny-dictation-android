@@ -37,7 +37,8 @@ enum class SentenceProvider(
 ) {
     GROQ_FAST("Groq Fast", "llama-3.1-8b-instant"),
     GROQ_SMART("Groq Smart", "llama-3.3-70b-versatile"),
-    CLAUDE_HAIKU("Claude Haiku", "claude-3-haiku-20240307");
+    CLAUDE_HAIKU("Claude Haiku", "claude-haiku-4-5-20251101"),
+    CLAUDE_OPUS("Claude Opus", "claude-opus-4-5-20251101");
 
     companion object {
         fun fromId(id: String): SentenceProvider {

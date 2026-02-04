@@ -62,7 +62,8 @@ class SentenceProcessor(private val context: Context) {
             val corrected = when (config.sentenceProvider) {
                 SentenceProvider.GROQ_FAST,
                 SentenceProvider.GROQ_SMART -> callGroqApi(sentence, config.sentenceProvider)
-                SentenceProvider.CLAUDE_HAIKU -> callClaudeApi(sentence)
+                SentenceProvider.CLAUDE_HAIKU,
+                SentenceProvider.CLAUDE_OPUS -> callClaudeApi(sentence, config.sentenceProvider)
             }
 
             val elapsed = System.currentTimeMillis() - startTime
@@ -201,21 +202,66 @@ Rules:
     }
 
     /**
-     * Call Claude API for sentence correction.
-     * Note: Requires Anthropic API key (separate from Groq).
+     * Call Anthropic Claude API for sentence correction.
+     * Uses the Messages API directly with the stored Anthropic API key.
      */
-    private fun callClaudeApi(sentence: String): String {
-        // For now, fall back to Groq if Claude not configured
-        // TODO: Add Claude API key to PreferenceManager and implement proper Claude API call
-        val apiKey = prefs.getGroqApiKey()
+    private fun callClaudeApi(sentence: String, provider: SentenceProvider): String {
+        val apiKey = prefs.getAnthropicApiKey()
 
         if (apiKey.isNullOrBlank()) {
-            throw IllegalStateException("API key not configured")
+            throw IllegalStateException("Anthropic API key not configured")
         }
 
-        // Use Groq as fallback for now
-        DebugLog.w("$TAG: Claude not configured, falling back to Groq")
-        return callGroqApi(sentence, SentenceProvider.GROQ_SMART)
+        val systemPrompt = """Fix this text. Correct spelling, grammar, word boundaries, and obvious errors.
+Preserve the original meaning and tone. Keep casual text casual.
+Output only the corrected text, nothing else.
+
+Rules:
+1. Fix typos and misspellings
+2. Fix word boundaries (iwant -> I want)
+3. Fix grammar errors
+4. Fix context-dependent words (by -> buy if shopping context)
+5. Keep the same general length
+6. Keep casual language casual (don't make it formal)
+7. Preserve names, technical terms, and intentional stylistic choices
+8. NEVER modify URLs, links, or web addresses (anything starting with http://, https://, www., or containing .com, .org, .io, .dev etc.)
+9. If text seems correct, return it unchanged"""
+
+        val jsonBody = JSONObject().apply {
+            put("model", provider.modelId)
+            put("max_tokens", 512)
+            put("system", systemPrompt)
+            put("messages", JSONArray().apply {
+                put(JSONObject().apply {
+                    put("role", "user")
+                    put("content", sentence)
+                })
+            })
+        }
+
+        val request = Request.Builder()
+            .url("https://api.anthropic.com/v1/messages")
+            .addHeader("x-api-key", apiKey)
+            .addHeader("anthropic-version", "2023-06-01")
+            .addHeader("Content-Type", "application/json")
+            .post(jsonBody.toString().toRequestBody("application/json".toMediaType()))
+            .build()
+
+        val response = httpClient.newCall(request).execute()
+
+        if (!response.isSuccessful) {
+            val errorBody = response.body?.string() ?: "Unknown error"
+            throw Exception("Claude API error ${response.code}: $errorBody")
+        }
+
+        val responseBody = response.body?.string() ?: throw Exception("Empty response from Claude API")
+        val json = JSONObject(responseBody)
+
+        return json
+            .getJSONArray("content")
+            .getJSONObject(0)
+            .getString("text")
+            .trim()
     }
 
     /**

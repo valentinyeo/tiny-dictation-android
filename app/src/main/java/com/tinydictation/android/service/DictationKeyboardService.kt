@@ -2506,7 +2506,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 setPadding(48, 32, 48, 32)
             }
 
-            com.google.android.material.dialog.MaterialAlertDialogBuilder(themedContext)
+            val dialog = com.google.android.material.dialog.MaterialAlertDialogBuilder(themedContext)
                 .setTitle("New Snippet")
                 .setView(editText)
                 .setPositiveButton("Save") { _, _ ->
@@ -2523,7 +2523,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     }
                 }
                 .setNegativeButton("Cancel", null)
-                .show()
+                .create()
+            dialog.window?.setType(android.view.WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY)
+            dialog.show()
         } catch (e: Exception) {
             DebugLog.e("DictationKeyboardService: Failed to show add snippet dialog: ${e.message}")
             Log.e(TAG, "Failed to show add snippet dialog", e)

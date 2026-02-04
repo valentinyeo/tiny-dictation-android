@@ -84,6 +84,7 @@ class PreferenceManager(context: Context) {
         const val CORRECTION_PROVIDER_GROQ_FAST = "GROQ_FAST"
         const val CORRECTION_PROVIDER_GROQ_SMART = "GROQ_SMART"
         const val CORRECTION_PROVIDER_CLAUDE_HAIKU = "CLAUDE_HAIKU"
+        const val CORRECTION_PROVIDER_CLAUDE_OPUS = "CLAUDE_OPUS"
 
         // Prediction Engine IDs
         const val PREDICTION_ENGINE_NGRAM = "ngram"

@@ -186,8 +186,7 @@ class WordProcessor(private val context: Context) {
             // Scale maxDistance by word length - short words need stricter matching
             // to avoid bad corrections like "Simon" → "iron" (distance 2)
             val maxDist = when {
-                word.length <= 4 -> 1  // Very short: only allow 1 edit
-                word.length <= 6 -> if (isPotentialProperNoun(word, isStartOfSentence)) 1 else 2
+                word.length <= 6 -> 1  // Short/medium words: only 1 edit (prevents "simon" → "soon")
                 else -> 2
             }
             corrected = dictionary.findSimilarWord(word, maxDistance = maxDist)
