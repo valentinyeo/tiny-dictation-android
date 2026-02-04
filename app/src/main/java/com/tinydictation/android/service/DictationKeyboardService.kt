@@ -4026,12 +4026,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService: Select all")
         DebugLog.d("DictationKeyboardService: Selecting all text")
 
-        currentInputConnection?.let { ic ->
-            val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
-            val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
-            val totalLength = before.length + after.length
-            ic.setSelection(0, totalLength)
-        }
+        currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
     }
 
     /**

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.6:
+            • FIX: Select All no longer crashes Edge browser (uses system performContextMenuAction)
+            • Claude panel: Added /resume and /mcp to Quick Actions
+            • Claude panel: Launch section simplified to 2 options (claude -d and claude -d -c)
+
             v1.27.4:
             • A key long-press: German mode → popup with ä and @
             • A key long-press: English mode → inserts @ directly
