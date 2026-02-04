@@ -187,7 +187,7 @@
 
         <TextView android:id="@+id/key_numbers" style="@style/KeyboardKeyWide" android:text="!#1" android:textSize="12sp" />
         <TextView android:id="@+id/key_comma" style="@style/KeyboardKey" android:text="," />
-        <TextView android:id="@+id/key_space" style="@style/KeyboardKeySpace" android:text=" " />
+        <TextView android:id="@+id/key_space" style="@style/KeyboardKeySpace" android:text="English" android:textSize="14sp" android:textAllCaps="false" />
         <TextView android:id="@+id/key_period" style="@style/KeyboardKey" android:text="." />
         <ImageView android:id="@+id/key_enter" style="@style/KeyboardKeyWide"
             android:src="@drawable/ic_keyboard_enter"

@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.7:
+            • Space bar now shows current language name (Samsung-style: "English" / "Deutsch")
+            • Language updates on space bar when toggling language
+
             v1.27.6:
             • FIX: Select All no longer crashes Edge browser (uses system performContextMenuAction)
             • Claude panel: Added /resume and /mcp to Quick Actions

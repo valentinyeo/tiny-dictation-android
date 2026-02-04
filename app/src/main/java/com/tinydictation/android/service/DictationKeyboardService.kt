@@ -1418,9 +1418,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val prefs = PreferenceManager(this)
         val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
         val lang = prefs.getLanguage().uppercase()
+        val langName = getLanguageDisplayName(prefs.getLanguage())
 
         // Always update the fixed language indicator overlay
         languageIndicator?.text = lang
+
+        // Update space bar language label (Samsung-style)
+        spaceKeyButton?.text = langName
 
         // Hide language button if provider doesn't need manual language selection
         // This includes: Whisper (auto-detects), cloud providers with auto-detect enabled
@@ -1433,6 +1437,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             languageButton?.visibility = View.VISIBLE
             languageIndicator?.visibility = View.VISIBLE
             languageText?.text = lang
+        }
+    }
+
+    private fun getLanguageDisplayName(langCode: String): String {
+        return when (langCode) {
+            "en" -> "English"
+            "de" -> "Deutsch"
+            else -> langCode.uppercase()
         }
     }
 
@@ -1895,6 +1907,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Space bar - tap for space, long-press + drag for cursor trackpad mode
         spaceKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)
+        spaceKeyButton?.text = getLanguageDisplayName(PreferenceManager(this).getLanguage())
         spaceKeyButton?.setOnTouchListener { _, event ->
             handleSpaceKeyTouch(event)
         }
