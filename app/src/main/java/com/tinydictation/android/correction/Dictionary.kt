@@ -321,6 +321,10 @@ class Dictionary(private val context: Context) {
             val lenDiff = kotlin.math.abs(dictWord.length - inputLen)
             if (lenDiff > maxDistance) continue
 
+            // First-character guard: skip candidates where first char differs
+            // and is not an adjacent QWERTY key (prevents "simon" -> "iron")
+            if (lower[0] != dictWord[0] && !areAdjacentKeys(lower[0], dictWord[0])) continue
+
             val scaledDistance = qwertyWeightedDistance(lower, dictWord, maxDistance * 2)
             if (scaledDistance <= maxDistance * 2 && scaledDistance < bestScaledDistance) {
                 bestScaledDistance = scaledDistance

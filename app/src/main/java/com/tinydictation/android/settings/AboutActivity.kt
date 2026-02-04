@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.3:
+            • FIX: Proper nouns like "Simon" no longer autocorrected to "iron"
+            • First-character guard prevents corrections where first letter changes to non-adjacent key
+
             v1.27.2:
             • FIX: Last 2-3 words no longer dropped during Deepgram dictation
             • Sends Finalize message before closing WebSocket connection
