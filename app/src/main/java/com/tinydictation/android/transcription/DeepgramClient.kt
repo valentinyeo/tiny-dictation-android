@@ -343,6 +343,33 @@ class DeepgramClient {
     }
 
     /**
+     * Sends a Finalize message to Deepgram, requesting it to immediately
+     * generate a final transcript for any buffered audio.
+     * Call this before closing to avoid dropping the last few words.
+     *
+     * @return true if the message was sent successfully
+     */
+    fun sendFinalize(): Boolean {
+        val socket = webSocket
+        if (!isConnected || socket == null) {
+            Log.d(TAG, "DeepgramClient: Cannot send Finalize - not connected")
+            return false
+        }
+
+        return try {
+            val message = "{\"type\": \"Finalize\"}"
+            socket.send(message)
+            Log.i(TAG, "DeepgramClient: Sent Finalize message to flush buffer")
+            DebugLog.i("DeepgramClient: Sent Finalize to flush pending audio")
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "DeepgramClient: Failed to send Finalize", e)
+            DebugLog.e("DeepgramClient: Failed to send Finalize - ${e.message}")
+            false
+        }
+    }
+
+    /**
      * Closes the WebSocket connection to Deepgram.
      * Sends a close frame and cleans up resources.
      */

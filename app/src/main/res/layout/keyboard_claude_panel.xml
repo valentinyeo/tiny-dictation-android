@@ -124,6 +124,13 @@
                 android:layout_weight="1"
                 android:text="/hyper"
                 android:tag="/hyper" />
+
+            <TextView android:id="@+id/claude_mode_coordinator"
+                style="@style/ClaudeCommandKey"
+                android:layout_weight="1"
+                android:text="/coordinator"
+                android:textSize="9sp"
+                android:tag="/coordinator" />
         </LinearLayout>
 
         <!-- Section: Shell Launch Commands -->

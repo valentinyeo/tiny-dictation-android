@@ -97,6 +97,7 @@ Rules:
 5. Keep the same language as input
 6. Do NOT add extra text, greetings, or explanations
 7. Output ONLY the corrected text
+8. NEVER modify URLs, links, or web addresses - preserve them exactly as typed
 
 Examples:
 - "i wnat to go tot he stoer" -> "I want to go to the store"

@@ -220,13 +220,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isAKeyLongPressTriggered = false
     private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val aKeyLongPressRunnable = Runnable {
-        // Insert ä on long press (respects shift/caps for Ä)
+        // Insert ä on long press (respects shift/caps for Ä), skip in numbers mode
         isAKeyLongPressTriggered = true
-        val char = if (isShiftActive || isCapsLock) "Ä" else "ä"
-        currentInputConnection?.commitText(char, 1)
-        trackTypedText(char)  // Track for terminal apps
-        aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        updatePredictions()
+        if (!isNumbersMode) {
+            val char = if (isShiftActive || isCapsLock) "Ä" else "ä"
+            currentInputConnection?.commitText(char, 1)
+            trackTypedText(char)  // Track for terminal apps
+            aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            updatePredictions()
+        }
     }
 
     // 'O' key long-press for ö (German umlaut)
@@ -234,13 +236,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isOKeyLongPressTriggered = false
     private val oKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val oKeyLongPressRunnable = Runnable {
-        // Insert ö on long press (respects shift/caps for Ö)
+        // Insert ö on long press (respects shift/caps for Ö), skip in numbers mode
         isOKeyLongPressTriggered = true
-        val char = if (isShiftActive || isCapsLock) "Ö" else "ö"
-        currentInputConnection?.commitText(char, 1)
-        trackTypedText(char)  // Track for terminal apps
-        oKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        updatePredictions()
+        if (!isNumbersMode) {
+            val char = if (isShiftActive || isCapsLock) "Ö" else "ö"
+            currentInputConnection?.commitText(char, 1)
+            trackTypedText(char)  // Track for terminal apps
+            oKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            updatePredictions()
+        }
     }
 
     // 'U' key long-press for ü (German umlaut)
@@ -248,13 +252,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isUKeyLongPressTriggered = false
     private val uKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val uKeyLongPressRunnable = Runnable {
-        // Insert ü on long press (respects shift/caps for Ü)
+        // Insert ü on long press (respects shift/caps for Ü), skip in numbers mode
         isUKeyLongPressTriggered = true
-        val char = if (isShiftActive || isCapsLock) "Ü" else "ü"
-        currentInputConnection?.commitText(char, 1)
-        trackTypedText(char)  // Track for terminal apps
-        uKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-        updatePredictions()
+        if (!isNumbersMode) {
+            val char = if (isShiftActive || isCapsLock) "Ü" else "ü"
+            currentInputConnection?.commitText(char, 1)
+            trackTypedText(char)  // Track for terminal apps
+            uKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+            updatePredictions()
+        }
     }
 
     // Shift key long-press for German mode toggle
@@ -2340,7 +2346,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         for (i in 0 until shellPanelLayout.childCount) {
             val row = shellPanelLayout.getChildAt(i) as? android.view.ViewGroup ?: continue
             for (j in 0 until row.childCount) {
-                val button = row.getChildAt(j) as? android.widget.Button ?: continue
+                val button = row.getChildAt(j) as? android.widget.TextView ?: continue
                 setupButton(button)
             }
         }
@@ -2960,6 +2966,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             // Restore shift key
             updateShiftKeyDisplay()
         }
+        // Update long-press hint visibility (umlauts hidden in numbers mode)
+        updateLongPressHints()
     }
 
     /**
@@ -3052,6 +3060,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.hint_y, R.id.hint_u, R.id.hint_i, R.id.hint_o, R.id.hint_p
         )
         for (id in hintIds) {
+            qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
+        }
+    }
+
+    /**
+     * Updates long-press hint visibility on keys with umlaut long-press actions.
+     * Hints are shown in letters mode and hidden in numbers/symbols mode.
+     */
+    private fun updateLongPressHints() {
+        val hintVisibility = if (isNumbersMode) View.GONE else View.VISIBLE
+        val umlauthintIds = listOf(R.id.hint_a, R.id.hint_o_umlaut, R.id.hint_u_umlaut)
+        for (id in umlauthintIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
         }
     }
@@ -3226,8 +3246,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
 
                 if (!isAKeyLongPressTriggered) {
-                    // Short tap - insert 'a' or 'A' based on shift state
-                    val char = if (isShiftActive || isCapsLock) "A" else "a"
+                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
+                    val char = aKeyButton?.text?.toString() ?: "a"
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
@@ -3268,8 +3288,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 oKeyLongPressHandler.removeCallbacks(oKeyLongPressRunnable)
 
                 if (!isOKeyLongPressTriggered) {
-                    // Short tap - insert 'o' or 'O' based on shift state
-                    val char = if (isShiftActive || isCapsLock) "O" else "o"
+                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
+                    val char = oKeyButton?.text?.toString() ?: "o"
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
@@ -3310,8 +3330,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 uKeyLongPressHandler.removeCallbacks(uKeyLongPressRunnable)
 
                 if (!isUKeyLongPressTriggered) {
-                    // Short tap - insert 'u' or 'U' based on shift state
-                    val char = if (isShiftActive || isCapsLock) "U" else "u"
+                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
+                    val char = uKeyButton?.text?.toString() ?: "u"
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 

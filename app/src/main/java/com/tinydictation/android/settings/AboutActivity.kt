@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.0:
+            • URL protection: autocorrect no longer mangles URLs/links
+            • Expanded TLD detection (.io, .dev, .ai, .app, +30 more)
+            • AI corrections (Groq & OpenRouter) now preserve URLs
+            • Rejection window: 5s → 15s (more time to undo autocorrect)
+            • Fat finger tolerance: QWERTY-aware typo correction
+            • Adjacent key typos (e.g., 'r' instead of 't') now prioritized
+
             v1.26.4:
             • NEW: API Keys settings screen
             • All API keys in one place (Settings → API Keys)

@@ -297,8 +297,9 @@ class Dictionary(private val context: Context) {
     }
 
     /**
-     * Find words similar to the input using edit distance.
-     * Used for typo correction when exact match isn't found.
+     * Find words similar to the input using QWERTY-weighted edit distance.
+     * Adjacent key substitutions cost less than distant key substitutions,
+     * improving fat-finger tolerance on the QWERTY keyboard.
      *
      * @param word The potentially misspelled word
      * @param maxDistance Maximum edit distance (1-2 recommended)
@@ -312,20 +313,21 @@ class Dictionary(private val context: Context) {
         if (isValidWord(lower)) return null
 
         var bestMatch: String? = null
-        var bestDistance = maxDistance + 1
+        // Use scaled distance (x2) to allow half-cost for adjacent keys
+        var bestScaledDistance = maxDistance * 2 + 1
 
         // Only check words with similar length
         for (dictWord in wordSet) {
             val lenDiff = kotlin.math.abs(dictWord.length - inputLen)
             if (lenDiff > maxDistance) continue
 
-            val distance = levenshteinDistance(lower, dictWord)
-            if (distance <= maxDistance && distance < bestDistance) {
-                bestDistance = distance
+            val scaledDistance = qwertyWeightedDistance(lower, dictWord, maxDistance * 2)
+            if (scaledDistance <= maxDistance * 2 && scaledDistance < bestScaledDistance) {
+                bestScaledDistance = scaledDistance
                 bestMatch = dictWord
 
-                // Early exit if we found a perfect match at distance 1
-                if (distance == 1) break
+                // Early exit if we found a very close match (adjacent key swap = cost 1 scaled)
+                if (scaledDistance <= 1) break
             }
         }
 
@@ -551,6 +553,99 @@ class Dictionary(private val context: Context) {
         } catch (e: Exception) {
             DebugLog.e("$TAG: Error saving persisted data - ${e.message}")
         }
+    }
+
+    /**
+     * QWERTY keyboard adjacency map. Each key maps to the set of keys
+     * physically adjacent to it on a standard QWERTY layout.
+     */
+    private val qwertyAdjacency: Map<Char, Set<Char>> = mapOf(
+        'q' to setOf('w', 'a'),
+        'w' to setOf('q', 'e', 'a', 's'),
+        'e' to setOf('w', 'r', 's', 'd'),
+        'r' to setOf('e', 't', 'd', 'f'),
+        't' to setOf('r', 'y', 'f', 'g'),
+        'y' to setOf('t', 'u', 'g', 'h'),
+        'u' to setOf('y', 'i', 'h', 'j'),
+        'i' to setOf('u', 'o', 'j', 'k'),
+        'o' to setOf('i', 'p', 'k', 'l'),
+        'p' to setOf('o', 'l'),
+        'a' to setOf('q', 'w', 's', 'z'),
+        's' to setOf('a', 'w', 'e', 'd', 'z', 'x'),
+        'd' to setOf('s', 'e', 'r', 'f', 'x', 'c'),
+        'f' to setOf('d', 'r', 't', 'g', 'c', 'v'),
+        'g' to setOf('f', 't', 'y', 'h', 'v', 'b'),
+        'h' to setOf('g', 'y', 'u', 'j', 'b', 'n'),
+        'j' to setOf('h', 'u', 'i', 'k', 'n', 'm'),
+        'k' to setOf('j', 'i', 'o', 'l', 'm'),
+        'l' to setOf('k', 'o', 'p'),
+        'z' to setOf('a', 's', 'x'),
+        'x' to setOf('z', 's', 'd', 'c'),
+        'c' to setOf('x', 'd', 'f', 'v'),
+        'v' to setOf('c', 'f', 'g', 'b'),
+        'b' to setOf('v', 'g', 'h', 'n'),
+        'n' to setOf('b', 'h', 'j', 'm'),
+        'm' to setOf('n', 'j', 'k')
+    )
+
+    /**
+     * Check if two characters are adjacent on the QWERTY keyboard.
+     */
+    private fun areAdjacentKeys(a: Char, b: Char): Boolean {
+        return qwertyAdjacency[a]?.contains(b) == true
+    }
+
+    /**
+     * QWERTY-weighted Levenshtein distance. Uses scaled integer costs (x2):
+     * - Adjacent key substitution: cost 1 (half of normal)
+     * - Non-adjacent substitution: cost 2 (normal)
+     * - Insertion/deletion: cost 2 (normal)
+     *
+     * This makes fat-finger errors on adjacent keys cheaper to correct,
+     * so the dictionary prefers nearby-key corrections.
+     *
+     * @param s1 First string (lowercase)
+     * @param s2 Second string (lowercase)
+     * @param maxScaledDistance Early termination threshold (scaled x2)
+     * @return Scaled distance (divide by 2 for effective edit distance)
+     */
+    private fun qwertyWeightedDistance(s1: String, s2: String, maxScaledDistance: Int): Int {
+        val m = s1.length
+        val n = s2.length
+        if (m == 0) return n * 2
+        if (n == 0) return m * 2
+        if (s1 == s2) return 0
+
+        var prevRow = IntArray(n + 1) { it * 2 }
+        var currRow = IntArray(n + 1)
+
+        for (i in 1..m) {
+            currRow[0] = i * 2
+            var rowMin = currRow[0]
+            for (j in 1..n) {
+                val c1 = s1[i - 1]
+                val c2 = s2[j - 1]
+                val substCost = if (c1 == c2) {
+                    0
+                } else if (areAdjacentKeys(c1, c2)) {
+                    1 // Half cost for adjacent key fat-finger
+                } else {
+                    2 // Full cost for non-adjacent substitution
+                }
+                currRow[j] = minOf(
+                    prevRow[j] + 2,          // deletion (cost 2)
+                    currRow[j - 1] + 2,      // insertion (cost 2)
+                    prevRow[j - 1] + substCost // substitution
+                )
+                if (currRow[j] < rowMin) rowMin = currRow[j]
+            }
+            // Early termination if entire row exceeds max
+            if (rowMin > maxScaledDistance) return maxScaledDistance + 1
+            val temp = prevRow
+            prevRow = currRow
+            currRow = temp
+        }
+        return prevRow[n]
     }
 
     /**

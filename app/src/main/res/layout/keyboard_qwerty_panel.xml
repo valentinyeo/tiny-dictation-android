@@ -116,6 +116,7 @@
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_u" style="@style/KeyboardKeyText" android:text="u" />
             <TextView android:id="@+id/hint_u" style="@style/KeyboardKeyHint" android:text="7" android:visibility="gone" />
+            <TextView android:id="@+id/hint_u_umlaut" style="@style/KeyboardKeyHintLeft" android:text="ü" android:visibility="visible" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_i" style="@style/KeyboardKeyText" android:text="i" />
@@ -124,6 +125,7 @@
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_o" style="@style/KeyboardKeyText" android:text="o" />
             <TextView android:id="@+id/hint_o" style="@style/KeyboardKeyHint" android:text="9" android:visibility="gone" />
+            <TextView android:id="@+id/hint_o_umlaut" style="@style/KeyboardKeyHintLeft" android:text="ö" android:visibility="visible" />
         </FrameLayout>
         <FrameLayout style="@style/KeyboardKeyFrame">
             <TextView android:id="@+id/key_p" style="@style/KeyboardKeyText" android:text="p" />
@@ -140,7 +142,10 @@
         android:orientation="horizontal"
         android:paddingHorizontal="16dp">
 
-        <TextView android:id="@+id/key_a" style="@style/KeyboardKey" android:text="a" />
+        <FrameLayout style="@style/KeyboardKeyFrame">
+            <TextView android:id="@+id/key_a" style="@style/KeyboardKeyText" android:text="a" />
+            <TextView android:id="@+id/hint_a" style="@style/KeyboardKeyHint" android:text="ä" android:visibility="visible" />
+        </FrameLayout>
         <TextView android:id="@+id/key_s" style="@style/KeyboardKey" android:text="s" />
         <TextView android:id="@+id/key_d" style="@style/KeyboardKey" android:text="d" />
         <TextView android:id="@+id/key_f" style="@style/KeyboardKey" android:text="f" />

@@ -58,7 +58,7 @@ class CorrectionManager(private val context: Context) {
     // Track last correction for rejection detection
     private var lastAppliedCorrection: Correction? = null
     private var lastCorrectionTimestamp = 0L
-    private val CORRECTION_REJECTION_WINDOW = 5000L // 5 seconds to detect rejection
+    private val CORRECTION_REJECTION_WINDOW = 15000L // 15 seconds to detect rejection
 
     // Coroutine scope
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)

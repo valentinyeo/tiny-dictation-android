@@ -156,7 +156,8 @@ Rules:
 5. Keep the same general length
 6. Keep casual language casual (don't make it formal)
 7. Preserve names, technical terms, and intentional stylistic choices
-8. If text seems correct, return it unchanged"""
+8. NEVER modify URLs, links, or web addresses (anything starting with http://, https://, www., or containing .com, .org, .io, .dev etc.)
+9. If text seems correct, return it unchanged"""
 
         val jsonBody = JSONObject().apply {
             put("model", provider.modelId)

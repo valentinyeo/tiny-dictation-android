@@ -21,6 +21,17 @@ class WordProcessor(private val context: Context) {
         private const val MAX_PROCESS_TIME_MS = 50L
         private val PUNCTUATION = charArrayOf('.', ',', '!', '?', ';', ':', '"', '\'', ')', ']', '}')
 
+        // Common TLDs to detect URLs without protocol prefix
+        private val URL_TLDS = setOf(
+            ".com", ".org", ".net", ".edu", ".gov", ".mil",
+            ".io", ".dev", ".ai", ".app", ".co", ".me", ".info",
+            ".biz", ".us", ".uk", ".de", ".fr", ".eu", ".ru",
+            ".cn", ".jp", ".kr", ".au", ".ca", ".nl", ".se",
+            ".no", ".fi", ".dk", ".ch", ".at", ".be", ".it",
+            ".es", ".pt", ".pl", ".cz", ".tv", ".cc", ".ws",
+            ".xyz", ".tech", ".site", ".online", ".store", ".cloud"
+        )
+
         // Common stuck-together words
         private val COMMON_STUCK_WORDS = mapOf(
             "iwant" to "i want",
@@ -369,10 +380,19 @@ class WordProcessor(private val context: Context) {
     private fun shouldSkipPattern(word: String): Boolean {
         val lower = word.lowercase()
 
-        // URLs
+        // URLs - protocol prefixes
         if (lower.startsWith("http://") || lower.startsWith("https://") ||
-            lower.startsWith("www.") || lower.contains(".com") ||
-            lower.contains(".org") || lower.contains(".net")) {
+            lower.startsWith("www.") || lower.startsWith("ftp://")) {
+            return true
+        }
+
+        // URLs - detect by TLD presence
+        if (URL_TLDS.any { lower.contains(it) }) {
+            return true
+        }
+
+        // URLs - detect slash-containing paths (e.g., "example.com/path")
+        if (lower.contains("/") && lower.contains(".")) {
             return true
         }
 
