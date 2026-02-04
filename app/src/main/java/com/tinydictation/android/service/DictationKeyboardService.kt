@@ -106,6 +106,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
+    private var languageIndicator: TextView? = null
     private var emojiPanelStub: ViewStub? = null
     private var emojiPanel: View? = null
     private var isEmojiPanelVisible = false
@@ -686,6 +687,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
+            languageIndicator = keyboardView?.findViewById(R.id.tvLanguageIndicator)
+            languageIndicator?.setOnClickListener { toggleLanguage() }
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
             // Tabbed keyboard panel (7 tabs)
@@ -1401,16 +1404,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun updateLanguageButton() {
         val prefs = PreferenceManager(this)
         val languageButton = keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)
+        val lang = prefs.getLanguage().uppercase()
+
+        // Always update the fixed language indicator overlay
+        languageIndicator?.text = lang
 
         // Hide language button if provider doesn't need manual language selection
         // This includes: Whisper (auto-detects), cloud providers with auto-detect enabled
         val needsLanguageToggle = prefs.currentProviderNeedsLanguageToggle()
         if (!needsLanguageToggle) {
             languageButton?.visibility = View.GONE
+            languageIndicator?.visibility = View.GONE
             DebugLog.d("DictationKeyboardService: Language button hidden (provider auto-detects)")
         } else {
             languageButton?.visibility = View.VISIBLE
-            val lang = prefs.getLanguage().uppercase()
+            languageIndicator?.visibility = View.VISIBLE
             languageText?.text = lang
         }
     }

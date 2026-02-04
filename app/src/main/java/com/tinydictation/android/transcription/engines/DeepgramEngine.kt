@@ -46,6 +46,9 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private val preConnectionBuffer = mutableListOf<Short>()
     private var bufferFlushed = false
 
+    // Delayed close job for graceful shutdown (allows final transcripts to arrive)
+    private var closeJob: Job? = null
+
     /**
      * Sets the Deepgram model to use.
      */
@@ -72,6 +75,10 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
         onError: (String) -> Unit
     ) {
+        // Cancel any pending delayed close from a previous session
+        closeJob?.cancel()
+        closeJob = null
+
         if (isSessionActive) {
             Log.d(TAG, "DeepgramEngine session already active")
             return
@@ -164,21 +171,56 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     }
 
     override fun endSession() {
+        endSessionInternal(graceful = true)
+    }
+
+    /**
+     * Ends the session, optionally with a graceful close that sends Finalize
+     * to Deepgram and waits briefly for final transcripts before closing.
+     *
+     * @param graceful If true, sends Finalize and delays close by 800ms
+     *                 to allow Deepgram to return final transcripts.
+     *                 If false, closes immediately (used during release).
+     */
+    private fun endSessionInternal(graceful: Boolean) {
         if (!isSessionActive) return
 
-        Log.i(TAG, "DeepgramEngine ending session")
-        DebugLog.i("DeepgramEngine: Ending session")
+        Log.i(TAG, "DeepgramEngine ending session (graceful=$graceful)")
+        DebugLog.i("DeepgramEngine: Ending session (graceful=$graceful)")
 
         isSessionActive = false
-        deepgramClient.close()
-        onTranscriptCallback = null
-        onErrorCallback = null
+
+        if (graceful && deepgramClient.isConnected()) {
+            // Send Finalize to flush Deepgram's internal buffer
+            deepgramClient.sendFinalize()
+
+            // Delay the close to allow final transcripts to arrive.
+            // Callbacks remain active during this window so transcripts are delivered.
+            closeJob = scope?.launch {
+                delay(800)
+                ensureActive() // Don't close if a new session cancelled this job
+                deepgramClient.close()
+                onTranscriptCallback = null
+                onErrorCallback = null
+                DebugLog.d("DeepgramEngine: Graceful close completed after 800ms")
+            }
+        } else {
+            closeJob?.cancel()
+            closeJob = null
+            deepgramClient.close()
+            onTranscriptCallback = null
+            onErrorCallback = null
+        }
 
         // Reset buffer state for next session
         synchronized(preConnectionBuffer) {
             preConnectionBuffer.clear()
         }
         bufferFlushed = false
+    }
+
+    override fun hasPendingAudio(): Boolean {
+        return isSessionActive && deepgramClient.isConnected()
     }
 
     override fun setLanguage(language: String) {
@@ -230,7 +272,9 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     }
 
     override fun release() {
-        endSession()
+        closeJob?.cancel()
+        closeJob = null
+        endSessionInternal(graceful = false)
         scope = null
     }
 }

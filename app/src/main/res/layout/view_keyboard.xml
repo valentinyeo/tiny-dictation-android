@@ -255,6 +255,21 @@
             </LinearLayout>
         </HorizontalScrollView>
 
+        <!-- Language indicator - always visible at bottom-left, tappable to toggle -->
+        <TextView
+            android:id="@+id/tvLanguageIndicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:text="EN"
+            android:textSize="9sp"
+            android:textColor="#AAFFFFFF"
+            android:textStyle="bold"
+            android:paddingStart="6dp"
+            android:paddingBottom="2dp"
+            android:clickable="true"
+            android:focusable="true" />
+
         <!-- Version number - positioned at bottom-right corner -->
         <TextView
             android:id="@+id/tvKeyboardVersion"

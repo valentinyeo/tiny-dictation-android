@@ -35,6 +35,20 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.27.2:
+            • FIX: Last 2-3 words no longer dropped during Deepgram dictation
+            • Sends Finalize message before closing WebSocket connection
+            • NEW: Always-visible language indicator (EN/DE) at bottom-left
+            • Tap the indicator to toggle language without scrolling
+            • NEW: /coordinator command added to Agent Modes panel
+
+            v1.27.1:
+            • FIX: Shell panel buttons now work (@ | ~ ` $ # % ^ & * \ /)
+            • FIX: @ key outputs @ in symbols mode (was outputting 'a')
+            • FIX: O and U keys output correct symbols in symbols mode
+            • Long-press umlauts (ä ö ü) disabled in numbers mode
+            • Umlaut hints shown on A, O, U keys (small labels)
+
             v1.27.0:
             • URL protection: autocorrect no longer mangles URLs/links
             • Expanded TLD detection (.io, .dev, .ai, .app, +30 more)
