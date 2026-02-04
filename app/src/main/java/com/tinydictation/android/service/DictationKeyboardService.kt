@@ -106,7 +106,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var micButton: FrameLayout? = null
     private var micIcon: ImageView? = null
     private var languageText: TextView? = null
-    private var languageIndicator: TextView? = null
+    private var lastInterimLength = 0
     private var emojiPanelStub: ViewStub? = null
     private var emojiPanel: View? = null
     private var isEmojiPanelVisible = false
@@ -541,8 +541,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             apiKey = apiKey,
             onTranscript = { text, isFinal ->
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
-                if (isFinal && text.isNotBlank()) {
-                    Handler(Looper.getMainLooper()).post {
+                Handler(Looper.getMainLooper()).post {
+                    if (!isFinal && text.isNotBlank()) {
+                        // Interim result: show text immediately, replacing previous interim
+                        val ic = currentInputConnection ?: return@post
+                        // Delete previous interim text
+                        if (lastInterimLength > 0) {
+                            ic.deleteSurroundingText(lastInterimLength, 0)
+                        }
+                        // Commit new interim text
+                        ic.commitText(text, 1)
+                        lastInterimLength = text.length
+                    } else if (isFinal && text.isNotBlank()) {
+                        val ic = currentInputConnection ?: return@post
+                        // Delete previous interim text before committing final
+                        if (lastInterimLength > 0) {
+                            ic.deleteSurroundingText(lastInterimLength, 0)
+                            lastInterimLength = 0
+                        }
+
                         // Check for voice commands first
                         val commandResult = VoiceCommandProcessor.process(
                             text,
@@ -591,6 +608,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             isRecording = false
                             isProcessing = false
                             isStandby = false
+                            lastInterimLength = 0
                         }
                         TranscriptionManager.TranscriptionState.STANDBY -> {
                             isRecording = true
@@ -700,8 +718,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             micButton = keyboardView?.findViewById(R.id.btnKeyboardMic)
             micIcon = keyboardView?.findViewById(R.id.ivKeyboardMic)
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
-            languageIndicator = keyboardView?.findViewById(R.id.tvLanguageIndicator)
-            languageIndicator?.setOnClickListener { toggleLanguage() }
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
             // Tabbed keyboard panel (7 tabs)
@@ -1420,9 +1436,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val lang = prefs.getLanguage().uppercase()
         val langName = getLanguageDisplayName(prefs.getLanguage())
 
-        // Always update the fixed language indicator overlay
-        languageIndicator?.text = lang
-
         // Update space bar language label (Samsung-style)
         spaceKeyButton?.text = langName
 
@@ -1431,11 +1444,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val needsLanguageToggle = prefs.currentProviderNeedsLanguageToggle()
         if (!needsLanguageToggle) {
             languageButton?.visibility = View.GONE
-            languageIndicator?.visibility = View.GONE
             DebugLog.d("DictationKeyboardService: Language button hidden (provider auto-detects)")
         } else {
             languageButton?.visibility = View.VISIBLE
-            languageIndicator?.visibility = View.VISIBLE
             languageText?.text = lang
         }
     }

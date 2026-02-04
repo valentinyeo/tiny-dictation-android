@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.28.0:
+            • AI models switched: sentence correction → Claude Haiku, Improve button → Claude Opus 4.5
+            • All AI prompts rewritten: grammar/spelling/punctuation only, no rephrasing or restructuring
+            • Technical jargon protection: git, npm, docker, kubectl, and 100+ terms skip autocorrect
+            • CLI flags (--verbose, -f) no longer autocorrected
+            • Interim transcription: text appears in real-time as you speak (no more waiting for final result)
+            • Removed bottom-left language indicator overlay (language shown on space bar + dictation bar)
+
             v1.27.7:
             • Space bar now shows current language name (Samsung-style: "English" / "Deutsch")
             • Language updates on space bar when toggling language

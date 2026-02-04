@@ -32,6 +32,32 @@ class WordProcessor(private val context: Context) {
             ".xyz", ".tech", ".site", ".online", ".store", ".cloud"
         )
 
+        // Technical terms that should never be autocorrected
+        private val TECHNICAL_TERMS = setOf(
+            // CLI tools
+            "git", "npm", "npx", "docker", "kubectl", "ssh", "curl", "wget", "grep", "awk", "sed",
+            "sudo", "pip", "brew", "yarn", "pnpm", "cargo", "rustc", "gcc", "make", "cmake",
+            "bash", "zsh", "chmod", "chown", "rsync", "scp", "tar", "gzip", "apt", "yum",
+            "systemctl", "journalctl", "crontab", "tmux", "vim", "nano", "diff", "patch",
+            // Cloud/infra
+            "kubernetes", "nginx", "redis", "postgres", "postgresql", "mongodb", "mysql",
+            "webhook", "oauth", "jwt", "api", "sdk", "cli", "vpc", "dns", "ssl", "tls",
+            "cdn", "cors", "graphql", "grpc", "mqtt", "kafka", "elasticsearch", "prometheus",
+            "grafana", "terraform", "ansible", "helm", "istio",
+            // Programming
+            "async", "await", "const", "enum", "boolean", "struct", "mutex", "regex",
+            "lambda", "tuple", "stdin", "stdout", "stderr", "argv", "argc", "malloc",
+            "pthread", "println", "printf", "sprintf", "typeof", "instanceof", "foreach",
+            "hashmap", "arraylist", "linkedlist", "nullable", "nonnull",
+            // Platforms/tools
+            "wrangler", "vercel", "cloudflare", "deepgram", "groq", "anthropic", "openai",
+            "github", "gitlab", "bitbucket", "jira", "confluence", "figma", "postman",
+            "webpack", "vite", "eslint", "prettier", "jest", "pytest", "gradle", "maven",
+            // Protocols/formats
+            "http", "https", "tcp", "udp", "json", "yaml", "toml", "xml", "csv",
+            "websocket", "smtp", "imap", "ftp", "sftp"
+        )
+
         // Common stuck-together words
         private val COMMON_STUCK_WORDS = mapOf(
             "iwant" to "i want",
@@ -378,6 +404,16 @@ class WordProcessor(private val context: Context) {
      */
     private fun shouldSkipPattern(word: String): Boolean {
         val lower = word.lowercase()
+
+        // Technical terms (git, npm, docker, kubectl, etc.)
+        if (lower in TECHNICAL_TERMS) {
+            return true
+        }
+
+        // CLI flags (--verbose, -f, etc.)
+        if (word.startsWith("-")) {
+            return true
+        }
 
         // URLs - protocol prefixes
         if (lower.startsWith("http://") || lower.startsWith("https://") ||

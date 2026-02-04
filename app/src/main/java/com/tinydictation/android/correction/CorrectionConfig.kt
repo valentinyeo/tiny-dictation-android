@@ -12,7 +12,7 @@ data class CorrectionConfig(
 
     // Stage 2: Sentence-level AI correction
     val sentenceLevelEnabled: Boolean = true,
-    val sentenceProvider: SentenceProvider = SentenceProvider.GROQ_FAST,
+    val sentenceProvider: SentenceProvider = SentenceProvider.CLAUDE_HAIKU,
     val triggerOnPunctuation: Boolean = true,
     val triggerOnPause: Boolean = true,
     val pauseDurationMs: Long = 2000L,

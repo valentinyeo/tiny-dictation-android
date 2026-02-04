@@ -145,20 +145,20 @@ class SentenceProcessor(private val context: Context) {
             throw IllegalStateException("Groq API key not configured")
         }
 
-        val systemPrompt = """Fix this text. Correct spelling, grammar, word boundaries, and obvious errors.
-Preserve the original meaning and tone. Keep casual text casual.
+        val systemPrompt = """Fix ONLY grammar, spelling, punctuation, and word boundary errors in this text.
 Output only the corrected text, nothing else.
 
 Rules:
 1. Fix typos and misspellings
 2. Fix word boundaries (iwant -> I want)
-3. Fix grammar errors
-4. Fix context-dependent words (by -> buy if shopping context)
-5. Keep the same general length
+3. Fix grammar and punctuation errors
+4. Do NOT rephrase, restructure, or change word choices
+5. Keep the same general length — do not shorten or lengthen
 6. Keep casual language casual (don't make it formal)
-7. Preserve names, technical terms, and intentional stylistic choices
+7. NEVER modify technical terms, shell commands, CLI flags, programming jargon, brand names, or proper nouns
 8. NEVER modify URLs, links, or web addresses (anything starting with http://, https://, www., or containing .com, .org, .io, .dev etc.)
-9. If text seems correct, return it unchanged"""
+9. Your output must be nearly identical to the input — only fix clear errors
+10. If text seems correct, return it unchanged"""
 
         val jsonBody = JSONObject().apply {
             put("model", provider.modelId)
@@ -212,20 +212,20 @@ Rules:
             throw IllegalStateException("Anthropic API key not configured")
         }
 
-        val systemPrompt = """Fix this text. Correct spelling, grammar, word boundaries, and obvious errors.
-Preserve the original meaning and tone. Keep casual text casual.
+        val systemPrompt = """Fix ONLY grammar, spelling, punctuation, and word boundary errors in this text.
 Output only the corrected text, nothing else.
 
 Rules:
 1. Fix typos and misspellings
 2. Fix word boundaries (iwant -> I want)
-3. Fix grammar errors
-4. Fix context-dependent words (by -> buy if shopping context)
-5. Keep the same general length
+3. Fix grammar and punctuation errors
+4. Do NOT rephrase, restructure, or change word choices
+5. Keep the same general length — do not shorten or lengthen
 6. Keep casual language casual (don't make it formal)
-7. Preserve names, technical terms, and intentional stylistic choices
+7. NEVER modify technical terms, shell commands, CLI flags, programming jargon, brand names, or proper nouns
 8. NEVER modify URLs, links, or web addresses (anything starting with http://, https://, www., or containing .com, .org, .io, .dev etc.)
-9. If text seems correct, return it unchanged"""
+9. Your output must be nearly identical to the input — only fix clear errors
+10. If text seems correct, return it unchanged"""
 
         val jsonBody = JSONObject().apply {
             put("model", provider.modelId)
