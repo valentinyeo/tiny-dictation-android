@@ -543,6 +543,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 Handler(Looper.getMainLooper()).post {
                     if (!isFinal && text.isNotBlank()) {
+                        // Skip interim results for terminal apps - they don't support
+                        // deleteSurroundingText, so interim text can't be replaced
+                        // and would show doubled text
+                        if (isTerminalApp) return@post
+
                         // Interim result: show text immediately, replacing previous interim
                         val ic = currentInputConnection ?: return@post
                         // Delete previous interim text

@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.28.1:
+            • FIX: Dictation text no longer appears doubled in terminal apps (Termius, Termux, etc.)
+            • Skip interim results in terminals where deleteSurroundingText doesn't work
+
             v1.28.0:
             • AI models switched: sentence correction → Claude Haiku, Improve button → Claude Opus 4.5
             • All AI prompts rewritten: grammar/spelling/punctuation only, no rephrasing or restructuring
