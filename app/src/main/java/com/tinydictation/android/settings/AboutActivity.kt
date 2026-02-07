@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.29.3:
+            • Double-tap MIC to enter PTT mode (replaces long-press)
+            • Double-tap MIC in PTT to exit back to normal mode (replaces quick-tap)
+            • Single tap in PTT is now a no-op (prevents accidental exits)
+            • Normal mode tap toggle-mute has ~300ms delay for double-tap detection
+
             v1.29.2:
             • FIX: PTT mode now sticks after long-press (ACTION_UP was routed to wrong handler)
             • Touch handler locked to the mode active at ACTION_DOWN for entire touch sequence

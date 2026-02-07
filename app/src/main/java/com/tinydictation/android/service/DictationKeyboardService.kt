@@ -62,6 +62,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     companion object {
         private const val TAG = "TinyDictation"
         private const val LONG_PRESS_THRESHOLD = 500L
+        private const val DOUBLE_TAP_TIMEOUT = 300L  // Max ms between taps for double-tap
 
         /** Broadcast action for pasting text from HistoryActivity */
         const val ACTION_PASTE_TEXT = "com.tinydictation.ACTION_PASTE_TEXT"
@@ -343,10 +344,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    // Long press handling for mic button
-    private var longPressHandler: Handler? = null
-    private var longPressRunnable: Runnable? = null
-    private var isLongPressTriggered = false
+    // Double-tap handling for mic button (enter/exit PTT)
+    private var lastMicTapTime = 0L  // Timestamp of last quick tap (for double-tap detection)
+    private var doubleTapHandler: Handler? = null
+    private var doubleTapRunnable: Runnable? = null
 
     // Backspace repeat handling - uses persistent handler and flag-based control
     private val backspaceHandler = Handler(Looper.getMainLooper())
@@ -720,7 +721,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
 
         instance = null
-        longPressHandler?.removeCallbacksAndMessages(null)
+        doubleTapHandler?.removeCallbacksAndMessages(null)
         isBackspaceHeld = false
         backspaceHandler.removeCallbacksAndMessages(null)
         isCursorKeyHeld = false
@@ -1248,28 +1249,33 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Normal mode: tap = toggle mute, long-press (500ms) = enter PTT mode.
+     * Normal mode: tap = toggle mute (with 300ms delay), double-tap = enter PTT mode.
      */
     private fun handleMicTouchNormal(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Prevent scroll view from intercepting our long press
                 micButton?.parent?.requestDisallowInterceptTouchEvent(true)
-                isLongPressTriggered = false
-                longPressHandler = Handler(Looper.getMainLooper())
-                longPressRunnable = Runnable {
-                    isLongPressTriggered = true
-                    DebugLog.i("DictationKeyboardService: Long press triggered - entering PTT")
-                    enterPushToTalkMode()
-                }
-                longPressHandler?.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD)
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 micButton?.parent?.requestDisallowInterceptTouchEvent(false)
-                longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
-                if (!isLongPressTriggered && event.action == MotionEvent.ACTION_UP) {
-                    toggleMute()
+                if (event.action == MotionEvent.ACTION_CANCEL) return true
+
+                val now = System.currentTimeMillis()
+                if (now - lastMicTapTime < DOUBLE_TAP_TIMEOUT) {
+                    // Double-tap detected - enter PTT
+                    lastMicTapTime = 0L
+                    doubleTapRunnable?.let { doubleTapHandler?.removeCallbacks(it) }
+                    DebugLog.i("DictationKeyboardService: Double-tap detected - entering PTT")
+                    enterPushToTalkMode()
+                } else {
+                    // First tap - schedule toggleMute after timeout (cancelled if second tap comes)
+                    lastMicTapTime = now
+                    doubleTapHandler = Handler(Looper.getMainLooper())
+                    doubleTapRunnable = Runnable {
+                        toggleMute()
+                    }
+                    doubleTapHandler?.postDelayed(doubleTapRunnable!!, DOUBLE_TAP_TIMEOUT)
                 }
                 return true
             }
@@ -1278,7 +1284,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * PTT mode: hold = record, release = stop, quick tap (<500ms) = exit PTT.
+     * PTT mode: hold = record, double-tap = exit PTT, single tap = no-op.
      */
     private fun handleMicTouchPTT(event: MotionEvent): Boolean {
         when (event.action) {
@@ -1304,10 +1310,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
 
                 if (!pttStreamingStarted && event.action == MotionEvent.ACTION_UP) {
-                    // Quick tap (<500ms) = exit PTT mode
+                    // Quick tap (<500ms) - check for double-tap to exit PTT
                     stopPttBuffering(discard = true)
                     isPttRecording = false
-                    exitPushToTalkMode()
+
+                    val now = System.currentTimeMillis()
+                    if (now - lastMicTapTime < DOUBLE_TAP_TIMEOUT) {
+                        // Double-tap detected - exit PTT
+                        lastMicTapTime = 0L
+                        doubleTapRunnable?.let { doubleTapHandler?.removeCallbacks(it) }
+                        DebugLog.i("DictationKeyboardService: Double-tap detected - exiting PTT")
+                        exitPushToTalkMode()
+                    } else {
+                        // First tap - just record time, no action on single tap in PTT
+                        lastMicTapTime = now
+                    }
                 } else {
                     // Release after streaming = stop recording and transcribe
                     stopPttStreaming()
