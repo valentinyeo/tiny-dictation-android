@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.29.2:
+            • FIX: PTT mode now sticks after long-press (ACTION_UP was routed to wrong handler)
+            • Touch handler locked to the mode active at ACTION_DOWN for entire touch sequence
+
             v1.29.1:
             • FIX: Long-press MIC to enter PTT now works (scroll view was intercepting touch)
             • Added requestDisallowInterceptTouchEvent to prevent scroll stealing long-press

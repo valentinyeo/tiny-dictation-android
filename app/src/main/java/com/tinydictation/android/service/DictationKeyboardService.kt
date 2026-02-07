@@ -171,6 +171,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var pttStreamingStarted = false  // True once 500ms hold threshold passed
     private var pttStreamingHandler: Handler? = null
     private var pttStreamingRunnable: Runnable? = null
+    private var micTouchStartedInPttMode: Boolean? = null  // locks handler for touch sequence
 
     // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
@@ -1224,14 +1225,26 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     /**
      * Handles touch events for mic button.
-     * Delegates to normal or PTT mode handler.
+     * Locks to the handler that received ACTION_DOWN for the entire touch sequence,
+     * so a mode switch mid-touch (e.g. long-press entering PTT) doesn't confuse the UP event.
      */
     private fun handleMicTouch(event: MotionEvent): Boolean {
-        return if (isPushToTalkMode) {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            micTouchStartedInPttMode = isPushToTalkMode
+        }
+
+        val usePtt = micTouchStartedInPttMode ?: isPushToTalkMode
+        val result = if (usePtt) {
             handleMicTouchPTT(event)
         } else {
             handleMicTouchNormal(event)
         }
+
+        if (event.action == MotionEvent.ACTION_UP || event.action == MotionEvent.ACTION_CANCEL) {
+            micTouchStartedInPttMode = null
+        }
+
+        return result
     }
 
     /**
