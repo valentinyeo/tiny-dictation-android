@@ -44,6 +44,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
         private const val KEY_PREDICTIONS_ENABLED = "predictions_enabled"
         private const val KEY_COMPACT_DICTATION_BAR = "compact_dictation_bar"
+        private const val KEY_PUSH_TO_TALK = "push_to_talk_enabled"
         private const val KEY_PANEL_CLAUDE_ENABLED = "panel_claude_enabled"
         private const val KEY_PANEL_SHELL_ENABLED = "panel_shell_enabled"
         private const val KEY_PANEL_SNIPPETS_ENABLED = "panel_snippets_enabled"
@@ -1142,6 +1143,16 @@ class PreferenceManager(context: Context) {
      */
     fun setCompactDictationBar(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_COMPACT_DICTATION_BAR, enabled).apply()
+    }
+
+    // ========== Push-to-Talk Mode ==========
+
+    fun getPushToTalkEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PUSH_TO_TALK, false)
+    }
+
+    fun setPushToTalkEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PUSH_TO_TALK, enabled).apply()
     }
 
     // ========== Panel Visibility Settings ==========

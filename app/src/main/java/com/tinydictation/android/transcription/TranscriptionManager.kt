@@ -429,6 +429,217 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Returned to STANDBY mode")
     }
 
+    // ========== Push-to-Talk Methods ==========
+
+    /**
+     * Starts audio recording into buffer only (no VAD, no engine connection).
+     * Pre-selects and initializes engine so streaming can start quickly.
+     * Used for PTT mode touch-down.
+     */
+    @RequiresPermission(Manifest.permission.RECORD_AUDIO)
+    fun startBufferingOnly() {
+        if (isListening) {
+            Log.d(TAG, "TranscriptionManager already listening (PTT buffer)")
+            return
+        }
+
+        // Runtime permission check
+        if (context != null) {
+            if (ContextCompat.checkSelfPermission(
+                    context,
+                    Manifest.permission.RECORD_AUDIO
+                ) != PackageManager.PERMISSION_GRANTED
+            ) {
+                Log.e(TAG, "RECORD_AUDIO permission not granted")
+                updateState(TranscriptionState.ERROR)
+                onError?.invoke("Microphone permission not granted")
+                return
+            }
+        }
+
+        currentLanguage = preferenceManager?.getLanguage() ?: "en"
+
+        Log.i(TAG, "TranscriptionManager starting PTT buffering (language: $currentLanguage)")
+        DebugLog.i("TranscriptionManager: Starting PTT buffering")
+        isListening = true
+        isEngineConnected = false
+        audioChunkCount = 0
+        audioBuffer.clear()
+
+        // Request audio focus
+        if (preferenceManager?.getPauseMediaDuringDictation() == true) {
+            audioFocusManager?.requestAudioFocus(duck = false)
+        }
+
+        scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+        val currentScope = scope ?: run {
+            updateState(TranscriptionState.ERROR)
+            onError?.invoke("Failed to initialize transcription manager")
+            return
+        }
+
+        // Pre-select and initialize engine in background
+        currentScope.launch(Dispatchers.IO) {
+            val engine = selectEngine()
+            if (engine == null) {
+                currentScope.launch(Dispatchers.Main) {
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("No transcription engine available")
+                }
+                return@launch
+            }
+
+            currentEngine = engine
+            Log.i(TAG, "PTT: Pre-selected engine: ${engine.displayName}")
+
+            val initResult = engine.initialize(context!!, currentLanguage)
+            if (initResult.isFailure) {
+                currentScope.launch(Dispatchers.Main) {
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("Failed to initialize engine: ${initResult.exceptionOrNull()?.message}")
+                }
+                return@launch
+            }
+
+            // Enter STANDBY state (buffering, not streaming)
+            currentScope.launch(Dispatchers.Main) {
+                updateState(TranscriptionState.STANDBY)
+            }
+
+            // Start audio recording - chunks go to buffer via processAudioChunkPTT
+            currentScope.launch(Dispatchers.Main) {
+                try {
+                    val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
+                    audioRecorder.startRecording(currentScope, context!!, useHeadphoneMic) { samples ->
+                        processAudioChunkPTT(samples)
+                    }
+                    DebugLog.i("TranscriptionManager: PTT audio recording started (buffering)")
+                } catch (e: Exception) {
+                    Log.e(TAG, "PTT: Failed to start audio recording", e)
+                    updateState(TranscriptionState.ERROR)
+                    onError?.invoke("Failed to start audio recording: ${e.message}")
+                }
+            }
+        }
+    }
+
+    /**
+     * Simplified audio chunk handler for PTT mode.
+     * Just buffers or streams directly - no VAD thresholds.
+     */
+    private fun processAudioChunkPTT(samples: ShortArray) {
+        if (!isListening) return
+
+        audioChunkCount++
+
+        if (!isEngineConnected) {
+            // Buffering mode - store audio for later
+            synchronized(audioBuffer) {
+                audioBuffer.add(samples.copyOf())
+                // Keep more buffer in PTT mode (up to ~10 seconds at 50 chunks/sec)
+                while (audioBuffer.size > 500) {
+                    audioBuffer.removeAt(0)
+                }
+            }
+        } else {
+            // Streaming mode - send directly to engine
+            currentEngine?.processAudio(samples)
+        }
+
+        if (audioChunkCount % 100 == 0) {
+            val state = if (isEngineConnected) "PTT_STREAMING" else "PTT_BUFFERING"
+            DebugLog.d("TranscriptionManager: PTT chunks=$audioChunkCount, state=$state")
+        }
+    }
+
+    /**
+     * Connects to engine, flushes buffered audio, starts live streaming.
+     * Called when PTT hold exceeds 500ms threshold.
+     */
+    fun startDirectStreaming() {
+        val engine = currentEngine ?: run {
+            Log.e(TAG, "PTT: No engine available for streaming")
+            return
+        }
+        val currentScope = scope ?: return
+
+        Log.i(TAG, "PTT: Starting direct streaming")
+        DebugLog.i("TranscriptionManager: PTT streaming started")
+
+        isEngineConnected = true
+        updateState(TranscriptionState.TRANSCRIBING)
+
+        engine.clearAudioBuffer()
+
+        engine.startSession(
+            onTranscript = { text, isFinal ->
+                currentScope.launch(Dispatchers.Main) {
+                    if (isListening) {
+                        val filteredText = TranscriptionFilter.filter(text)
+                        if (filteredText != null) {
+                            onTranscript(filteredText, isFinal)
+                        }
+                    }
+                }
+            },
+            onError = { error ->
+                currentScope.launch(Dispatchers.Main) {
+                    if (isListening) {
+                        DebugLog.e("TranscriptionManager: PTT engine error - $error")
+                        isEngineConnected = false
+                        currentEngine?.endSession()
+                        synchronized(audioBuffer) { audioBuffer.clear() }
+                        updateState(TranscriptionState.STANDBY)
+                        onError?.invoke(error)
+                    }
+                }
+            }
+        )
+
+        // Flush buffered audio
+        synchronized(audioBuffer) {
+            DebugLog.d("TranscriptionManager: PTT flushing ${audioBuffer.size} buffered chunks")
+            for (chunk in audioBuffer) {
+                engine.processAudio(chunk)
+            }
+            audioBuffer.clear()
+        }
+    }
+
+    /**
+     * Stops PTT recording. If streaming was active, ends the session.
+     * If only buffering, discards the buffer.
+     */
+    fun stopBuffering(discard: Boolean = false) {
+        if (!isListening) return
+
+        Log.i(TAG, "TranscriptionManager stopping PTT (discard=$discard, wasStreaming=$isEngineConnected)")
+        DebugLog.i("TranscriptionManager: Stopping PTT (discard=$discard)")
+
+        val wasStreaming = isEngineConnected
+        isListening = false
+        isEngineConnected = false
+
+        audioRecorder.stopRecording()
+
+        if (wasStreaming && !discard) {
+            // End session gracefully to get final transcription
+            currentEngine?.endSession()
+        } else {
+            // Just discard everything
+            currentEngine?.endSession()
+            synchronized(audioBuffer) { audioBuffer.clear() }
+        }
+
+        audioFocusManager?.abandonAudioFocus()
+
+        scope?.cancel()
+        scope = null
+
+        updateState(TranscriptionState.IDLE)
+    }
+
     /**
      * Selects the appropriate transcription engine based on preferences and availability.
      */

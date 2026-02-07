@@ -165,6 +165,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isStandby = false  // True when in standby/hibernation mode
     private var isMuteLocked = false  // True when mic is locked muted via long press
 
+    // Push-to-talk mode
+    private var isPushToTalkMode = false  // Persisted via PreferenceManager
+    private var isPttRecording = false    // True while holding MIC in PTT mode
+    private var pttStreamingStarted = false  // True once 500ms hold threshold passed
+    private var pttStreamingHandler: Handler? = null
+    private var pttStreamingRunnable: Runnable? = null
+
     // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
 
@@ -447,6 +454,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Initialize TranscriptionManager
         initializeTranscriptionManager()
+
+        // Load push-to-talk mode from preferences
+        val pttPrefs = PreferenceManager(this)
+        isPushToTalkMode = pttPrefs.getPushToTalkEnabled()
+        if (isPushToTalkMode) {
+            DebugLog.i("DictationKeyboardService: PTT mode loaded from preferences")
+        }
 
         // Initialize and start clipboard history manager
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
@@ -1209,17 +1223,28 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Handles touch events for mic button with long-press detection.
-     * Long press toggles mute lock state.
+     * Handles touch events for mic button.
+     * Delegates to normal or PTT mode handler.
      */
     private fun handleMicTouch(event: MotionEvent): Boolean {
+        return if (isPushToTalkMode) {
+            handleMicTouchPTT(event)
+        } else {
+            handleMicTouchNormal(event)
+        }
+    }
+
+    /**
+     * Normal mode: tap = toggle mute, long-press (500ms) = enter PTT mode.
+     */
+    private fun handleMicTouchNormal(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isLongPressTriggered = false
                 longPressHandler = Handler(Looper.getMainLooper())
                 longPressRunnable = Runnable {
                     isLongPressTriggered = true
-                    toggleMuteLock()
+                    enterPushToTalkMode()
                 }
                 longPressHandler?.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD)
                 return true
@@ -1227,7 +1252,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
                 if (!isLongPressTriggered && event.action == MotionEvent.ACTION_UP) {
-                    toggleDictation()
+                    toggleMute()
                 }
                 return true
             }
@@ -1236,9 +1261,49 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Toggles mute lock state. When locked, mic stays muted until unlocked via another long press.
+     * PTT mode: hold = record, release = stop, quick tap (<500ms) = exit PTT.
      */
-    private fun toggleMuteLock() {
+    private fun handleMicTouchPTT(event: MotionEvent): Boolean {
+        when (event.action) {
+            MotionEvent.ACTION_DOWN -> {
+                // Start buffering immediately on touch
+                isPttRecording = true
+                pttStreamingStarted = false
+                startPttBuffering()
+
+                // Schedule streaming start after 500ms hold
+                pttStreamingHandler = Handler(Looper.getMainLooper())
+                pttStreamingRunnable = Runnable {
+                    pttStreamingStarted = true
+                    startPttStreaming()
+                }
+                pttStreamingHandler?.postDelayed(pttStreamingRunnable!!, LONG_PRESS_THRESHOLD)
+                return true
+            }
+            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
+
+                if (!pttStreamingStarted && event.action == MotionEvent.ACTION_UP) {
+                    // Quick tap (<500ms) = exit PTT mode
+                    stopPttBuffering(discard = true)
+                    isPttRecording = false
+                    exitPushToTalkMode()
+                } else {
+                    // Release after streaming = stop recording and transcribe
+                    stopPttStreaming()
+                    isPttRecording = false
+                    pttStreamingStarted = false
+                }
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Unified mute toggle for normal mode. Replaces old toggleDictation + toggleMuteLock.
+     */
+    private fun toggleMute() {
         isMuteLocked = !isMuteLocked
 
         if (isMuteLocked) {
@@ -1249,15 +1314,120 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 isProcessing = false
                 isStandby = false
             }
-            Log.i(TAG, "Mic mute locked")
-            DebugLog.i("DictationKeyboardService: Mic mute locked")
+            Log.i(TAG, "Mic muted")
+            DebugLog.i("DictationKeyboardService: Mic muted via tap")
         } else {
-            Log.i(TAG, "Mic mute unlocked")
-            DebugLog.i("DictationKeyboardService: Mic mute unlocked")
+            Log.i(TAG, "Mic unmuted - starting dictation")
+            DebugLog.i("DictationKeyboardService: Mic unmuted via tap")
+
+            // Start dictation on unmute
+            if (transcriptionManager == null) {
+                initializeTranscriptionManager()
+            }
+            transcriptionManager?.let { manager ->
+                try {
+                    manager.startListening()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error starting listening after unmute", e)
+                    DebugLog.e("DictationKeyboardService: Error starting after unmute - ${e.message}")
+                    Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
         }
 
         updateMicButton()
     }
+
+    private fun enterPushToTalkMode() {
+        isPushToTalkMode = true
+        PreferenceManager(this).setPushToTalkEnabled(true)
+
+        // Stop any running dictation
+        if (isRecording || isProcessing || isStandby) {
+            transcriptionManager?.stopListening()
+            isRecording = false
+            isProcessing = false
+            isStandby = false
+        }
+        isMuteLocked = false
+
+        performHapticFeedback()
+        Toast.makeText(this, "Push-to-talk mode", Toast.LENGTH_SHORT).show()
+        Log.i(TAG, "Entered push-to-talk mode")
+        DebugLog.i("DictationKeyboardService: Entered PTT mode")
+
+        updateMicButton()
+    }
+
+    private fun exitPushToTalkMode() {
+        isPushToTalkMode = false
+        PreferenceManager(this).setPushToTalkEnabled(false)
+
+        performHapticFeedback()
+        Toast.makeText(this, "Normal dictation mode", Toast.LENGTH_SHORT).show()
+        Log.i(TAG, "Exited push-to-talk mode")
+        DebugLog.i("DictationKeyboardService: Exited PTT mode")
+
+        // Auto-start dictation in normal mode
+        if (transcriptionManager == null) {
+            initializeTranscriptionManager()
+        }
+        transcriptionManager?.let { manager ->
+            try {
+                manager.startListening()
+            } catch (e: Exception) {
+                Log.e(TAG, "Error starting after PTT exit", e)
+            }
+        }
+
+        updateMicButton()
+    }
+
+    private fun startPttBuffering() {
+        if (transcriptionManager == null) {
+            initializeTranscriptionManager()
+        }
+        transcriptionManager?.let { manager ->
+            try {
+                manager.startBufferingOnly()
+                updateMicButton()
+            } catch (e: Exception) {
+                Log.e(TAG, "PTT buffering start failed", e)
+                DebugLog.e("DictationKeyboardService: PTT buffering failed - ${e.message}")
+                isPttRecording = false
+            }
+        }
+    }
+
+    private fun startPttStreaming() {
+        transcriptionManager?.let { manager ->
+            manager.startDirectStreaming()
+            performHapticFeedback()
+            updateMicButton()
+        }
+    }
+
+    private fun stopPttBuffering(discard: Boolean) {
+        transcriptionManager?.stopBuffering(discard)
+        isRecording = false
+        isProcessing = false
+        isStandby = false
+        updateMicButton()
+    }
+
+    private fun stopPttStreaming() {
+        transcriptionManager?.stopBuffering(discard = false)
+        isRecording = false
+        isProcessing = false
+        isStandby = false
+        updateMicButton()
+    }
+
+    private fun performHapticFeedback() {
+        micButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+    }
+
+
 
     private fun openSettings() {
         Log.i(TAG, "DictationKeyboardService: Opening settings")
@@ -1279,46 +1449,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         startActivity(intent)
     }
 
-    private fun toggleDictation() {
-        // If mute is locked, ignore short press
-        if (isMuteLocked) {
-            Log.i(TAG, "Mic mute locked - ignoring toggle")
-            return
-        }
-
-        Log.i(TAG, "DictationKeyboardService: Toggle dictation")
-        DebugLog.i("DictationKeyboardService: Toggling dictation")
-
-        // Initialize TranscriptionManager if not already done
-        if (transcriptionManager == null) {
-            initializeTranscriptionManager()
-        }
-
-        transcriptionManager?.let { manager ->
-            if (isRecording) {
-                Log.i(TAG, "Stopping dictation")
-                manager.stopListening()
-            } else {
-                Log.i(TAG, "Starting dictation")
-                try {
-                    manager.startListening()
-                } catch (e: SecurityException) {
-                    Log.e(TAG, "Security exception starting listening", e)
-                    DebugLog.e("DictationKeyboardService: Security exception - ${e.message}")
-                    Toast.makeText(this, "Microphone permission denied", Toast.LENGTH_SHORT).show()
-                } catch (e: Exception) {
-                    Log.e(TAG, "Error starting listening", e)
-                    DebugLog.e("DictationKeyboardService: Error starting listening - ${e.message}")
-                    Toast.makeText(this, "Failed to start recording: ${e.message}", Toast.LENGTH_SHORT).show()
-                }
-            }
-            updateMicButton()
-        } ?: run {
-            Log.w(TAG, "TranscriptionManager not initialized")
-            DebugLog.w("DictationKeyboardService: TranscriptionManager not initialized - check API key")
-            Toast.makeText(this, "Please configure an API key in Settings", Toast.LENGTH_SHORT).show()
-        }
-    }
+    
 
     private fun toggleLanguage() {
         Log.i(TAG, "DictationKeyboardService: Toggle language")
@@ -1364,23 +1495,29 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun updateMicButton() {
-        // Four visual states:
-        // - Mute locked: Grey #808080
-        // - Active (transcribing): Imperial red #ED2939
-        // - Inactive (standby/hibernation): Darker imperial red #8B1C26
-        // - Off: White/themed
         val color = when {
-            isMuteLocked -> Color.parseColor("#808080")  // Grey - mute locked
+            // PTT mode states
+            isPushToTalkMode && isPttRecording && pttStreamingStarted ->
+                Color.parseColor("#ED2939")  // Red - PTT streaming (speaking)
+            isPushToTalkMode && isPttRecording && !pttStreamingStarted ->
+                Color.parseColor("#FF8C00")  // Orange - PTT buffering (keep holding...)
+            isPushToTalkMode ->
+                Color.parseColor("#4169E1")  // Blue - PTT idle (hold to talk)
+            // Normal mode states
+            isMuteLocked -> Color.parseColor("#808080")  // Grey - muted
             isProcessing -> Color.parseColor("#ED2939")  // Imperial red - actively transcribing
             isStandby -> Color.parseColor("#8B1C26")  // Darker imperial red - standby
             isRecording -> Color.parseColor("#ED2939")  // Imperial red (legacy)
             else -> getThemedIconColor()  // White/themed - off
         }
-        // Use imageTintList with a non-stateful ColorStateList to prevent color changes on press
         micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
 
-        // No pulse animation - just static colors
-        stopPulseAnimation(micIcon)
+        // Pulse animation only for PTT streaming
+        if (isPushToTalkMode && isPttRecording && pttStreamingStarted) {
+            startPulseAnimation(micIcon)
+        } else {
+            stopPulseAnimation(micIcon)
+        }
     }
 
     /**
@@ -4492,11 +4629,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         // Auto-start dictation when keyboard opens (mic red/active by default)
-        // Skip auto-start if mute is locked
-        if (!isRecording && !isProcessing && !isMuteLocked) {
+        // Skip auto-start if mute is locked or in PTT mode
+        if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
             // Small delay to let UI settle before starting audio
             Handler(Looper.getMainLooper()).postDelayed({
-                if (!isRecording && !isProcessing && !isMuteLocked) {
+                if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
                     Log.i(TAG, "Auto-starting dictation on keyboard open")
                     DebugLog.i("DictationKeyboardService: Auto-starting dictation")
 
@@ -4559,6 +4696,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Reset correction override mode when keyboard is hidden
         resetCorrectionOverrideMode()
         correctionManager?.clearLastCorrection()
+
+        // Cleanup PTT recording if keyboard closes mid-hold
+        if (isPttRecording) {
+            pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
+            transcriptionManager?.stopBuffering(discard = true)
+            isPttRecording = false
+            pttStreamingStarted = false
+            DebugLog.i("DictationKeyboardService: PTT recording cancelled (keyboard hidden)")
+        }
 
         // Stop transcription when keyboard is hidden to save battery
         if (isRecording || isProcessing) {

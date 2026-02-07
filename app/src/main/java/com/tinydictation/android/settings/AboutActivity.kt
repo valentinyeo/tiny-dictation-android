@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.29.0:
+            • Push-to-Talk mode: long-press MIC to enter, hold to record, release to transcribe
+            • PTT bypasses VAD completely — perfect for noisy environments (trains, buses)
+            • Visual states: blue (PTT idle), orange (buffering), red+pulse (streaming)
+            • Quick tap in PTT mode exits back to normal dictation
+            • Normal mode: tap MIC now toggles mute (unified mute replaces old toggle+lock)
+            • PTT preference persists across app restarts
+
             v1.28.3:
             • FIX: Terminal detection now uses prefix matching (fixes Termius com.server.auditor.ssh.client)
             • FIX: Terminal mode now applied when TranscriptionManager is first created (was null before)
