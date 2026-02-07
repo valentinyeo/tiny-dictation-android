@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.28.3:
+            • FIX: Terminal detection now uses prefix matching (fixes Termius com.server.auditor.ssh.client)
+            • FIX: Terminal mode now applied when TranscriptionManager is first created (was null before)
+            • These two bugs caused v1.28.2 terminal raw mode to never actually activate
+
             v1.28.2:
             • Terminal raw mode: disables all Deepgram formatting (smart_format, punctuation, interim results)
             • Terminal apps now get pure raw transcription with no corrections or word replacements

@@ -180,16 +180,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var lastFinalText = ""  // Last final transcript committed (for terminal dedup)
     private var lastFinalTime = 0L  // Timestamp of last final commit (for terminal dedup)
 
-    // Known terminal app package names
+    // Known terminal app package names (match by prefix for variant packages)
     private val terminalPackages = setOf(
-        "com.server.auditor",      // Terminus
-        "com.termius",             // Termius
-        "org.connectbot",          // ConnectBot
-        "com.sonelli.juicessh",    // JuiceSSH
-        "com.termux",              // Termux
-        "yarolegovich.materialterminal",  // Material Terminal
-        "com.offsec.nethunter.kex" // Kali NetHunter
+        "com.server.auditor",           // Termius (legacy prefix)
+        "com.termius",                  // Termius (alternate prefix)
+        "org.connectbot",               // ConnectBot
+        "com.sonelli.juicessh",         // JuiceSSH
+        "com.termux",                   // Termux
+        "yarolegovich.materialterminal", // Material Terminal
+        "com.offsec.nethunter.kex"      // Kali NetHunter
     )
+
+    /** Check if package is a terminal app (supports prefix matching for variant packages) */
+    private fun isTerminalPackage(packageName: String): Boolean {
+        return terminalPackages.any { packageName.startsWith(it) }
+    }
 
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
@@ -670,6 +675,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 }
             }
         )
+
+        // Apply terminal mode if we're in a terminal app
+        // (onStartInputView runs before initializeTranscriptionManager, so we must set it here)
+        if (isTerminalApp) {
+            transcriptionManager?.setTerminalMode(true)
+            DebugLog.i("DictationKeyboardService: Applied terminal mode to new TranscriptionManager")
+        }
     }
 
     override fun onDestroy() {
@@ -4445,7 +4457,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         predictionsEnabled = prefManager.getPredictionsEnabled()
         val currentPackage = info?.packageName ?: ""
         val wasTerminalApp = isTerminalApp
-        isTerminalApp = terminalPackages.contains(currentPackage)
+        isTerminalApp = isTerminalPackage(currentPackage)
         if (isTerminalApp != wasTerminalApp || predictionsEnabled != wasPredictionsEnabled) {
             DebugLog.i("DictationKeyboardService: Predictions: enabled=$predictionsEnabled, terminal=$isTerminalApp (package: $currentPackage)")
             updatePredictionStripVisibility()
