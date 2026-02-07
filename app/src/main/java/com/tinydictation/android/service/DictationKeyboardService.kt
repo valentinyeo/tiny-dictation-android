@@ -1240,16 +1240,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun handleMicTouchNormal(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                // Prevent scroll view from intercepting our long press
+                micButton?.parent?.requestDisallowInterceptTouchEvent(true)
                 isLongPressTriggered = false
                 longPressHandler = Handler(Looper.getMainLooper())
                 longPressRunnable = Runnable {
                     isLongPressTriggered = true
+                    DebugLog.i("DictationKeyboardService: Long press triggered - entering PTT")
                     enterPushToTalkMode()
                 }
                 longPressHandler?.postDelayed(longPressRunnable!!, LONG_PRESS_THRESHOLD)
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                micButton?.parent?.requestDisallowInterceptTouchEvent(false)
                 longPressRunnable?.let { longPressHandler?.removeCallbacks(it) }
                 if (!isLongPressTriggered && event.action == MotionEvent.ACTION_UP) {
                     toggleMute()
@@ -1266,6 +1270,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun handleMicTouchPTT(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
+                // Prevent scroll view from intercepting our hold gesture
+                micButton?.parent?.requestDisallowInterceptTouchEvent(true)
                 // Start buffering immediately on touch
                 isPttRecording = true
                 pttStreamingStarted = false
@@ -1281,6 +1287,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 return true
             }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                micButton?.parent?.requestDisallowInterceptTouchEvent(false)
                 pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
 
                 if (!pttStreamingStarted && event.action == MotionEvent.ACTION_UP) {

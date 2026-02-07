@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.29.1:
+            • FIX: Long-press MIC to enter PTT now works (scroll view was intercepting touch)
+            • Added requestDisallowInterceptTouchEvent to prevent scroll stealing long-press
+
             v1.29.0:
             • Push-to-Talk mode: long-press MIC to enter, hold to record, release to transcribe
             • PTT bypasses VAD completely — perfect for noisy environments (trains, buses)
