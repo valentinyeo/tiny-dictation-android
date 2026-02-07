@@ -38,6 +38,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private var scope: CoroutineScope? = null
     private var currentLanguage = "en"
     private var currentModel = PreferenceManager.DEEPGRAM_NOVA_2
+    var terminalMode = false
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
     private var onErrorCallback: ((String) -> Unit)? = null
     private var isSessionActive = false
@@ -106,7 +107,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                     onErrorCallback?.invoke(error)
                 },
                 language = currentLanguage,
-                model = currentModel
+                model = currentModel,
+                terminalMode = terminalMode
             )
         }
     }
@@ -243,7 +245,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                         onFinal = { text -> transcript(text, true) },
                         onError = { err -> error(err) },
                         language = currentLanguage,
-                        model = currentModel
+                        model = currentModel,
+                        terminalMode = terminalMode
                     )
                 }
             }

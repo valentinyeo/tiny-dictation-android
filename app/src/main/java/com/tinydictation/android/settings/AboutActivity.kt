@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.28.2:
+            • Terminal raw mode: disables all Deepgram formatting (smart_format, punctuation, interim results)
+            • Terminal apps now get pure raw transcription with no corrections or word replacements
+            • Deduplication guard prevents repeated final results from Deepgram in terminals
+            • Fixes persistent text doubling in Termius, Termux, and other terminal apps
+
             v1.28.1:
             • FIX: Dictation text no longer appears doubled in terminal apps (Termius, Termux, etc.)
             • Skip interim results in terminals where deleteSurroundingText doesn't work

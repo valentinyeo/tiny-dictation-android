@@ -30,17 +30,31 @@ class DeepgramClient {
         private const val BASE_PARAMS =
             "encoding=linear16" +
             "&sample_rate=16000" +
-            "&channels=1" +
-            "&smart_format=true" +
-            "&punctuate=true" +
-            "&interim_results=true" +
-            "&endpointing=150"  // Reduced from 300ms for faster finals
+            "&channels=1"
 
-        /** Builds params with specified language and model */
-        fun buildParams(language: String = "en", model: String = "nova-2"): String {
+        /**
+         * Builds params with specified language, model, and mode.
+         *
+         * @param terminalMode When true, disables smart_format, punctuate, and interim_results.
+         *   Terminal apps (Termius, Termux) don't support deleteSurroundingText, so interim
+         *   results cause duplication. Disabling formatting gives raw transcription output.
+         */
+        fun buildParams(language: String = "en", model: String = "nova-2", terminalMode: Boolean = false): String {
             val params = StringBuilder()
             params.append("model=$model")
             params.append("&$BASE_PARAMS")
+            if (terminalMode) {
+                // Terminal mode: no formatting, no interims, only raw final results
+                params.append("&smart_format=false")
+                params.append("&punctuate=false")
+                params.append("&interim_results=false")
+                params.append("&endpointing=150")
+            } else {
+                params.append("&smart_format=true")
+                params.append("&punctuate=true")
+                params.append("&interim_results=true")
+                params.append("&endpointing=150")
+            }
             // Nova-3 can auto-detect language if language is "auto"
             if (language != "auto") {
                 params.append("&language=$language")
@@ -85,7 +99,8 @@ class DeepgramClient {
         onFinal: (String) -> Unit,
         onError: (String) -> Unit,
         language: String = "en",
-        model: String = "nova-2"
+        model: String = "nova-2",
+        terminalMode: Boolean = false
     ) {
         // Force-close any existing connection to avoid race conditions
         // This makes connect() idempotent and prevents "Already connected" errors
@@ -119,7 +134,7 @@ class DeepgramClient {
                 .build()
             okHttpClient = client
 
-            val params = buildParams(language, model)
+            val params = buildParams(language, model, terminalMode)
             val url = "$BASE_URL?$params"
             Log.d(TAG, "Deepgram URL: $url (language=$language, model=$model)")
 

@@ -177,6 +177,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
     private var isTerminalApp = false  // True when keyboard is in a terminal app
     private var predictionsEnabled = true  // User preference for predictions
+    private var lastFinalText = ""  // Last final transcript committed (for terminal dedup)
+    private var lastFinalTime = 0L  // Timestamp of last final commit (for terminal dedup)
 
     // Known terminal app package names
     private val terminalPackages = setOf(
@@ -559,6 +561,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         lastInterimLength = text.length
                     } else if (isFinal && text.isNotBlank()) {
                         val ic = currentInputConnection ?: return@post
+
+                        // Terminal dedup: skip duplicate final results within 2 seconds
+                        if (isTerminalApp) {
+                            val now = System.currentTimeMillis()
+                            if (text == lastFinalText && now - lastFinalTime < 2000) {
+                                DebugLog.d("DictationKeyboardService: Skipping duplicate final in terminal: '$text'")
+                                return@post
+                            }
+                            lastFinalText = text
+                            lastFinalTime = now
+                        }
+
                         // Delete previous interim text before committing final
                         if (lastInterimLength > 0) {
                             ic.deleteSurroundingText(lastInterimLength, 0)
@@ -580,10 +594,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 DebugLog.w("DictationKeyboardService: Voice command failed - ${commandResult.reason}")
                             }
                             is VoiceCommandProcessor.CommandResult.NotACommand -> {
-                                // Normal text - apply word replacements and commit
-                                val processedText = com.tinydictation.android.dictionary.WordReplacementManager
-                                    .getInstance(this@DictationKeyboardService)
-                                    .applyReplacements(text)
+                                // In terminal mode: raw output, no word replacements or corrections
+                                val processedText = if (isTerminalApp) {
+                                    text
+                                } else {
+                                    com.tinydictation.android.dictionary.WordReplacementManager
+                                        .getInstance(this@DictationKeyboardService)
+                                        .applyReplacements(text)
+                                }
                                 commitTextInternal(processedText + " ")
 
                                 // Save to transcription history
@@ -4431,6 +4449,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (isTerminalApp != wasTerminalApp || predictionsEnabled != wasPredictionsEnabled) {
             DebugLog.i("DictationKeyboardService: Predictions: enabled=$predictionsEnabled, terminal=$isTerminalApp (package: $currentPackage)")
             updatePredictionStripVisibility()
+        }
+        // Set terminal mode on transcription engine (disables formatting, interims)
+        if (isTerminalApp != wasTerminalApp) {
+            transcriptionManager?.setTerminalMode(isTerminalApp)
+            if (isTerminalApp) {
+                lastFinalText = ""
+                lastFinalTime = 0L
+            }
         }
 
         // Check for pending paste from HistoryActivity

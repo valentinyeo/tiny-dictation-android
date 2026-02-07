@@ -599,6 +599,19 @@ class TranscriptionManager(
     fun getActiveEngineId(): String? = currentEngine?.engineId
 
     /**
+     * Sets terminal mode on the Deepgram engine.
+     * In terminal mode, Deepgram disables smart_format, punctuate, and interim_results
+     * to provide raw transcription output suitable for terminal apps.
+     */
+    fun setTerminalMode(enabled: Boolean) {
+        val engine = currentEngine ?: engines.values.firstOrNull()
+        if (engine is com.tinydictation.android.transcription.engines.DeepgramEngine) {
+            engine.terminalMode = enabled
+            DebugLog.i("TranscriptionManager: Terminal mode ${if (enabled) "enabled" else "disabled"}")
+        }
+    }
+
+    /**
      * Checks if there is pending audio still being processed.
      *
      * @return true if there is pending audio to be transcribed
