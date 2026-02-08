@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * Wrapper for EncryptedSharedPreferences to securely store app settings.
@@ -183,6 +185,11 @@ class PreferenceManager(context: Context) {
         const val UNIFIED_GEMINI = "cloud:gemini"
         const val UNIFIED_VOSK = "offline:vosk"
         const val UNIFIED_WHISPER = "offline:whisper"
+
+        // Deepgram feature keys (per-language keywords/replacements, global toggles)
+        private const val KEY_DEEPGRAM_NUMERALS = "deepgram_numerals"
+        private const val KEY_DEEPGRAM_DICTATION = "deepgram_dictation"
+        // Per-language keys use pattern: "deepgram_keywords_$language", "deepgram_replace_$language"
     }
 
     private val prefs: SharedPreferences
@@ -1425,5 +1432,88 @@ class PreferenceManager(context: Context) {
 
     fun setCorrectionLearnEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_CORRECTION_LEARN, enabled).apply()
+    }
+
+    // ========== Deepgram Features (Keywords, Replace, Numerals, Dictation) ==========
+
+    /**
+     * Gets whether Deepgram numerals feature is enabled.
+     * When enabled, Deepgram converts spoken numbers to digits (e.g., "twenty one" -> "21").
+     * @return true if enabled (default: true)
+     */
+    fun getDeepgramNumerals(): Boolean {
+        return prefs.getBoolean(KEY_DEEPGRAM_NUMERALS, true)
+    }
+
+    fun setDeepgramNumerals(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DEEPGRAM_NUMERALS, enabled).apply()
+    }
+
+    /**
+     * Gets whether Deepgram dictation feature is enabled.
+     * When enabled, Deepgram processes spoken punctuation commands (e.g., "period", "comma").
+     * Only meaningful for English language.
+     * @return true if enabled (default: false)
+     */
+    fun getDeepgramDictation(): Boolean {
+        return prefs.getBoolean(KEY_DEEPGRAM_DICTATION, false)
+    }
+
+    fun setDeepgramDictation(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_DEEPGRAM_DICTATION, enabled).apply()
+    }
+
+    /**
+     * Gets Deepgram keywords for a specific language.
+     * Keywords boost recognition of specific terms.
+     * Stored as JSON array in SharedPreferences.
+     * @param language Language code (e.g., "en", "de")
+     * @return List of keyword strings
+     */
+    fun getDeepgramKeywords(language: String): List<String> {
+        val json = prefs.getString("deepgram_keywords_$language", null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { arr.getString(it) }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setDeepgramKeywords(language: String, keywords: List<String>) {
+        val arr = JSONArray()
+        keywords.forEach { arr.put(it) }
+        prefs.edit().putString("deepgram_keywords_$language", arr.toString()).apply()
+    }
+
+    /**
+     * Gets Deepgram replacement rules for a specific language.
+     * Replacements substitute one term for another in transcription output.
+     * Stored as JSON array of objects: [{"find":"wrong","replace":"right"}, ...]
+     * @param language Language code (e.g., "en", "de")
+     * @return List of Pair(find, replace) rules
+     */
+    fun getDeepgramReplacements(language: String): List<Pair<String, String>> {
+        val json = prefs.getString("deepgram_replace_$language", null) ?: return emptyList()
+        return try {
+            val arr = JSONArray(json)
+            (0 until arr.length()).map { i ->
+                val obj = arr.getJSONObject(i)
+                Pair(obj.getString("find"), obj.getString("replace"))
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    fun setDeepgramReplacements(language: String, replacements: List<Pair<String, String>>) {
+        val arr = JSONArray()
+        replacements.forEach { (find, replace) ->
+            val obj = JSONObject()
+            obj.put("find", find)
+            obj.put("replace", replace)
+            arr.put(obj)
+        }
+        prefs.edit().putString("deepgram_replace_$language", arr.toString()).apply()
     }
 }

@@ -39,6 +39,10 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private var currentLanguage = "en"
     private var currentModel = PreferenceManager.DEEPGRAM_NOVA_2
     var terminalMode = false
+    var keywords: List<String> = emptyList()
+    var replacements: List<Pair<String, String>> = emptyList()
+    var numerals: Boolean = false
+    var dictation: Boolean = false
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
     private var onErrorCallback: ((String) -> Unit)? = null
     private var isSessionActive = false
@@ -108,7 +112,11 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                 },
                 language = currentLanguage,
                 model = currentModel,
-                terminalMode = terminalMode
+                terminalMode = terminalMode,
+                keywords = keywords,
+                replacements = replacements,
+                numerals = numerals,
+                dictation = dictation
             )
         }
     }

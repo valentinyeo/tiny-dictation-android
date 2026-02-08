@@ -739,6 +739,11 @@ class TranscriptionManager(
                     val engine = engines[PreferenceManager.ENGINE_DEEPGRAM] as? DeepgramEngine
                     engine?.setModel(preferenceManager.getDeepgramModel())
                     if (autoDetect) engine?.setAutoDetectLanguage(true)
+                    // Set Deepgram-specific features
+                    engine?.keywords = preferenceManager.getDeepgramKeywords(currentLanguage)
+                    engine?.replacements = preferenceManager.getDeepgramReplacements(currentLanguage)
+                    engine?.numerals = preferenceManager.getDeepgramNumerals()
+                    engine?.dictation = preferenceManager.getDeepgramDictation()
                     Log.i(TAG, "Using Deepgram engine with model ${preferenceManager.getDeepgramModel()}")
                     engine
                 }

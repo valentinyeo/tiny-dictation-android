@@ -85,6 +85,11 @@
             android:theme="@style/Theme.TinyDictation" />
 
         <activity
+            android:name=".settings.DeepgramFeaturesSettingsActivity"
+            android:exported="false"
+            android:theme="@style/Theme.TinyDictation" />
+
+        <activity
             android:name=".settings.PermissionsActivity"
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />

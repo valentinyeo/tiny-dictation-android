@@ -10,6 +10,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 /**
@@ -38,8 +39,20 @@ class DeepgramClient {
          * @param terminalMode When true, disables smart_format, punctuate, and interim_results.
          *   Terminal apps (Termius, Termux) don't support deleteSurroundingText, so interim
          *   results cause duplication. Disabling formatting gives raw transcription output.
+         * @param keywords List of keywords to boost recognition for
+         * @param replacements List of find/replace pairs for word substitution
+         * @param numerals When true, converts spoken numbers to digits
+         * @param dictation When true, processes spoken punctuation commands (English only)
          */
-        fun buildParams(language: String = "en", model: String = "nova-2", terminalMode: Boolean = false): String {
+        fun buildParams(
+            language: String = "en",
+            model: String = "nova-2",
+            terminalMode: Boolean = false,
+            keywords: List<String> = emptyList(),
+            replacements: List<Pair<String, String>> = emptyList(),
+            numerals: Boolean = false,
+            dictation: Boolean = false
+        ): String {
             val params = StringBuilder()
             params.append("model=$model")
             params.append("&$BASE_PARAMS")
@@ -59,6 +72,24 @@ class DeepgramClient {
             if (language != "auto") {
                 params.append("&language=$language")
             }
+
+            // Deepgram features
+            if (numerals) {
+                params.append("&numerals=true")
+            }
+            if (dictation) {
+                params.append("&dictation=true")
+            }
+            for (keyword in keywords) {
+                val encoded = URLEncoder.encode(keyword, "UTF-8")
+                params.append("&keywords=$encoded")
+            }
+            for ((find, replace) in replacements) {
+                val encodedFind = URLEncoder.encode(find, "UTF-8")
+                val encodedReplace = URLEncoder.encode(replace, "UTF-8")
+                params.append("&replace=$encodedFind:$encodedReplace")
+            }
+
             return params.toString()
         }
 
@@ -92,6 +123,11 @@ class DeepgramClient {
      * @param onError Callback for error messages
      * @param language Language code ("en" for English, "de" for German, "auto" for auto-detect)
      * @param model Deepgram model ("nova-3", "nova-2", "enhanced", "base")
+     * @param terminalMode When true, disables formatting for terminal apps
+     * @param keywords List of keywords to boost recognition for
+     * @param replacements List of find/replace pairs for word substitution
+     * @param numerals When true, converts spoken numbers to digits
+     * @param dictation When true, processes spoken punctuation commands
      */
     fun connect(
         apiKey: String,
@@ -100,7 +136,11 @@ class DeepgramClient {
         onError: (String) -> Unit,
         language: String = "en",
         model: String = "nova-2",
-        terminalMode: Boolean = false
+        terminalMode: Boolean = false,
+        keywords: List<String> = emptyList(),
+        replacements: List<Pair<String, String>> = emptyList(),
+        numerals: Boolean = false,
+        dictation: Boolean = false
     ) {
         // Force-close any existing connection to avoid race conditions
         // This makes connect() idempotent and prevents "Already connected" errors
@@ -134,7 +174,7 @@ class DeepgramClient {
                 .build()
             okHttpClient = client
 
-            val params = buildParams(language, model, terminalMode)
+            val params = buildParams(language, model, terminalMode, keywords, replacements, numerals, dictation)
             val url = "$BASE_URL?$params"
             Log.d(TAG, "Deepgram URL: $url (language=$language, model=$model)")
 

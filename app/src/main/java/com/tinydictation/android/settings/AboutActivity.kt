@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.30.0:
+            • Deepgram Features settings: keywords, find & replace, numerals, dictation
+            • Keywords: boost recognition of specific words (names, technical terms) — up to 100 per language
+            • Find & Replace: fix recurring transcription errors — up to 200 rules per language
+            • Numerals: convert spoken numbers to digits (enabled by default)
+            • Dictation: say "period", "comma" to insert punctuation (English only)
+            • All settings stored per-language (EN/DE have separate lists)
+
             v1.29.3:
             • Double-tap MIC to enter PTT mode (replaces long-press)
             • Double-tap MIC in PTT to exit back to normal mode (replaces quick-tap)

@@ -14,6 +14,7 @@ import com.tinydictation.android.settings.AboutActivity
 import com.tinydictation.android.settings.ApiKeysSettingsActivity
 import com.tinydictation.android.settings.AppearanceSettingsActivity
 import com.tinydictation.android.settings.AudioSettingsActivity
+import com.tinydictation.android.settings.DeepgramFeaturesSettingsActivity
 import com.tinydictation.android.settings.OfflineModelsActivity
 import com.tinydictation.android.settings.PermissionsActivity
 import com.tinydictation.android.settings.TextCorrectionSettingsActivity
@@ -91,6 +92,12 @@ class SettingsActivity : AppCompatActivity() {
                 subtitle = "Auto-fix typos and spacing"
             ),
             SettingsCategory(
+                id = "deepgram_features",
+                icon = R.drawable.ic_mic,
+                title = "Deepgram Features",
+                subtitle = "Keywords, replacements, numerals"
+            ),
+            SettingsCategory(
                 id = "permissions",
                 icon = R.drawable.ic_shield,
                 title = "Permissions",
@@ -126,6 +133,7 @@ class SettingsActivity : AppCompatActivity() {
             "offline_models" -> Intent(this, OfflineModelsActivity::class.java)
             "appearance" -> Intent(this, AppearanceSettingsActivity::class.java)
             "text_correction" -> Intent(this, TextCorrectionSettingsActivity::class.java)
+            "deepgram_features" -> Intent(this, DeepgramFeaturesSettingsActivity::class.java)
             "permissions" -> Intent(this, PermissionsActivity::class.java)
             "history" -> Intent(this, HistoryActivity::class.java)
             "dictionary" -> Intent(this, DictionaryActivity::class.java)
