@@ -130,7 +130,7 @@ Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keybo
 8. **Enter** - Send enter key
 9. **Keyboard** - Toggle tabbed panel (QWERTY + Cursor/Numpad + other tabs)
 10. **History** - Open transcription history (icon: ic_history)
-11. **Improve** - AI-powered text improvement (icon: ic_improve, uses Groq API)
+11. **Improve** - AI-powered text improvement (icon: ic_improve, uses Anthropic API)
 
 **Scroll behavior:**
 - The HorizontalScrollView MUST center on the MIC button when keyboard opens
@@ -139,20 +139,28 @@ Chevron | SelectAll | Emoji | Space | Language | Backspace | MIC | Enter | Keybo
 - Buttons to the left of MIC (Chevron, SelectAll, Emoji, Space, Backspace, Language) are hidden by scroll
 - Buttons to the right of MIC (Enter, Keyboard, History, Improve) are visible by default
 
-### Archived Modes (in `archived/` directory)
-The following experimental modes have been archived but preserved for reference:
-- **Vertical Floating Bar** (`archived/java/service/BubbleService.kt`) - Draggable overlay
-- **Horizontal Companion Bar** (`archived/java/service/KeyboardCompanionService.kt`) - Bar above keyboard
+## Transcription Engines (v1.31.0+)
 
-## Transcription Engines
+Only three engines remain after the v1.31.0 cleanup:
 
-- **Deepgram** (cloud) - Default, requires API key and internet
+- **Deepgram** (cloud) - Default, requires API key and internet. Only cloud engine.
 - **Vosk** (offline) - Fast streaming recognition, ~45MB models
 - **Sherpa-ONNX/Whisper** (offline) - High quality, ~75MB models
 
 Engine interface: `app/src/main/java/com/tinydictation/android/transcription/TranscriptionEngine.kt`
 
 Model management: `ModelManager.kt` handles downloading/storing offline models
+
+## AI Services (v1.31.0+)
+
+- **Anthropic** (Claude API) - Powers the "Improve" button for text improvement. Only AI service.
+- Configured via `TextImprover.kt`, requires Anthropic API key.
+
+## API Keys
+
+Only two API keys are needed (managed in Settings → API Keys):
+- **Deepgram** - For cloud transcription
+- **Anthropic** - For AI text improvement (Improve button)
 
 ## Build System
 
@@ -187,7 +195,7 @@ nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvma
 ```bash
 cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
 ```
-Example: `TinyDictation-v1.11.27-arm64.apk`
+Example: `TinyDictation-v1.31.0-arm64.apk`
 
 Telegram credentials are in `~/.telegram-deploy`. Send with **actual changelog** in caption:
 ```bash
@@ -200,7 +208,7 @@ source ~/.telegram-deploy && curl -s -X POST "https://api.telegram.org/bot${TELE
 • Change 3"
 ```
 
-**Important**: Always list the actual changes from the changelog in SettingsActivity.kt, not just a summary.
+**Important**: Always list the actual changes from the changelog in AboutActivity.kt, not just a summary.
 
 Use `/send` to manually trigger sending the latest APK if needed.
 
@@ -213,8 +221,25 @@ Use `/send` to manually trigger sending the latest APK if needed.
 - `VoiceActivityDetector.kt` - Simple RMS-based VAD (thresholds: speech=100, silence=50)
 - `DeepgramClient.kt` - WebSocket client for Deepgram API (keywords, replace, numerals, dictation params)
 - `DeepgramEngine.kt` - Engine wrapper for DeepgramClient (in `transcription/engines/`)
+- `TextImprover.kt` - Anthropic-powered text improvement (Improve button)
 - `DictationAccessibilityService.kt` - Text injection via accessibility
 - `DeepgramFeaturesSettingsActivity.kt` - Settings UI for Deepgram keywords, replacements, numerals, dictation
+- `PreferenceManager.kt` - All settings via EncryptedSharedPreferences
+
+## Settings Screens
+
+| Screen | Activity | Description |
+|--------|----------|-------------|
+| API Keys | `ApiKeysSettingsActivity` | Deepgram + Anthropic API keys |
+| Transcription | `TranscriptionSettingsActivity` | Engine, model, language, fallback |
+| Voice Commands | `VoiceCommandsActivity` | Hands-free text control |
+| Audio | `AudioSettingsActivity` | Microphone, silence detection |
+| Offline Models | `OfflineModelsActivity` | Download Vosk/Whisper models |
+| Appearance | `AppearanceSettingsActivity` | Theme, number row, panel/button visibility |
+| Deepgram Features | `DeepgramFeaturesSettingsActivity` | Keywords, replacements, numerals, dictation |
+| Permissions | `PermissionsActivity` | Microphone, accessibility |
+| History | `HistoryActivity` | Past transcriptions |
+| About | `AboutActivity` | Version, changelog, debug logs |
 
 ## Debugging
 
@@ -251,8 +276,3 @@ Data stored per-language in PreferenceManager. Flow: PreferenceManager → Trans
 - **Normal mode**: Tap = toggleMute (~300ms delay), Double-tap = enter PTT
 - **PTT mode**: Hold = record, Double-tap = exit PTT, Single tap = no-op
 - Colors: Blue (#4169E1) = PTT idle, Orange (#FF8C00) = buffering, Red (#ED2939)+pulse = streaming, Grey (#808080) = muted
-
-## Pending Work
-
-- Settings screen reorganization (plan exists but not implemented)
-- See plan file at `~/.claude/plans/pure-nibbling-phoenix.md` for offline transcription details
