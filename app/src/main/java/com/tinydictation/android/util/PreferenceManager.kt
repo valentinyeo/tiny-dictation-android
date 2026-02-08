@@ -24,22 +24,15 @@ class PreferenceManager(context: Context) {
         private const val KEY_AUTO_PUNCTUATION = "auto_punctuation"
         private const val KEY_SMART_FORMAT = "smart_format"
         private const val KEY_LANGUAGE = "language"
-        private const val KEY_MODEL = "model"
         private const val KEY_ENDPOINTING_MS = "endpointing_ms"
         private const val KEY_ONBOARDING_COMPLETED = "onboarding_completed"
         private const val KEY_TRANSCRIPTION_ENGINE = "transcription_engine"
         private const val KEY_AUTO_FALLBACK = "auto_fallback_offline"
         private const val KEY_WHISPER_MODEL = "whisper_model"
         private const val KEY_USE_HEADPHONE_MIC = "use_headphone_mic"
-        private const val KEY_SHOW_NOTE_BUBBLE = "show_note_bubble"
-        private const val KEY_NOTE_APP_PACKAGE = "note_app_package"
         private const val KEY_SIMULATE_TYPING = "simulate_typing"
-        private const val KEY_HIDE_BUBBLES = "hide_bubbles"
         private const val KEY_KEYBOARD_THEME = "keyboard_theme"
-        private const val KEY_DICTATION_MODE = "dictation_mode"
         private const val KEY_PAUSE_MEDIA_DURING_DICTATION = "pause_media_during_dictation"
-        private const val KEY_BAR_ORIENTATION = "bar_orientation"
-        private const val KEY_BAR_TRANSPARENCY = "bar_transparency"
         private const val KEY_SILENCE_AUTO_STOP_MS = "silence_auto_stop_ms"
         
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
@@ -72,7 +65,6 @@ class PreferenceManager(context: Context) {
         const val DEFAULT_AUTO_PUNCTUATION = true
         const val DEFAULT_SMART_FORMAT = true
         const val DEFAULT_LANGUAGE = "en"
-        const val DEFAULT_MODEL = "nova-2"
         const val DEFAULT_ENDPOINTING_MS = 300
 
         // Engine IDs
@@ -92,18 +84,6 @@ class PreferenceManager(context: Context) {
         const val THEME_DARK = "dark"
         const val THEME_AMOLED = "amoled"
 
-        // Dictation mode constants (keyboard mode only - bubble and companion archived)
-        const val MODE_KEYBOARD = "keyboard"          // Full IME keyboard (only supported mode)
-        @Deprecated("Archived - use MODE_KEYBOARD")
-        const val MODE_BUBBLE = "bubble"              // Floating bubble (archived)
-        @Deprecated("Archived - use MODE_KEYBOARD")
-        const val MODE_COMPANION = "companion"        // Keyboard companion bar (archived)
-
-        // Bar orientation constants (archived with floating bar)
-        @Deprecated("Archived with floating bar feature")
-        const val ORIENTATION_VERTICAL = "vertical"
-        @Deprecated("Archived with floating bar feature")
-        const val ORIENTATION_HORIZONTAL = "horizontal"
 
         // Cloud provider constants
         const val PROVIDER_DEEPGRAM = "deepgram"
@@ -285,24 +265,6 @@ class PreferenceManager(context: Context) {
         prefs.edit().putString(KEY_LANGUAGE, language).apply()
     }
 
-    // ========== Model ==========
-
-    /**
-     * Gets the selected Deepgram model.
-     * @return Model name (e.g., "nova-2", "nova", "enhanced")
-     */
-    fun getModel(): String {
-        return prefs.getString(KEY_MODEL, DEFAULT_MODEL) ?: DEFAULT_MODEL
-    }
-
-    /**
-     * Sets the Deepgram model.
-     * @param model Model name
-     */
-    fun setModel(model: String) {
-        prefs.edit().putString(KEY_MODEL, model).apply()
-    }
-
     // ========== Endpointing ==========
 
     /**
@@ -338,23 +300,6 @@ class PreferenceManager(context: Context) {
      */
     fun setOnboardingCompleted() {
         prefs.edit().putBoolean(KEY_ONBOARDING_COMPLETED, true).apply()
-    }
-
-    // ========== Utility ==========
-
-    /**
-     * Builds Deepgram query parameters based on current settings.
-     * @return Query parameter string for Deepgram WebSocket URL
-     */
-    fun buildDeepgramParams(): String {
-        return buildString {
-            append("model=${getModel()}")
-            append("&language=${getLanguage()}")
-            append("&punctuate=${getAutoPunctuation()}")
-            append("&smart_format=${getSmartFormat()}")
-            append("&interim_results=true")
-            append("&endpointing=${getEndpointingMs()}")
-        }
     }
 
     /**
@@ -437,44 +382,6 @@ class PreferenceManager(context: Context) {
         prefs.edit().putBoolean(KEY_USE_HEADPHONE_MIC, enabled).apply()
     }
 
-    // ========== Note Bubble ==========
-
-    /**
-     * Gets whether to show the note bubble.
-     * @return true if the note bubble should be shown
-     */
-    fun getShowNoteBubble(): Boolean {
-        return prefs.getBoolean(KEY_SHOW_NOTE_BUBBLE, false)
-    }
-
-    /**
-     * Sets whether to show the note bubble.
-     * @param enabled true to show note bubble
-     */
-    fun setShowNoteBubble(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_SHOW_NOTE_BUBBLE, enabled).apply()
-    }
-
-    /**
-     * Gets the package name of the configured note-taking app.
-     * @return Package name, or null if not configured
-     */
-    fun getNoteAppPackage(): String? {
-        return prefs.getString(KEY_NOTE_APP_PACKAGE, null)
-    }
-
-    /**
-     * Sets the package name of the note-taking app to use.
-     * @param packageName Package name of the app
-     */
-    fun setNoteAppPackage(packageName: String?) {
-        if (packageName == null) {
-            prefs.edit().remove(KEY_NOTE_APP_PACKAGE).apply()
-        } else {
-            prefs.edit().putString(KEY_NOTE_APP_PACKAGE, packageName).apply()
-        }
-    }
-
     // ========== Simulate Typing ==========
 
     /**
@@ -495,25 +402,6 @@ class PreferenceManager(context: Context) {
         prefs.edit().putBoolean(KEY_SIMULATE_TYPING, enabled).apply()
     }
 
-    // ========== Hide Bubbles ==========
-
-    /**
-     * Gets whether to hide the floating bubbles.
-     * Useful when using keyboard mode exclusively.
-     * @return true if bubbles should be hidden
-     */
-    fun getHideBubbles(): Boolean {
-        return prefs.getBoolean(KEY_HIDE_BUBBLES, false)
-    }
-
-    /**
-     * Sets whether to hide the floating bubbles.
-     * @param hidden true to hide bubbles
-     */
-    fun setHideBubbles(hidden: Boolean) {
-        prefs.edit().putBoolean(KEY_HIDE_BUBBLES, hidden).apply()
-    }
-
     // ========== Keyboard Theme ==========
 
     /**
@@ -530,28 +418,6 @@ class PreferenceManager(context: Context) {
      */
     fun setKeyboardTheme(theme: String) {
         prefs.edit().putString(KEY_KEYBOARD_THEME, theme).apply()
-    }
-
-    // ========== Dictation Mode ==========
-
-    /**
-     * Gets the dictation mode setting.
-     * Note: Only keyboard mode is supported. Bubble and companion modes are archived.
-     * @return Mode ID (always "keyboard")
-     */
-    fun getDictationMode(): String {
-        // Always return keyboard mode - other modes are archived
-        return MODE_KEYBOARD
-    }
-
-    /**
-     * Sets the dictation mode (deprecated - only keyboard mode supported).
-     * @param mode Mode ID (only keyboard is supported)
-     */
-    @Deprecated("Only keyboard mode is supported")
-    fun setDictationMode(mode: String) {
-        // Only keyboard mode is supported
-        prefs.edit().putString(KEY_DICTATION_MODE, MODE_KEYBOARD).apply()
     }
 
     // ========== Pause Media During Dictation ==========
@@ -571,51 +437,6 @@ class PreferenceManager(context: Context) {
      */
     fun setPauseMediaDuringDictation(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_PAUSE_MEDIA_DURING_DICTATION, enabled).apply()
-    }
-
-    // ========== Bar Orientation (Archived) ==========
-
-    /**
-     * Gets the floating bar orientation setting.
-     * @return Orientation ID ("vertical" or "horizontal")
-     * @deprecated Floating bar feature is archived
-     */
-    @Deprecated("Floating bar feature is archived")
-    fun getBarOrientation(): String {
-        return prefs.getString(KEY_BAR_ORIENTATION, ORIENTATION_VERTICAL) ?: ORIENTATION_VERTICAL
-    }
-
-    /**
-     * Sets the floating bar orientation.
-     * @param orientation Orientation ID (vertical or horizontal)
-     * @deprecated Floating bar feature is archived
-     */
-    @Deprecated("Floating bar feature is archived")
-    fun setBarOrientation(orientation: String) {
-        prefs.edit().putString(KEY_BAR_ORIENTATION, orientation).apply()
-    }
-
-    // ========== Bar Transparency (Archived) ==========
-
-    /**
-     * Gets the floating bar transparency setting (0-50).
-     * 0 means fully opaque, 50 means 50% transparent.
-     * @return Transparency percentage (0-50)
-     * @deprecated Floating bar feature is archived
-     */
-    @Deprecated("Floating bar feature is archived")
-    fun getBarTransparency(): Float {
-        return prefs.getFloat(KEY_BAR_TRANSPARENCY, 0f)
-    }
-
-    /**
-     * Sets the floating bar transparency.
-     * @param value Transparency percentage (0-50)
-     * @deprecated Floating bar feature is archived
-     */
-    @Deprecated("Floating bar feature is archived")
-    fun setBarTransparency(value: Float) {
-        prefs.edit().putFloat(KEY_BAR_TRANSPARENCY, value.coerceIn(0f, 50f)).apply()
     }
 
     // ========== Anthropic API Key ==========
@@ -693,17 +514,6 @@ class PreferenceManager(context: Context) {
             unified == UNIFIED_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
             else -> false
         }
-    }
-
-    /**
-     * Checks if the current provider needs a manual language selection.
-     * Vosk needs language selection (different models per language).
-     * Whisper and cloud providers auto-detect or have it built-in.
-     * @return true if manual language selection should be shown
-     */
-    fun currentProviderNeedsLanguageToggle(): Boolean {
-        // Always show language toggle - user controls language via button, no auto-detect
-        return true
     }
 
     // ========== Unified Provider ==========

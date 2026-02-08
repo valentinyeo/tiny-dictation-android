@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.2:
+            • Removed ~15 unused PreferenceManager methods (note bubble, hide bubbles, bar orientation/transparency, dictation mode, old model methods)
+            • Removed deprecated constants (MODE_BUBBLE, MODE_COMPANION, ORIENTATION_*)
+            • Removed unused buildDeepgramParams() (replaced by DeepgramClient.buildParams())
+            • Inlined always-true currentProviderNeedsLanguageToggle()
+
             v1.31.1:
             • Removed dead activity_settings.xml layout (1,274 lines)
             • Fixed stale Groq references in comments (now Anthropic)

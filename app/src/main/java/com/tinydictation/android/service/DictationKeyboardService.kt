@@ -1540,16 +1540,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Update space bar language label (Samsung-style)
         spaceKeyButton?.text = langName
 
-        // Hide language button if provider doesn't need manual language selection
-        // This includes: Whisper (auto-detects), cloud providers with auto-detect enabled
-        val needsLanguageToggle = prefs.currentProviderNeedsLanguageToggle()
-        if (!needsLanguageToggle) {
-            languageButton?.visibility = View.GONE
-            DebugLog.d("DictationKeyboardService: Language button hidden (provider auto-detects)")
-        } else {
-            languageButton?.visibility = View.VISIBLE
-            languageText?.text = lang
-        }
+        // Language button always visible - user controls language via button
+        languageButton?.visibility = View.VISIBLE
+        languageText?.text = lang
     }
 
     private fun getLanguageDisplayName(langCode: String): String {
