@@ -8,23 +8,28 @@ import com.tinydictation.android.util.DebugLog
  * Processes voice commands from dictation.
  * Commands are spoken phrases that trigger actions instead of being typed.
  *
+ * Note: Basic punctuation (period, comma, question mark, exclamation mark, colon,
+ * new line, new paragraph) is handled by Deepgram's dictation mode server-side.
+ * This processor handles commands that Deepgram doesn't support natively.
+ *
  * Supported commands:
  * - "scratch that" / "delete that" → Select all and delete
  * - "undo that" → Delete last word
- * - "new line" / "next line" → Insert newline
- * - "new paragraph" → Insert two newlines
- * - "period" / "full stop" → Insert .
- * - "comma" → Insert ,
- * - "question mark" → Insert ?
- * - "exclamation mark" / "exclamation point" → Insert !
- * - "colon" → Insert :
  * - "semicolon" → Insert ;
- * - "open quote" / "open quotes" → Insert "
- * - "close quote" / "close quotes" → Insert "
- * - "open paren" / "open parenthesis" → Insert (
- * - "close paren" / "close parenthesis" → Insert )
+ * - "hyphen" / "dash" → Insert -
+ * - "underscore" → Insert _
+ * - "at sign" → Insert @
+ * - "hashtag" → Insert #
+ * - "ampersand" → Insert &
+ * - "asterisk" / "star" → Insert *
+ * - "open quote" / "close quote" → Insert "
+ * - "single quote" → Insert '
+ * - "open paren" / "close paren" → Insert ( )
+ * - "open bracket" / "close bracket" → Insert [ ]
+ * - "open brace" / "close brace" → Insert { }
  * - "space" → Insert space
  * - "tab" → Insert tab
+ * - "select all" → Select all text
  */
 object VoiceCommandProcessor {
 
@@ -63,14 +68,7 @@ object VoiceCommandProcessor {
         },
 
         // Navigation/formatting
-        Command(listOf("new line", "next line", "newline")) { ic, _ ->
-            ic.commitText("\n", 1)
-            true
-        },
-        Command(listOf("new paragraph", "next paragraph")) { ic, _ ->
-            ic.commitText("\n\n", 1)
-            true
-        },
+        // Note: "new line" and "new paragraph" are handled by Deepgram dictation mode
         Command(listOf("tab", "insert tab")) { ic, _ ->
             ic.commitText("\t", 1)
             true
@@ -81,26 +79,7 @@ object VoiceCommandProcessor {
         },
 
         // Punctuation
-        Command(listOf("period", "full stop", "dot")) { ic, _ ->
-            ic.commitText(".", 1)
-            true
-        },
-        Command(listOf("comma")) { ic, _ ->
-            ic.commitText(",", 1)
-            true
-        },
-        Command(listOf("question mark")) { ic, _ ->
-            ic.commitText("?", 1)
-            true
-        },
-        Command(listOf("exclamation mark", "exclamation point", "exclamation")) { ic, _ ->
-            ic.commitText("!", 1)
-            true
-        },
-        Command(listOf("colon")) { ic, _ ->
-            ic.commitText(":", 1)
-            true
-        },
+        // Note: period, comma, question mark, exclamation mark, colon are handled by Deepgram dictation mode
         Command(listOf("semicolon", "semi colon")) { ic, _ ->
             ic.commitText(";", 1)
             true

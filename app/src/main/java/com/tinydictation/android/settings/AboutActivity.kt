@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.4:
+            • Removed Deepgram-handled voice commands from VoiceCommandProcessor (period, comma, question mark, exclamation mark, colon, new line, new paragraph)
+            • Cleaned up Voice Commands screen to only show custom commands
+            • Added note about Deepgram dictation handling basic punctuation automatically
+
             v1.31.3:
             • Deepgram dictation mode now ON by default (say "period", "comma", "new line" etc.)
             • Removed dead auto-punctuation toggle from Audio settings (was not connected to anything)

@@ -30,21 +30,12 @@ class VoiceCommandsActivity : AppCompatActivity() {
         setCommand(R.id.cmdDelete, "\"delete\"", "Delete one character")
 
         // Navigation commands
-        setCommand(R.id.cmdNewLine, "\"new line\"", "Insert line break")
-        setCommand(R.id.cmdNewParagraph, "\"new paragraph\"", "Insert two line breaks")
         setCommand(R.id.cmdTab, "\"tab\"", "Insert tab character")
         setCommand(R.id.cmdSpace, "\"space\"", "Insert space")
         setCommand(R.id.cmdSelectAll, "\"select all\"", "Select all text")
 
-        // Punctuation commands
-        setCommand(R.id.cmdPeriod, "\"period\"", "Insert .")
-        setCommand(R.id.cmdComma, "\"comma\"", "Insert ,")
-        setCommand(R.id.cmdQuestion, "\"question mark\"", "Insert ?")
-        setCommand(R.id.cmdExclamation, "\"exclamation mark\"", "Insert !")
-        setCommand(R.id.cmdColon, "\"colon\"", "Insert :")
-        setCommand(R.id.cmdSemicolon, "\"semicolon\"", "Insert ;")
-
         // Symbol commands
+        setCommand(R.id.cmdSemicolon, "\"semicolon\"", "Insert ;")
         setCommand(R.id.cmdHyphen, "\"hyphen\" / \"dash\"", "Insert -")
         setCommand(R.id.cmdUnderscore, "\"underscore\"", "Insert _")
         setCommand(R.id.cmdAtSign, "\"at sign\"", "Insert @")
