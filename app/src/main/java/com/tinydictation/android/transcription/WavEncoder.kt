@@ -6,7 +6,7 @@ import java.nio.ByteOrder
 
 /**
  * Utility for encoding PCM audio samples to WAV format.
- * WAV format is required by Groq and OpenAI transcription APIs.
+ * WAV format is required by cloud transcription APIs.
  */
 object WavEncoder {
 

@@ -60,6 +60,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         private const val LONG_PRESS_THRESHOLD = 500L
         private const val DOUBLE_TAP_TIMEOUT = 300L  // Max ms between taps for double-tap
 
+        // MIC button color constants
+        private const val COLOR_MIC_STREAMING = "#ED2939"    // Imperial red - actively transcribing/PTT streaming
+        private const val COLOR_MIC_BUFFERING = "#FF8C00"    // Orange - PTT buffering
+        private const val COLOR_MIC_PTT_IDLE = "#4169E1"     // Blue - PTT idle
+        private const val COLOR_MIC_MUTED = "#808080"        // Grey - muted
+        private const val COLOR_MIC_STANDBY = "#8B1C26"      // Darker imperial red - standby
+
         /** Broadcast action for pasting text from HistoryActivity */
         const val ACTION_PASTE_TEXT = "com.tinydictation.ACTION_PASTE_TEXT"
         const val EXTRA_TEXT = "text"
@@ -441,7 +448,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
         clipboardHistoryManager?.startListening()
 
-        // Initialize text improver (uses same Groq API as predictions)
+        // Initialize text improver (uses Anthropic API)
         textImprover = TextImprover(this)
 
     }
@@ -1420,16 +1427,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val color = when {
             // PTT mode states
             isPushToTalkMode && isPttRecording && pttStreamingStarted ->
-                Color.parseColor("#ED2939")  // Red - PTT streaming (speaking)
+                Color.parseColor(COLOR_MIC_STREAMING)  // PTT streaming (speaking)
             isPushToTalkMode && isPttRecording && !pttStreamingStarted ->
-                Color.parseColor("#FF8C00")  // Orange - PTT buffering (keep holding...)
+                Color.parseColor(COLOR_MIC_BUFFERING)  // PTT buffering (keep holding...)
             isPushToTalkMode ->
-                Color.parseColor("#4169E1")  // Blue - PTT idle (hold to talk)
+                Color.parseColor(COLOR_MIC_PTT_IDLE)   // PTT idle (hold to talk)
             // Normal mode states
-            isMuteLocked -> Color.parseColor("#808080")  // Grey - muted
-            isProcessing -> Color.parseColor("#ED2939")  // Imperial red - actively transcribing
-            isStandby -> Color.parseColor("#8B1C26")  // Darker imperial red - standby
-            isRecording -> Color.parseColor("#ED2939")  // Imperial red (legacy)
+            isMuteLocked -> Color.parseColor(COLOR_MIC_MUTED)     // Muted
+            isProcessing -> Color.parseColor(COLOR_MIC_STREAMING)  // Actively transcribing
+            isStandby -> Color.parseColor(COLOR_MIC_STANDBY)      // Standby
+            isRecording -> Color.parseColor(COLOR_MIC_STREAMING)   // Legacy
             else -> getThemedIconColor()  // White/themed - off
         }
         micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
@@ -1749,9 +1756,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         updateKeyboardTabContent()
 
-        // Update predictions when switching to QWERTY tab
-        if (tab == 0) {
-        }
     }
 
     private fun inflateClaudePanelIfNeeded() {
@@ -3820,7 +3824,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      *
      * This function:
      * 1. Gets all text from the current input field
-     * 2. Sends it to Groq API for improvement
+     * 2. Sends it to Anthropic API for improvement
      * 3. Replaces the original text with the improved version
      *
      * Improvements include:

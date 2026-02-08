@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.1:
+            • Removed dead activity_settings.xml layout (1,274 lines)
+            • Fixed stale Groq references in comments (now Anthropic)
+            • Removed orphaned prediction stub code
+            • Extracted MIC button colors to companion object constants
+
             v1.31.0:
             • Major cleanup: removed unused engines (Groq, OpenAI, AssemblyAI, Gemini)
             • Removed correction, prediction, and dictionary systems
