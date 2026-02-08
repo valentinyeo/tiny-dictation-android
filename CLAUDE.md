@@ -17,7 +17,7 @@
 ```
 1. Make code changes
 2. Update version in app/build.gradle.kts (increment versionCode + versionName)
-3. Update changelog in SettingsActivity.kt
+3. Update changelog in settings/AboutActivity.kt
 4. Build: nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx512m"
 5. Copy APK: cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
 6. Send to Telegram (see command below)
@@ -36,7 +36,7 @@ Previous sessions skipped commits and lost 8 versions of work. Another session c
 **CRITICAL**: For ANY code change, you MUST:
 1. Increment `versionCode` by 1
 2. Update `versionName` appropriately (patch/minor/major)
-3. Update changelog in `SettingsActivity.kt` companion object
+3. Update changelog in `AboutActivity.kt` companion object
 4. **COMMIT after every version** - Never leave versions uncommitted!
 
 1. **Version location**: `app/build.gradle.kts`
@@ -47,7 +47,7 @@ Previous sessions skipped commits and lost 8 versions of work. Another session c
    - Main screen (bottom): "v1.3.0"
    - Settings screen (About section): "Version 1.3.0 (6)"
 
-3. **Changelog**: Update changelog in `SettingsActivity.kt` companion object
+3. **Changelog**: Update changelog in `AboutActivity.kt` companion object
    - Add new version at the top with bullet points
    - Keep previous versions for history
 
@@ -211,8 +211,10 @@ Use `/send` to manually trigger sending the latest APK if needed.
 - `TranscriptionManager.kt` - Orchestrates audio recording, VAD, and transcription
 - `AudioRecorder.kt` - Audio capture (uses VOICE_RECOGNITION source for phone mic)
 - `VoiceActivityDetector.kt` - Simple RMS-based VAD (thresholds: speech=100, silence=50)
-- `DeepgramClient.kt` - WebSocket client for Deepgram API
+- `DeepgramClient.kt` - WebSocket client for Deepgram API (keywords, replace, numerals, dictation params)
+- `DeepgramEngine.kt` - Engine wrapper for DeepgramClient (in `transcription/engines/`)
 - `DictationAccessibilityService.kt` - Text injection via accessibility
+- `DeepgramFeaturesSettingsActivity.kt` - Settings UI for Deepgram keywords, replacements, numerals, dictation
 
 ## Debugging
 
@@ -233,6 +235,22 @@ On Android 13+, after installing the APK, users need to:
 1. Go to Settings > Apps > Tiny Dictation
 2. Tap three-dot menu > "Allow restricted settings"
 3. Then enable Accessibility service in Settings > Accessibility
+
+## Deepgram Features (v1.30.0)
+
+Per-language Deepgram API enhancements accessible via Settings → Deepgram Features:
+- **Keywords** (`&keywords=word`): Boost recognition of specific words (names, technical terms). Up to 100/language.
+- **Find & Replace** (`&replace=find:replace`): Fix recurring transcription errors. Up to 200 rules/language.
+- **Numerals** (`&numerals=true`): Convert spoken numbers to digits. Default on.
+- **Dictation** (`&dictation=true`): Say "period"/"comma" to insert punctuation. English only, default off.
+
+Data stored per-language in PreferenceManager. Flow: PreferenceManager → TranscriptionManager.selectEngine() → DeepgramEngine → DeepgramClient.buildParams()
+
+## MIC Button Behavior (v1.29.3)
+
+- **Normal mode**: Tap = toggleMute (~300ms delay), Double-tap = enter PTT
+- **PTT mode**: Hold = record, Double-tap = exit PTT, Single tap = no-op
+- Colors: Blue (#4169E1) = PTT idle, Orange (#FF8C00) = buffering, Red (#ED2939)+pulse = streaming, Grey (#808080) = muted
 
 ## Pending Work
 
