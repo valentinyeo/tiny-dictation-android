@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.5:
+            • Fixed "scratch that" voice command not working in many apps
+            • Use system-level Select All instead of unreliable text cursor approach
+            • Removed dead getModel/setModel/buildDeepgramParams from PreferenceManager
+
             v1.31.4:
             • Removed Deepgram-handled voice commands from VoiceCommandProcessor (period, comma, question mark, exclamation mark, colon, new line, new paragraph)
             • Cleaned up Voice Commands screen to only show custom commands

@@ -174,9 +174,7 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         val models = when (provider) {
             PreferenceManager.UNIFIED_DEEPGRAM -> listOf(
                 "nova-3 (Best)" to PreferenceManager.DEEPGRAM_NOVA_3,
-                "nova-2 (Default)" to PreferenceManager.DEEPGRAM_NOVA_2,
-                "enhanced" to PreferenceManager.DEEPGRAM_ENHANCED,
-                "base (Cheapest)" to PreferenceManager.DEEPGRAM_BASE
+                "nova-2 (Default)" to PreferenceManager.DEEPGRAM_NOVA_2
             )
             PreferenceManager.UNIFIED_VOSK -> buildVoskModelList()
             PreferenceManager.UNIFIED_WHISPER -> buildWhisperModelList()

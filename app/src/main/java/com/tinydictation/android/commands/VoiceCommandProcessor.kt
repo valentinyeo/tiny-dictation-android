@@ -194,22 +194,12 @@ object VoiceCommandProcessor {
         return CommandResult.NotACommand(text)
     }
 
-    /**
-     * Selects all text and deletes it.
-     */
     private fun selectAllAndDelete(ic: InputConnection, sendCtrlA: () -> Unit): Boolean {
-        // Get all text
-        val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
-        val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
-        val totalLength = before.length + after.length
-
-        if (totalLength > 0) {
-            // Select all
-            ic.setSelection(0, totalLength)
-            // Delete selection
-            ic.commitText("", 1)
-            DebugLog.i("VoiceCommandProcessor: Deleted $totalLength characters")
-        }
+        // Use performContextMenuAction for reliable select-all across all apps
+        // (getTextBeforeCursor + setSelection is unreliable in many apps)
+        ic.performContextMenuAction(android.R.id.selectAll)
+        ic.commitText("", 1)
+        DebugLog.i("VoiceCommandProcessor: Select all + delete via context menu action")
         return true
     }
 
