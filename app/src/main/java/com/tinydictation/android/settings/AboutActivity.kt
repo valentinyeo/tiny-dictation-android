@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.3:
+            • Deepgram dictation mode now ON by default (say "period", "comma", "new line" etc.)
+            • Removed dead auto-punctuation toggle from Audio settings (was not connected to anything)
+            • Removed duplicate Deepgram API key field from Transcription settings (use API Keys screen)
+
             v1.31.2:
             • Removed ~15 unused PreferenceManager methods (note bubble, hide bubbles, bar orientation/transparency, dictation mode, old model methods)
             • Removed deprecated constants (MODE_BUBBLE, MODE_COMPANION, ORIENTATION_*)

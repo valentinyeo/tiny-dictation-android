@@ -35,8 +35,6 @@ class AudioSettingsActivity : AppCompatActivity() {
     private lateinit var silenceAutoStopSwitch: MaterialSwitch
     private lateinit var tilSilenceDuration: TextInputLayout
     private lateinit var silenceDurationDropdown: AutoCompleteTextView
-    private lateinit var autoPunctuationSwitch: MaterialSwitch
-
     private val audioDeviceCallback = object : AudioDeviceCallback() {
         override fun onAudioDevicesAdded(addedDevices: Array<out AudioDeviceInfo>) {
             mainHandler.post { updateMicSourceStatus() }
@@ -79,16 +77,12 @@ class AudioSettingsActivity : AppCompatActivity() {
         silenceAutoStopSwitch = findViewById(R.id.switchSilenceAutoStop)
         tilSilenceDuration = findViewById(R.id.tilSilenceDuration)
         silenceDurationDropdown = findViewById(R.id.actvSilenceDuration)
-        autoPunctuationSwitch = findViewById(R.id.switchAutoPunctuation)
-
         setupSilenceDurationDropdown()
     }
 
     private fun loadSettings() {
         headphoneMicSwitch.isChecked = preferenceManager.getUseHeadphoneMic()
         pauseMediaSwitch.isChecked = preferenceManager.getPauseMediaDuringDictation()
-        autoPunctuationSwitch.isChecked = preferenceManager.getAutoPunctuation()
-
         val currentMs = preferenceManager.getSilenceAutoStopMs()
         silenceAutoStopSwitch.isChecked = currentMs > 0
         tilSilenceDuration.visibility = if (currentMs > 0) android.view.View.VISIBLE else android.view.View.GONE
@@ -104,11 +98,6 @@ class AudioSettingsActivity : AppCompatActivity() {
         pauseMediaSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setPauseMediaDuringDictation(isChecked)
             DebugLog.i("Pause media during dictation setting changed to: $isChecked")
-        }
-
-        autoPunctuationSwitch.setOnCheckedChangeListener { _, isChecked ->
-            preferenceManager.setAutoPunctuation(isChecked)
-            DebugLog.i("Auto-punctuation setting changed to: $isChecked")
         }
 
         silenceAutoStopSwitch.setOnCheckedChangeListener { _, isChecked ->

@@ -21,7 +21,7 @@ class PreferenceManager(context: Context) {
         // Preference keys
         private const val KEY_API_KEY = "deepgram_api_key"
         private const val KEY_VAD_SENSITIVITY = "vad_sensitivity"
-        private const val KEY_AUTO_PUNCTUATION = "auto_punctuation"
+
         private const val KEY_SMART_FORMAT = "smart_format"
         private const val KEY_LANGUAGE = "language"
         private const val KEY_ENDPOINTING_MS = "endpointing_ms"
@@ -62,7 +62,7 @@ class PreferenceManager(context: Context) {
         // Default values
         const val DEFAULT_SILENCE_AUTO_STOP_MS = 3000  // 3 seconds default, 0 = disabled
         const val DEFAULT_VAD_SENSITIVITY = 0.5f // 0.3-0.8 scale
-        const val DEFAULT_AUTO_PUNCTUATION = true
+
         const val DEFAULT_SMART_FORMAT = true
         const val DEFAULT_LANGUAGE = "en"
         const val DEFAULT_ENDPOINTING_MS = 300
@@ -209,24 +209,6 @@ class PreferenceManager(context: Context) {
         // Map sensitivity (0.3-0.8) to threshold (400-100)
         val normalized = (sensitivity - 0.3f) / 0.5f // 0.0 to 1.0
         return (400 - (normalized * 300)).toInt().coerceIn(100, 400)
-    }
-
-    // ========== Auto Punctuation ==========
-
-    /**
-     * Gets whether auto-punctuation is enabled.
-     * @return true if auto-punctuation is enabled
-     */
-    fun getAutoPunctuation(): Boolean {
-        return prefs.getBoolean(KEY_AUTO_PUNCTUATION, DEFAULT_AUTO_PUNCTUATION)
-    }
-
-    /**
-     * Sets whether auto-punctuation is enabled.
-     * @param enabled true to enable auto-punctuation
-     */
-    fun setAutoPunctuation(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_AUTO_PUNCTUATION, enabled).apply()
     }
 
     // ========== Smart Format ==========
@@ -783,10 +765,10 @@ class PreferenceManager(context: Context) {
      * Gets whether Deepgram dictation feature is enabled.
      * When enabled, Deepgram processes spoken punctuation commands (e.g., "period", "comma").
      * Only meaningful for English language.
-     * @return true if enabled (default: false)
+     * @return true if enabled (default: true)
      */
     fun getDeepgramDictation(): Boolean {
-        return prefs.getBoolean(KEY_DEEPGRAM_DICTATION, false)
+        return prefs.getBoolean(KEY_DEEPGRAM_DICTATION, true)
     }
 
     fun setDeepgramDictation(enabled: Boolean) {

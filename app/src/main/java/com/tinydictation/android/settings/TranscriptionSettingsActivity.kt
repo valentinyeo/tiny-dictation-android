@@ -9,18 +9,15 @@ import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
-import androidx.lifecycle.lifecycleScope
 import com.google.android.material.appbar.MaterialToolbar
 import com.google.android.material.button.MaterialButton
 import com.google.android.material.card.MaterialCardView
 import com.google.android.material.materialswitch.MaterialSwitch
-import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import com.tinydictation.android.R
 import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
-import kotlinx.coroutines.launch
 
 /**
  * Activity for configuring transcription settings including provider, model,
@@ -35,11 +32,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private lateinit var providerDropdown: AutoCompleteTextView
     private lateinit var modelDropdown: AutoCompleteTextView
     private lateinit var tilModel: TextInputLayout
-
-    // API key views
-    private lateinit var cardApiKeys: MaterialCardView
-    private lateinit var tilApiKey: TextInputLayout
-    private lateinit var apiKeyInput: TextInputEditText
 
     // Language views
     private lateinit var layoutAutoDetect: View
@@ -74,10 +66,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         modelDropdown = findViewById(R.id.actvModel)
         tilModel = findViewById(R.id.tilModel)
 
-        cardApiKeys = findViewById(R.id.cardApiKeys)
-        tilApiKey = findViewById(R.id.tilApiKey)
-        apiKeyInput = findViewById(R.id.etApiKey)
-
         layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
 
@@ -93,9 +81,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        // Load API key
-        preferenceManager.getApiKey()?.let { apiKeyInput.setText(it) }
-
         // Load auto-detect
         autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
 
@@ -177,7 +162,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         val isCloud = provider.startsWith("cloud:")
 
         updateModelDropdown(provider)
-        updateApiKeyVisibility(provider)
         updateAutoDetectVisibility()
 
         cardFallback.visibility = if (isCloud) View.VISIBLE else View.GONE
@@ -267,14 +251,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun updateApiKeyVisibility(provider: String) {
-        tilApiKey.visibility = if (provider == PreferenceManager.UNIFIED_DEEPGRAM) View.VISIBLE else View.GONE
-
-        // Hide entire card if offline provider
-        val isCloud = provider.startsWith("cloud:")
-        cardApiKeys.visibility = if (isCloud) View.VISIBLE else View.GONE
-    }
-
     private fun updateAutoDetectVisibility() {
         val supportsAutoDetect = preferenceManager.currentProviderSupportsAutoDetect()
         layoutAutoDetect.visibility = if (supportsAutoDetect) View.VISIBLE else View.GONE
@@ -349,21 +325,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     }
 
     private fun saveSettings() {
-        val apiKey = apiKeyInput.text?.toString()?.trim()
-
-        val unifiedProvider = preferenceManager.getUnifiedProvider()
-
-        // Validate transcription API key
-        if (unifiedProvider == PreferenceManager.UNIFIED_DEEPGRAM) {
-            if (apiKey.isNullOrEmpty()) {
-                apiKeyInput.error = "API key is required for Deepgram"
-                return
-            }
-        }
-
-        // Save API key
-        if (!apiKey.isNullOrEmpty()) preferenceManager.setApiKey(apiKey)
-
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()
     }
