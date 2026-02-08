@@ -47,12 +47,6 @@
             android:excludeFromRecents="true"
             android:taskAffinity="" />
 
-        <!-- Dictionary Activity -->
-        <activity
-            android:name=".DictionaryActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TinyDictation" />
-
         <!-- Settings Sub-screens -->
         <activity
             android:name=".settings.TranscriptionSettingsActivity"
@@ -76,11 +70,6 @@
 
         <activity
             android:name=".settings.AppearanceSettingsActivity"
-            android:exported="false"
-            android:theme="@style/Theme.TinyDictation" />
-
-        <activity
-            android:name=".settings.TextCorrectionSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />
 

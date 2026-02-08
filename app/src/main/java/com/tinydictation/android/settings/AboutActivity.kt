@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.31.0:
+            • Major cleanup: removed unused engines (Groq, OpenAI, AssemblyAI, Gemini)
+            • Removed correction, prediction, and dictionary systems
+            • Removed GIF/Giphy integration
+            • Simplified to Deepgram + Anthropic only (with Vosk/Whisper offline fallback)
+            • Cleaned up settings screens and API key management
+            • ~5,000 lines of dead code removed
+
             v1.30.0:
             • Deepgram Features settings: keywords, find & replace, numerals, dictation
             • Keywords: boost recognition of specific words (names, technical terms) — up to 100 per language

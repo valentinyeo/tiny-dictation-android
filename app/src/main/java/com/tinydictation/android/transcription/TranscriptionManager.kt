@@ -9,11 +9,7 @@ import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import com.tinydictation.android.audio.AudioRecorder
-import com.tinydictation.android.transcription.engines.AssemblyAIEngine
 import com.tinydictation.android.transcription.engines.DeepgramEngine
-import com.tinydictation.android.transcription.engines.GeminiEngine
-import com.tinydictation.android.transcription.engines.GroqEngine
-import com.tinydictation.android.transcription.engines.OpenAIEngine
 import com.tinydictation.android.transcription.engines.SherpaOnnxEngine
 import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.util.AudioFocusManager
@@ -655,10 +651,7 @@ class TranscriptionManager(
 
         // Handle cloud providers (Deepgram is the engine ID for all cloud providers)
         if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM) {
-            val cloudProvider = preferenceManager.getCloudProvider()
             val autoDetect = preferenceManager.getAutoDetectLanguage()
-
-            Log.d(TAG, "Cloud provider: $cloudProvider, autoDetect: $autoDetect")
 
             // If auto-fallback is enabled, check connectivity
             if (autoFallback && !isNetworkAvailable(ctx)) {
@@ -682,72 +675,21 @@ class TranscriptionManager(
                 DebugLog.w("TranscriptionManager: No offline models available")
             }
 
-            // Select cloud provider
-            return when (cloudProvider) {
-                PreferenceManager.PROVIDER_GROQ -> {
-                    val groqApiKey = preferenceManager.getGroqApiKey()
-                    if (groqApiKey.isNullOrBlank()) {
-                        Log.e(TAG, "Groq selected but no API key")
-                        return null
-                    }
-                    val engine = GroqEngine(groqApiKey)
-                    engine.setModel(preferenceManager.getGroqModel())
-                    if (autoDetect) engine.setAutoDetectLanguage(true)
-                    Log.i(TAG, "Using Groq engine with model ${preferenceManager.getGroqModel()}")
-                    engine
-                }
-                PreferenceManager.PROVIDER_OPENAI -> {
-                    val openaiApiKey = preferenceManager.getOpenAIApiKey()
-                    if (openaiApiKey.isNullOrBlank()) {
-                        Log.e(TAG, "OpenAI selected but no API key")
-                        return null
-                    }
-                    val engine = OpenAIEngine(openaiApiKey)
-                    engine.setModel(preferenceManager.getOpenAIModel())
-                    if (autoDetect) engine.setAutoDetectLanguage(true)
-                    Log.i(TAG, "Using OpenAI engine with model ${preferenceManager.getOpenAIModel()}")
-                    engine
-                }
-                PreferenceManager.PROVIDER_ASSEMBLYAI -> {
-                    val assemblyaiApiKey = preferenceManager.getAssemblyAIApiKey()
-                    if (assemblyaiApiKey.isNullOrBlank()) {
-                        Log.e(TAG, "AssemblyAI selected but no API key")
-                        return null
-                    }
-                    val engine = AssemblyAIEngine(assemblyaiApiKey)
-                    if (autoDetect) engine.setAutoDetectLanguage(true)
-                    Log.i(TAG, "Using AssemblyAI engine")
-                    engine
-                }
-                PreferenceManager.PROVIDER_GEMINI -> {
-                    val geminiApiKey = preferenceManager.getGeminiApiKey()
-                    if (geminiApiKey.isNullOrBlank()) {
-                        Log.e(TAG, "Gemini selected but no API key")
-                        return null
-                    }
-                    val engine = GeminiEngine(geminiApiKey)
-                    if (autoDetect) engine.setAutoDetectLanguage(true)
-                    Log.i(TAG, "Using Gemini engine")
-                    engine
-                }
-                else -> {
-                    // Default to Deepgram
-                    if (apiKey.isBlank()) {
-                        Log.e(TAG, "Deepgram selected but no API key")
-                        return null
-                    }
-                    val engine = engines[PreferenceManager.ENGINE_DEEPGRAM] as? DeepgramEngine
-                    engine?.setModel(preferenceManager.getDeepgramModel())
-                    if (autoDetect) engine?.setAutoDetectLanguage(true)
-                    // Set Deepgram-specific features
-                    engine?.keywords = preferenceManager.getDeepgramKeywords(currentLanguage)
-                    engine?.replacements = preferenceManager.getDeepgramReplacements(currentLanguage)
-                    engine?.numerals = preferenceManager.getDeepgramNumerals()
-                    engine?.dictation = preferenceManager.getDeepgramDictation()
-                    Log.i(TAG, "Using Deepgram engine with model ${preferenceManager.getDeepgramModel()}")
-                    engine
-                }
+            // Deepgram is the only cloud provider
+            if (apiKey.isBlank()) {
+                Log.e(TAG, "Deepgram selected but no API key")
+                return null
             }
+            val engine = engines[PreferenceManager.ENGINE_DEEPGRAM] as? DeepgramEngine
+            engine?.setModel(preferenceManager.getDeepgramModel())
+            if (autoDetect) engine?.setAutoDetectLanguage(true)
+            // Set Deepgram-specific features
+            engine?.keywords = preferenceManager.getDeepgramKeywords(currentLanguage)
+            engine?.replacements = preferenceManager.getDeepgramReplacements(currentLanguage)
+            engine?.numerals = preferenceManager.getDeepgramNumerals()
+            engine?.dictation = preferenceManager.getDeepgramDictation()
+            Log.i(TAG, "Using Deepgram engine with model ${preferenceManager.getDeepgramModel()}")
+            return engine
         }
 
         // Use preferred offline engine

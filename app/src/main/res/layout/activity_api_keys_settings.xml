@@ -70,7 +70,7 @@
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- Transcription APIs -->
+            <!-- Transcription -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -97,7 +97,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
-                        android:text="Speech-to-text services"
+                        android:text="Speech-to-text service"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
 
@@ -121,95 +121,11 @@
 
                     </com.google.android.material.textfield.TextInputLayout>
 
-                    <!-- Groq API Key -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilGroqApiKey"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="Groq API Key"
-                        app:endIconMode="password_toggle"
-                        app:helperText="console.groq.com"
-                        app:helperTextEnabled="true"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etGroqApiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- OpenAI API Key -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilOpenAIApiKey"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="OpenAI API Key"
-                        app:endIconMode="password_toggle"
-                        app:helperText="platform.openai.com"
-                        app:helperTextEnabled="true"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etOpenAIApiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- AssemblyAI API Key -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilAssemblyAIApiKey"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="AssemblyAI API Key"
-                        app:endIconMode="password_toggle"
-                        app:helperText="assemblyai.com"
-                        app:helperTextEnabled="true"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etAssemblyAIApiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <!-- Gemini API Key -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilGeminiApiKey"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:hint="Gemini API Key"
-                        app:endIconMode="password_toggle"
-                        app:helperText="aistudio.google.com"
-                        app:helperTextEnabled="true"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etGeminiApiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
                 </LinearLayout>
 
             </com.google.android.material.card.MaterialCardView>
 
-            <!-- AI / LLM APIs -->
+            <!-- AI Services -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -236,39 +152,18 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="16dp"
-                        android:text="Text improvement and correction"
+                        android:text="Text improvement"
                         android:textAppearance="?attr/textAppearanceBodySmall"
                         android:textColor="?attr/colorOnSurfaceVariant" />
-
-                    <!-- OpenRouter API Key -->
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/tilOpenRouterApiKey"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:hint="OpenRouter API Key"
-                        app:endIconMode="password_toggle"
-                        app:helperText="openrouter.ai - Access to many AI models"
-                        app:helperTextEnabled="true"
-                        style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etOpenRouterApiKey"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:inputType="textPassword"
-                            android:maxLines="1" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Anthropic API Key -->
                     <com.google.android.material.textfield.TextInputLayout
                         android:id="@+id/tilAnthropicApiKey"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
                         android:hint="Anthropic API Key"
                         app:endIconMode="password_toggle"
-                        app:helperText="console.anthropic.com - Claude direct access"
+                        app:helperText="console.anthropic.com - Powers the Improve button"
                         app:helperTextEnabled="true"
                         style="@style/Widget.Material3.TextInputLayout.OutlinedBox">
 

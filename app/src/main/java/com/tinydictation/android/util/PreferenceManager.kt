@@ -41,10 +41,9 @@ class PreferenceManager(context: Context) {
         private const val KEY_BAR_ORIENTATION = "bar_orientation"
         private const val KEY_BAR_TRANSPARENCY = "bar_transparency"
         private const val KEY_SILENCE_AUTO_STOP_MS = "silence_auto_stop_ms"
-        private const val KEY_GIPHY_API_KEY = "giphy_api_key"
-        private const val KEY_PREDICTION_ENGINE = "prediction_engine"
+        
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
-        private const val KEY_PREDICTIONS_ENABLED = "predictions_enabled"
+        
         private const val KEY_COMPACT_DICTATION_BAR = "compact_dictation_bar"
         private const val KEY_PUSH_TO_TALK = "push_to_talk_enabled"
         private const val KEY_PANEL_CLAUDE_ENABLED = "panel_claude_enabled"
@@ -65,33 +64,7 @@ class PreferenceManager(context: Context) {
         private const val KEY_BTN_HISTORY = "btn_history_enabled"
         private const val KEY_BTN_IMPROVE = "btn_improve_enabled"
 
-        // Auto-correct settings (legacy)
-        private const val KEY_AUTO_CORRECT_ENABLED = "auto_correct_enabled"
-
-        // Two-stage text correction settings
-        private const val KEY_CORRECTION_ENABLED = "correction_enabled"
-        private const val KEY_CORRECTION_WORD_LEVEL = "correction_word_level"
-        private const val KEY_CORRECTION_SPLIT_STUCK = "correction_split_stuck"
-        private const val KEY_CORRECTION_SENTENCE_LEVEL = "correction_sentence_level"
-        private const val KEY_CORRECTION_PROVIDER = "correction_provider"
-        private const val KEY_CORRECTION_TRIGGER_PUNCTUATION = "correction_trigger_punctuation"
-        private const val KEY_CORRECTION_TRIGGER_PAUSE = "correction_trigger_pause"
-        private const val KEY_CORRECTION_PAUSE_DURATION = "correction_pause_duration"
-        private const val KEY_CORRECTION_TRIGGER_DOUBLE_SPACE = "correction_trigger_double_space"
-        private const val KEY_CORRECTION_HIGHLIGHT = "correction_highlight"
-        private const val KEY_CORRECTION_SHOW_MAJOR_TOAST = "correction_show_major_toast"
-        private const val KEY_CORRECTION_IMPORT_CONTACTS = "correction_import_contacts"
-        private const val KEY_CORRECTION_LEARN = "correction_learn"
-
-        // Correction provider constants
-        const val CORRECTION_PROVIDER_GROQ_FAST = "GROQ_FAST"
-        const val CORRECTION_PROVIDER_GROQ_SMART = "GROQ_SMART"
-        const val CORRECTION_PROVIDER_CLAUDE_HAIKU = "CLAUDE_HAIKU"
-        const val CORRECTION_PROVIDER_CLAUDE_OPUS = "CLAUDE_OPUS"
-
-        // Prediction Engine IDs
-        const val PREDICTION_ENGINE_NGRAM = "ngram"
-        const val PREDICTION_ENGINE_GROQ = "groq"
+        
 
         // Default values
         const val DEFAULT_SILENCE_AUTO_STOP_MS = 3000  // 3 seconds default, 0 = disabled
@@ -134,10 +107,6 @@ class PreferenceManager(context: Context) {
 
         // Cloud provider constants
         const val PROVIDER_DEEPGRAM = "deepgram"
-        const val PROVIDER_GROQ = "groq"
-        const val PROVIDER_OPENAI = "openai"
-        const val PROVIDER_ASSEMBLYAI = "assemblyai"
-        const val PROVIDER_GEMINI = "gemini"
 
         // Deepgram model constants
         const val DEEPGRAM_NOVA_3 = "nova-3"
@@ -145,27 +114,9 @@ class PreferenceManager(context: Context) {
         const val DEEPGRAM_ENHANCED = "enhanced"
         const val DEEPGRAM_BASE = "base"
 
-        // Groq model constants
-        const val GROQ_WHISPER_LARGE_V3 = "whisper-large-v3"
-        const val GROQ_WHISPER_LARGE_V3_TURBO = "whisper-large-v3-turbo"
-        const val GROQ_DISTIL_WHISPER = "distil-whisper-large-v3-en"
-
-        // OpenAI model constants
-        const val OPENAI_GPT4O_TRANSCRIBE = "gpt-4o-transcribe"
-        const val OPENAI_GPT4O_MINI = "gpt-4o-mini-transcribe"
-        const val OPENAI_WHISPER_1 = "whisper-1"
-
-        // New preference keys for multi-provider support
-        private const val KEY_GROQ_API_KEY = "groq_api_key"
-        private const val KEY_OPENAI_API_KEY = "openai_api_key"
-        private const val KEY_ASSEMBLYAI_API_KEY = "assemblyai_api_key"
-        private const val KEY_GEMINI_API_KEY = "gemini_api_key"
-        private const val KEY_OPENROUTER_API_KEY = "openrouter_api_key"
+        // API key preference keys
         private const val KEY_ANTHROPIC_API_KEY = "anthropic_api_key"
-        private const val KEY_CLOUD_PROVIDER = "cloud_provider"
         private const val KEY_DEEPGRAM_MODEL = "deepgram_model"
-        private const val KEY_GROQ_MODEL = "groq_model"
-        private const val KEY_OPENAI_MODEL = "openai_model"
         private const val KEY_AUTO_DETECT_LANGUAGE = "auto_detect_language"
         private const val KEY_UNIFIED_PROVIDER = "unified_provider"  // Combined cloud/offline selection
         private const val KEY_FALLBACK_MODEL = "fallback_model"  // Which offline model to use as fallback
@@ -179,10 +130,6 @@ class PreferenceManager(context: Context) {
 
         // Unified provider IDs (combines cloud providers and offline engines)
         const val UNIFIED_DEEPGRAM = "cloud:deepgram"
-        const val UNIFIED_GROQ = "cloud:groq"
-        const val UNIFIED_OPENAI = "cloud:openai"
-        const val UNIFIED_ASSEMBLYAI = "cloud:assemblyai"
-        const val UNIFIED_GEMINI = "cloud:gemini"
         const val UNIFIED_VOSK = "offline:vosk"
         const val UNIFIED_WHISPER = "offline:whisper"
 
@@ -671,147 +618,7 @@ class PreferenceManager(context: Context) {
         prefs.edit().putFloat(KEY_BAR_TRANSPARENCY, value.coerceIn(0f, 50f)).apply()
     }
 
-    // ========== Cloud Provider ==========
-
-    /**
-     * Gets the selected cloud transcription provider.
-     * @return Provider ID ("deepgram", "groq", or "openai")
-     */
-    fun getCloudProvider(): String {
-        return prefs.getString(KEY_CLOUD_PROVIDER, PROVIDER_DEEPGRAM) ?: PROVIDER_DEEPGRAM
-    }
-
-    /**
-     * Sets the cloud transcription provider.
-     * @param provider Provider ID
-     */
-    fun setCloudProvider(provider: String) {
-        prefs.edit().putString(KEY_CLOUD_PROVIDER, provider).apply()
-    }
-
-    // ========== Groq API Key ==========
-
-    /**
-     * Gets the stored Groq API key.
-     * @return The API key, or null if not set
-     */
-    fun getGroqApiKey(): String? {
-        return prefs.getString(KEY_GROQ_API_KEY, null)
-    }
-
-    /**
-     * Sets the Groq API key.
-     * @param key The API key to store
-     */
-    fun setGroqApiKey(key: String) {
-        prefs.edit().putString(KEY_GROQ_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if a Groq API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasGroqApiKey(): Boolean {
-        return !getGroqApiKey().isNullOrBlank()
-    }
-
-    // ========== OpenAI API Key ==========
-
-    /**
-     * Gets the stored OpenAI API key.
-     * @return The API key, or null if not set
-     */
-    fun getOpenAIApiKey(): String? {
-        return prefs.getString(KEY_OPENAI_API_KEY, null)
-    }
-
-    /**
-     * Sets the OpenAI API key.
-     * @param key The API key to store
-     */
-    fun setOpenAIApiKey(key: String) {
-        prefs.edit().putString(KEY_OPENAI_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if an OpenAI API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasOpenAIApiKey(): Boolean {
-        return !getOpenAIApiKey().isNullOrBlank()
-    }
-
-    /**
-     * Gets the stored AssemblyAI API key.
-     * @return The API key, or null if not set
-     */
-    fun getAssemblyAIApiKey(): String? {
-        return prefs.getString(KEY_ASSEMBLYAI_API_KEY, null)
-    }
-
-    /**
-     * Sets the AssemblyAI API key.
-     * @param key The API key to store
-     */
-    fun setAssemblyAIApiKey(key: String) {
-        prefs.edit().putString(KEY_ASSEMBLYAI_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if an AssemblyAI API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasAssemblyAIApiKey(): Boolean {
-        return !getAssemblyAIApiKey().isNullOrBlank()
-    }
-
-    /**
-     * Gets the stored Gemini API key.
-     * @return The API key, or null if not set
-     */
-    fun getGeminiApiKey(): String? {
-        return prefs.getString(KEY_GEMINI_API_KEY, null)
-    }
-
-    /**
-     * Sets the Gemini API key.
-     * @param key The API key to store
-     */
-    fun setGeminiApiKey(key: String) {
-        prefs.edit().putString(KEY_GEMINI_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if a Gemini API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasGeminiApiKey(): Boolean {
-        return !getGeminiApiKey().isNullOrBlank()
-    }
-
-    /**
-     * Gets the OpenRouter API key for accessing models like Claude Opus.
-     * @return API key or null if not configured
-     */
-    fun getOpenRouterApiKey(): String? {
-        return prefs.getString(KEY_OPENROUTER_API_KEY, null)
-    }
-
-    /**
-     * Sets the OpenRouter API key.
-     * @param key The API key
-     */
-    fun setOpenRouterApiKey(key: String) {
-        prefs.edit().putString(KEY_OPENROUTER_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if an OpenRouter API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasOpenRouterApiKey(): Boolean {
-        return !getOpenRouterApiKey().isNullOrBlank()
-    }
+    // ========== Anthropic API Key ==========
 
     /**
      * Gets the Anthropic API key for direct Claude API access.
@@ -855,38 +662,6 @@ class PreferenceManager(context: Context) {
         prefs.edit().putString(KEY_DEEPGRAM_MODEL, model).apply()
     }
 
-    /**
-     * Gets the selected Groq model.
-     * @return Model ID
-     */
-    fun getGroqModel(): String {
-        return prefs.getString(KEY_GROQ_MODEL, GROQ_WHISPER_LARGE_V3_TURBO) ?: GROQ_WHISPER_LARGE_V3_TURBO
-    }
-
-    /**
-     * Sets the Groq model.
-     * @param model Model ID
-     */
-    fun setGroqModel(model: String) {
-        prefs.edit().putString(KEY_GROQ_MODEL, model).apply()
-    }
-
-    /**
-     * Gets the selected OpenAI model.
-     * @return Model ID
-     */
-    fun getOpenAIModel(): String {
-        return prefs.getString(KEY_OPENAI_MODEL, OPENAI_GPT4O_TRANSCRIBE) ?: OPENAI_GPT4O_TRANSCRIBE
-    }
-
-    /**
-     * Sets the OpenAI model.
-     * @param model Model ID
-     */
-    fun setOpenAIModel(model: String) {
-        prefs.edit().putString(KEY_OPENAI_MODEL, model).apply()
-    }
-
     // ========== Auto-Detect Language ==========
 
     /**
@@ -915,10 +690,6 @@ class PreferenceManager(context: Context) {
         return when {
             unified == UNIFIED_VOSK -> false  // Vosk needs specific language models
             unified == UNIFIED_WHISPER -> true  // Whisper auto-detects language
-            unified == UNIFIED_GROQ -> true  // All Whisper models support auto-detect
-            unified == UNIFIED_OPENAI -> true  // All OpenAI models support auto-detect
-            unified == UNIFIED_ASSEMBLYAI -> true  // AssemblyAI auto-detects by default
-            unified == UNIFIED_GEMINI -> true  // Gemini auto-detects by default
             unified == UNIFIED_DEEPGRAM -> getDeepgramModel() == DEEPGRAM_NOVA_3  // Only nova-3 supports multilingual
             else -> false
         }
@@ -950,16 +721,6 @@ class PreferenceManager(context: Context) {
         return when (engine) {
             ENGINE_VOSK -> UNIFIED_VOSK
             ENGINE_SHERPA_ONNX -> UNIFIED_WHISPER
-            ENGINE_DEEPGRAM -> {
-                // Map cloud provider to unified format
-                when (getCloudProvider()) {
-                    PROVIDER_GROQ -> UNIFIED_GROQ
-                    PROVIDER_OPENAI -> UNIFIED_OPENAI
-                    PROVIDER_ASSEMBLYAI -> UNIFIED_ASSEMBLYAI
-                    PROVIDER_GEMINI -> UNIFIED_GEMINI
-                    else -> UNIFIED_DEEPGRAM
-                }
-            }
             else -> UNIFIED_DEEPGRAM
         }
     }
@@ -974,8 +735,6 @@ class PreferenceManager(context: Context) {
         // Also update legacy settings for backwards compatibility
         if (provider.startsWith("cloud:")) {
             setTranscriptionEngine(ENGINE_DEEPGRAM)
-            val cloudProvider = provider.removePrefix("cloud:")
-            setCloudProvider(cloudProvider)
         } else if (provider == UNIFIED_VOSK) {
             setTranscriptionEngine(ENGINE_VOSK)
         } else if (provider == UNIFIED_WHISPER) {
@@ -1054,48 +813,6 @@ class PreferenceManager(context: Context) {
         return getSilenceAutoStopMs() > 0
     }
 
-    // ========== Giphy API Key ==========
-
-    /**
-     * Gets the stored Giphy API key for GIF search.
-     * @return The API key, or null if not set
-     */
-    fun getGiphyApiKey(): String? {
-        return prefs.getString(KEY_GIPHY_API_KEY, null)
-    }
-
-    /**
-     * Sets the Giphy API key.
-     * @param key The API key to store
-     */
-    fun setGiphyApiKey(key: String) {
-        prefs.edit().putString(KEY_GIPHY_API_KEY, key).apply()
-    }
-
-    /**
-     * Checks if a Giphy API key is configured.
-     * @return true if an API key is stored
-     */
-    fun hasGiphyApiKey(): Boolean {
-        return !getGiphyApiKey().isNullOrBlank()
-    }
-
-    /**
-     * Gets the prediction engine to use.
-     * @return Engine ID ("ngram" or "groq")
-     */
-    fun getPredictionEngine(): String {
-        return prefs.getString(KEY_PREDICTION_ENGINE, PREDICTION_ENGINE_NGRAM) ?: PREDICTION_ENGINE_NGRAM
-    }
-
-    /**
-     * Sets the prediction engine to use.
-     * @param engineId Engine ID ("ngram" or "groq")
-     */
-    fun setPredictionEngine(engineId: String) {
-        prefs.edit().putString(KEY_PREDICTION_ENGINE, engineId).apply()
-    }
-
     // ========== Number Row Setting ==========
 
     /**
@@ -1112,25 +829,6 @@ class PreferenceManager(context: Context) {
      */
     fun setShowNumberRow(show: Boolean) {
         prefs.edit().putBoolean(KEY_SHOW_NUMBER_ROW, show).apply()
-    }
-
-    // ========== AI Predictions Setting ==========
-
-    /**
-     * Gets whether AI word predictions are enabled.
-     * When disabled, no prediction API calls are made and the prediction strip is hidden.
-     * @return true if predictions are enabled (default: true)
-     */
-    fun getPredictionsEnabled(): Boolean {
-        return prefs.getBoolean(KEY_PREDICTIONS_ENABLED, true)
-    }
-
-    /**
-     * Sets whether AI word predictions are enabled.
-     * @param enabled true to enable predictions, false to disable
-     */
-    fun setPredictionsEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_PREDICTIONS_ENABLED, enabled).apply()
     }
 
     // ========== Compact Dictation Bar Setting ==========
@@ -1255,184 +953,6 @@ class PreferenceManager(context: Context) {
 
     fun getBtnImproveEnabled(): Boolean = prefs.getBoolean(KEY_BTN_IMPROVE, true)
     fun setBtnImproveEnabled(enabled: Boolean) = prefs.edit().putBoolean(KEY_BTN_IMPROVE, enabled).apply()
-
-    // ========== Auto-Correct Setting ==========
-
-    /**
-     * Gets whether auto-correct at sentence end is enabled.
-     * When enabled, spelling and spacing errors are automatically corrected
-     * after typing sentence-ending punctuation (. ? !) followed by space.
-     * @return true if auto-correct is enabled (default: false)
-     */
-    fun getAutoCorrectEnabled(): Boolean {
-        return prefs.getBoolean(KEY_AUTO_CORRECT_ENABLED, false)
-    }
-
-    /**
-     * Sets whether auto-correct at sentence end is enabled.
-     * @param enabled true to enable auto-correct, false to disable
-     */
-    fun setAutoCorrectEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_AUTO_CORRECT_ENABLED, enabled).apply()
-    }
-
-    // ========== Two-Stage Text Correction Settings ==========
-
-    /**
-     * Gets whether the two-stage text correction system is enabled.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_ENABLED, true)
-    }
-
-    fun setCorrectionEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_ENABLED, enabled).apply()
-    }
-
-    /**
-     * Gets whether Stage 1 (word-level) correction is enabled.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionWordLevelEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_WORD_LEVEL, true)
-    }
-
-    fun setCorrectionWordLevelEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_WORD_LEVEL, enabled).apply()
-    }
-
-    /**
-     * Gets whether stuck word splitting is enabled (iwant -> I want).
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionSplitStuckWords(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_SPLIT_STUCK, true)
-    }
-
-    fun setCorrectionSplitStuckWords(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_SPLIT_STUCK, enabled).apply()
-    }
-
-    /**
-     * Gets whether Stage 2 (sentence-level AI) correction is enabled.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionSentenceLevelEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_SENTENCE_LEVEL, true)
-    }
-
-    fun setCorrectionSentenceLevelEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_SENTENCE_LEVEL, enabled).apply()
-    }
-
-    /**
-     * Gets the AI provider for sentence-level correction.
-     * @return Provider ID (default: GROQ_FAST)
-     */
-    fun getCorrectionProvider(): String {
-        return prefs.getString(KEY_CORRECTION_PROVIDER, CORRECTION_PROVIDER_GROQ_FAST) ?: CORRECTION_PROVIDER_GROQ_FAST
-    }
-
-    fun setCorrectionProvider(provider: String) {
-        prefs.edit().putString(KEY_CORRECTION_PROVIDER, provider).apply()
-    }
-
-    /**
-     * Gets whether to trigger Stage 2 correction on sentence-ending punctuation.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionTriggerOnPunctuation(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_PUNCTUATION, true)
-    }
-
-    fun setCorrectionTriggerOnPunctuation(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_PUNCTUATION, enabled).apply()
-    }
-
-    /**
-     * Gets whether to trigger Stage 2 correction on typing pause.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionTriggerOnPause(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_PAUSE, true)
-    }
-
-    fun setCorrectionTriggerOnPause(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_PAUSE, enabled).apply()
-    }
-
-    /**
-     * Gets the pause duration (ms) before triggering Stage 2 correction.
-     * @return Duration in milliseconds (default: 2000)
-     */
-    fun getCorrectionPauseDuration(): Long {
-        return prefs.getLong(KEY_CORRECTION_PAUSE_DURATION, 2000L)
-    }
-
-    fun setCorrectionPauseDuration(durationMs: Long) {
-        prefs.edit().putLong(KEY_CORRECTION_PAUSE_DURATION, durationMs).apply()
-    }
-
-    /**
-     * Gets whether to trigger Stage 2 correction on double-space.
-     * @return true if enabled (default: false)
-     */
-    fun getCorrectionTriggerOnDoubleSpace(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_TRIGGER_DOUBLE_SPACE, false)
-    }
-
-    fun setCorrectionTriggerOnDoubleSpace(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_TRIGGER_DOUBLE_SPACE, enabled).apply()
-    }
-
-    /**
-     * Gets whether to briefly highlight corrections.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionHighlightEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_HIGHLIGHT, true)
-    }
-
-    fun setCorrectionHighlightEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_HIGHLIGHT, enabled).apply()
-    }
-
-    /**
-     * Gets whether to show toast for major changes.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionShowMajorChangeToast(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_SHOW_MAJOR_TOAST, true)
-    }
-
-    fun setCorrectionShowMajorChangeToast(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_SHOW_MAJOR_TOAST, enabled).apply()
-    }
-
-    /**
-     * Gets whether to import contacts as known words.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionImportContacts(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_IMPORT_CONTACTS, true)
-    }
-
-    fun setCorrectionImportContacts(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_IMPORT_CONTACTS, enabled).apply()
-    }
-
-    /**
-     * Gets whether to learn from corrections.
-     * @return true if enabled (default: true)
-     */
-    fun getCorrectionLearnEnabled(): Boolean {
-        return prefs.getBoolean(KEY_CORRECTION_LEARN, true)
-    }
-
-    fun setCorrectionLearnEnabled(enabled: Boolean) {
-        prefs.edit().putBoolean(KEY_CORRECTION_LEARN, enabled).apply()
-    }
 
     // ========== Deepgram Features (Keywords, Replace, Numerals, Dictation) ==========
 

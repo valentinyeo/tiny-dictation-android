@@ -40,14 +40,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private lateinit var cardApiKeys: MaterialCardView
     private lateinit var tilApiKey: TextInputLayout
     private lateinit var apiKeyInput: TextInputEditText
-    private lateinit var tilGroqApiKey: TextInputLayout
-    private lateinit var groqApiKeyInput: TextInputEditText
-    private lateinit var tilOpenAIApiKey: TextInputLayout
-    private lateinit var openAIApiKeyInput: TextInputEditText
-    private lateinit var tilAssemblyAIApiKey: TextInputLayout
-    private lateinit var assemblyAIApiKeyInput: TextInputEditText
-    private lateinit var tilGeminiApiKey: TextInputLayout
-    private lateinit var geminiApiKeyInput: TextInputEditText
 
     // Language views
     private lateinit var layoutAutoDetect: View
@@ -59,11 +51,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private lateinit var layoutFallbackModel: View
     private lateinit var spinnerFallbackModel: Spinner
     private lateinit var tvFallbackModelNote: TextView
-
-    // Prediction views
-    private lateinit var predictionEngineDropdown: AutoCompleteTextView
-    private lateinit var tilPredictionGroqApiKey: TextInputLayout
-    private lateinit var predictionGroqApiKeyInput: TextInputEditText
 
     private lateinit var saveButton: MaterialButton
 
@@ -90,14 +77,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         cardApiKeys = findViewById(R.id.cardApiKeys)
         tilApiKey = findViewById(R.id.tilApiKey)
         apiKeyInput = findViewById(R.id.etApiKey)
-        tilGroqApiKey = findViewById(R.id.tilGroqApiKey)
-        groqApiKeyInput = findViewById(R.id.etGroqApiKey)
-        tilOpenAIApiKey = findViewById(R.id.tilOpenAIApiKey)
-        openAIApiKeyInput = findViewById(R.id.etOpenAIApiKey)
-        tilAssemblyAIApiKey = findViewById(R.id.tilAssemblyAIApiKey)
-        assemblyAIApiKeyInput = findViewById(R.id.etAssemblyAIApiKey)
-        tilGeminiApiKey = findViewById(R.id.tilGeminiApiKey)
-        geminiApiKeyInput = findViewById(R.id.etGeminiApiKey)
 
         layoutAutoDetect = findViewById(R.id.layoutAutoDetect)
         autoDetectSwitch = findViewById(R.id.switchAutoDetect)
@@ -110,25 +89,12 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
 
         saveButton = findViewById(R.id.btnSave)
 
-        // Prediction views
-        predictionEngineDropdown = findViewById(R.id.actvPredictionEngine)
-        tilPredictionGroqApiKey = findViewById(R.id.tilPredictionGroqApiKey)
-        predictionGroqApiKeyInput = findViewById(R.id.etPredictionGroqApiKey)
-
         setupProviderDropdown()
-        setupPredictionEngineDropdown()
     }
 
     private fun loadSettings() {
-        // Load API keys
+        // Load API key
         preferenceManager.getApiKey()?.let { apiKeyInput.setText(it) }
-        preferenceManager.getGroqApiKey()?.let { groqApiKeyInput.setText(it) }
-        preferenceManager.getOpenAIApiKey()?.let { openAIApiKeyInput.setText(it) }
-        preferenceManager.getAssemblyAIApiKey()?.let { assemblyAIApiKeyInput.setText(it) }
-        preferenceManager.getGeminiApiKey()?.let { geminiApiKeyInput.setText(it) }
-
-        // Load prediction Groq key (same as transcription Groq key)
-        preferenceManager.getGroqApiKey()?.let { predictionGroqApiKeyInput.setText(it) }
 
         // Load auto-detect
         autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
@@ -183,52 +149,11 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupPredictionEngineDropdown() {
-        val engines = listOf(
-            "N-gram (Offline)" to PreferenceManager.PREDICTION_ENGINE_NGRAM,
-            "Groq (Cloud AI)" to PreferenceManager.PREDICTION_ENGINE_GROQ
-        )
-        val displayNames = engines.map { it.first }
-        val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
-        predictionEngineDropdown.setAdapter(adapter)
-
-        // Set current selection
-        val currentEngine = preferenceManager.getPredictionEngine()
-        val currentIndex = engines.indexOfFirst { it.second == currentEngine }
-        if (currentIndex >= 0) {
-            predictionEngineDropdown.setText(engines[currentIndex].first, false)
-        } else {
-            predictionEngineDropdown.setText(engines[0].first, false)
-        }
-
-        // Show/hide Groq API key based on current selection
-        updatePredictionApiKeyVisibility(currentEngine)
-
-        predictionEngineDropdown.setOnItemClickListener { _, _, position, _ ->
-            val selected = engines[position]
-            preferenceManager.setPredictionEngine(selected.second)
-            updatePredictionApiKeyVisibility(selected.second)
-            DebugLog.i("Prediction engine changed to: ${selected.second}")
-        }
-    }
-
-    private fun updatePredictionApiKeyVisibility(engine: String) {
-        tilPredictionGroqApiKey.visibility = if (engine == PreferenceManager.PREDICTION_ENGINE_GROQ) {
-            View.VISIBLE
-        } else {
-            View.GONE
-        }
-    }
-
     private fun buildProviderList(): List<Pair<String, String>> {
         val providers = mutableListOf<Pair<String, String>>()
 
         providers.add("--- Cloud ---" to "header:cloud")
         providers.add("Deepgram" to PreferenceManager.UNIFIED_DEEPGRAM)
-        providers.add("Groq (Whisper)" to PreferenceManager.UNIFIED_GROQ)
-        providers.add("OpenAI" to PreferenceManager.UNIFIED_OPENAI)
-        providers.add("AssemblyAI" to PreferenceManager.UNIFIED_ASSEMBLYAI)
-        providers.add("Gemini (Google)" to PreferenceManager.UNIFIED_GEMINI)
 
         val hasVoskModel = modelManager.isModelAvailable("vosk", "en") || modelManager.isModelAvailable("vosk", "de")
         val hasWhisperModel = modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny") ||
@@ -269,18 +194,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
                 "enhanced" to PreferenceManager.DEEPGRAM_ENHANCED,
                 "base (Cheapest)" to PreferenceManager.DEEPGRAM_BASE
             )
-            PreferenceManager.UNIFIED_GROQ -> listOf(
-                "whisper-large-v3 (Best)" to PreferenceManager.GROQ_WHISPER_LARGE_V3,
-                "whisper-large-v3-turbo (Faster)" to PreferenceManager.GROQ_WHISPER_LARGE_V3_TURBO,
-                "distil-whisper (English only)" to PreferenceManager.GROQ_DISTIL_WHISPER
-            )
-            PreferenceManager.UNIFIED_OPENAI -> listOf(
-                "gpt-4o-transcribe (Best)" to PreferenceManager.OPENAI_GPT4O_TRANSCRIBE,
-                "gpt-4o-mini-transcribe (Cheaper)" to PreferenceManager.OPENAI_GPT4O_MINI,
-                "whisper-1 (Original)" to PreferenceManager.OPENAI_WHISPER_1
-            )
-            PreferenceManager.UNIFIED_ASSEMBLYAI,
-            PreferenceManager.UNIFIED_GEMINI -> emptyList()
             PreferenceManager.UNIFIED_VOSK -> buildVoskModelList()
             PreferenceManager.UNIFIED_WHISPER -> buildWhisperModelList()
             else -> emptyList()
@@ -340,8 +253,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private fun getCurrentModelForProvider(provider: String): String {
         return when (provider) {
             PreferenceManager.UNIFIED_DEEPGRAM -> preferenceManager.getDeepgramModel()
-            PreferenceManager.UNIFIED_GROQ -> preferenceManager.getGroqModel()
-            PreferenceManager.UNIFIED_OPENAI -> preferenceManager.getOpenAIModel()
             PreferenceManager.UNIFIED_VOSK -> preferenceManager.getLanguage()
             PreferenceManager.UNIFIED_WHISPER -> preferenceManager.getWhisperModel()
             else -> ""
@@ -351,8 +262,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     private fun saveModelForProvider(provider: String, model: String) {
         when (provider) {
             PreferenceManager.UNIFIED_DEEPGRAM -> preferenceManager.setDeepgramModel(model)
-            PreferenceManager.UNIFIED_GROQ -> preferenceManager.setGroqModel(model)
-            PreferenceManager.UNIFIED_OPENAI -> preferenceManager.setOpenAIModel(model)
             PreferenceManager.UNIFIED_VOSK -> preferenceManager.setLanguage(model)
             PreferenceManager.UNIFIED_WHISPER -> preferenceManager.setWhisperModel(model)
         }
@@ -360,10 +269,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
 
     private fun updateApiKeyVisibility(provider: String) {
         tilApiKey.visibility = if (provider == PreferenceManager.UNIFIED_DEEPGRAM) View.VISIBLE else View.GONE
-        tilGroqApiKey.visibility = if (provider == PreferenceManager.UNIFIED_GROQ) View.VISIBLE else View.GONE
-        tilOpenAIApiKey.visibility = if (provider == PreferenceManager.UNIFIED_OPENAI) View.VISIBLE else View.GONE
-        tilAssemblyAIApiKey.visibility = if (provider == PreferenceManager.UNIFIED_ASSEMBLYAI) View.VISIBLE else View.GONE
-        tilGeminiApiKey.visibility = if (provider == PreferenceManager.UNIFIED_GEMINI) View.VISIBLE else View.GONE
 
         // Hide entire card if offline provider
         val isCloud = provider.startsWith("cloud:")
@@ -445,71 +350,19 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
 
     private fun saveSettings() {
         val apiKey = apiKeyInput.text?.toString()?.trim()
-        val groqApiKey = groqApiKeyInput.text?.toString()?.trim()
-        val openAIApiKey = openAIApiKeyInput.text?.toString()?.trim()
-        val assemblyAIApiKey = assemblyAIApiKeyInput.text?.toString()?.trim()
-        val geminiApiKey = geminiApiKeyInput.text?.toString()?.trim()
-        val predictionGroqApiKey = predictionGroqApiKeyInput.text?.toString()?.trim()
 
         val unifiedProvider = preferenceManager.getUnifiedProvider()
-        val predictionEngine = preferenceManager.getPredictionEngine()
 
-        // Validate transcription API keys
-        if (unifiedProvider.startsWith("cloud:")) {
-            when (unifiedProvider) {
-                PreferenceManager.UNIFIED_DEEPGRAM -> {
-                    if (apiKey.isNullOrEmpty()) {
-                        apiKeyInput.error = "API key is required for Deepgram"
-                        return
-                    }
-                }
-                PreferenceManager.UNIFIED_GROQ -> {
-                    if (groqApiKey.isNullOrEmpty()) {
-                        groqApiKeyInput.error = "API key is required for Groq"
-                        return
-                    }
-                }
-                PreferenceManager.UNIFIED_OPENAI -> {
-                    if (openAIApiKey.isNullOrEmpty()) {
-                        openAIApiKeyInput.error = "API key is required for OpenAI"
-                        return
-                    }
-                }
-                PreferenceManager.UNIFIED_ASSEMBLYAI -> {
-                    if (assemblyAIApiKey.isNullOrEmpty()) {
-                        assemblyAIApiKeyInput.error = "API key is required for AssemblyAI"
-                        return
-                    }
-                }
-                PreferenceManager.UNIFIED_GEMINI -> {
-                    if (geminiApiKey.isNullOrEmpty()) {
-                        geminiApiKeyInput.error = "API key is required for Gemini"
-                        return
-                    }
-                }
-            }
-        }
-
-        // Validate prediction API key if Groq predictions selected
-        if (predictionEngine == PreferenceManager.PREDICTION_ENGINE_GROQ) {
-            if (predictionGroqApiKey.isNullOrEmpty()) {
-                predictionGroqApiKeyInput.error = "API key is required for Groq predictions"
+        // Validate transcription API key
+        if (unifiedProvider == PreferenceManager.UNIFIED_DEEPGRAM) {
+            if (apiKey.isNullOrEmpty()) {
+                apiKeyInput.error = "API key is required for Deepgram"
                 return
             }
         }
 
-        // Save API keys
+        // Save API key
         if (!apiKey.isNullOrEmpty()) preferenceManager.setApiKey(apiKey)
-        if (!openAIApiKey.isNullOrEmpty()) preferenceManager.setOpenAIApiKey(openAIApiKey)
-        if (!assemblyAIApiKey.isNullOrEmpty()) preferenceManager.setAssemblyAIApiKey(assemblyAIApiKey)
-        if (!geminiApiKey.isNullOrEmpty()) preferenceManager.setGeminiApiKey(geminiApiKey)
-
-        // Save Groq API key - use prediction key if set, otherwise transcription key
-        // Both fields share the same underlying preference
-        val effectiveGroqKey = predictionGroqApiKey?.takeIf { it.isNotEmpty() } ?: groqApiKey
-        if (!effectiveGroqKey.isNullOrEmpty()) {
-            preferenceManager.setGroqApiKey(effectiveGroqKey)
-        }
 
         Toast.makeText(this, "Settings saved", Toast.LENGTH_SHORT).show()
         finish()

@@ -1,9 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<shape xmlns:android="http://schemas.android.com/apk/res/android"
-    android:shape="oval">
-    <!-- 65% opacity (A6 = 166/255 ~ 65%) -->
-    <solid android:color="#A69E9E9E" />
-    <size
-        android:width="56dp"
-        android:height="56dp" />
-</shape>

@@ -43,10 +43,6 @@ import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import com.tinydictation.android.ai.TextImprover
-import com.tinydictation.android.ai.SpellingCorrector
-import com.tinydictation.android.correction.CorrectionManager
-import com.tinydictation.android.correction.Correction
-import com.tinydictation.android.correction.CorrectionStage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -177,15 +173,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
 
-    // Prediction management
-    private var predictionManager: com.tinydictation.android.prediction.PredictionManager? = null
-    private var prediction1: TextView? = null
-    private var prediction2: TextView? = null
-    private var prediction3: TextView? = null
-    private var predictionStrip: View? = null
-    private var currentPredictions: List<com.tinydictation.android.prediction.Prediction> = emptyList()
     private var isTerminalApp = false  // True when keyboard is in a terminal app
-    private var predictionsEnabled = true  // User preference for predictions
     private var lastFinalText = ""  // Last final transcript committed (for terminal dedup)
     private var lastFinalTime = 0L  // Timestamp of last final commit (for terminal dedup)
 
@@ -210,14 +198,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isImproving = false  // Prevent multiple concurrent improvements
     private var improveButton: FrameLayout? = null
     private var improveIcon: ImageView? = null
-
-    // Auto-correct (AI-powered spelling/spacing correction at sentence end)
-    private var spellingCorrector: SpellingCorrector? = null
-    private var isAutoCorrectingPending = false  // Track if a correction is pending
-    private var lastSentenceEndChar: Char? = null  // Track the last sentence-ending punctuation
-
-    // Two-stage text correction system (new "phat fingers" feature)
-    private var correctionManager: CorrectionManager? = null
 
     // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
@@ -254,7 +234,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 currentInputConnection?.commitText("@", 1)
                 trackTypedText("@")
                 aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                updatePredictions()
             }
         }
     }
@@ -271,7 +250,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             currentInputConnection?.commitText(char, 1)
             trackTypedText(char)  // Track for terminal apps
             oKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            updatePredictions()
         }
     }
 
@@ -287,7 +265,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             currentInputConnection?.commitText(char, 1)
             trackTypedText(char)  // Track for terminal apps
             uKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-            updatePredictions()
         }
     }
 
@@ -365,10 +342,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     // Override detection: track when user is reverting an autocorrection
     // If user backspaces immediately after a correction and retypes the original, we reject it
-    private var isInCorrectionOverrideMode = false
-    private var overrideCorrectionOriginal: String? = null  // The original word before correction
-    private var overrideCorrectionCorrected: String? = null // The corrected word we applied
-    private var overrideBackspaceCount = 0                  // Track how many chars deleted
 
     // Cursor key repeat handling - similar to backspace but without word deletion
     private val cursorHandler = Handler(Looper.getMainLooper())
@@ -471,78 +444,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Initialize text improver (uses same Groq API as predictions)
         textImprover = TextImprover(this)
 
-        // Initialize spelling corrector for auto-correct at sentence end
-        spellingCorrector = SpellingCorrector(this)
-
-        // Initialize two-stage text correction system
-        correctionManager = CorrectionManager(this)
-        correctionManager?.correctionListener = object : CorrectionManager.CorrectionListener {
-            override fun onWordCorrected(correction: Correction) {
-                handleWordCorrection(correction)
-            }
-
-            override fun onSentenceCorrected(correction: Correction) {
-                handleSentenceCorrection(correction)
-            }
-
-            override fun onSmartRewriteStarted() {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        this@DictationKeyboardService,
-                        "✨ Rewriting...",
-                        Toast.LENGTH_SHORT
-                    ).show()
-                }
-            }
-
-            override fun onSmartRewriteCompleted(correction: Correction?) {
-                if (correction != null) {
-                    handleSmartRewriteCorrection(correction)
-                } else {
-                    Handler(Looper.getMainLooper()).post {
-                        Toast.makeText(
-                            this@DictationKeyboardService,
-                            "No changes needed",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                    }
-                }
-            }
-
-            override fun onSmartRewriteFailed(error: String) {
-                Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(
-                        this@DictationKeyboardService,
-                        "Rewrite failed: $error",
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-        CoroutineScope(Dispatchers.IO).launch {
-            correctionManager?.initialize()
-        }
-
-        // Initialize prediction manager based on user's selected engine preference
-        predictionManager = com.tinydictation.android.prediction.PredictionManager(this)
-        CoroutineScope(Dispatchers.Main).launch {
-            val prefs = com.tinydictation.android.util.PreferenceManager(this@DictationKeyboardService)
-            // Use the engine selected in settings (ngram or groq)
-            val engineId = prefs.getPredictionEngine()
-            DebugLog.i("DictationKeyboardService: Initializing prediction engine '$engineId' (from settings)")
-            val result = predictionManager?.initialize(engineId)
-            DebugLog.i("DictationKeyboardService: Prediction engine '$engineId' init result: success=${result?.isSuccess}, failure=${result?.isFailure}")
-            if (result?.isFailure == true) {
-                // Fall back to ngram if selected engine fails
-                if (engineId != "ngram") {
-                    DebugLog.w("DictationKeyboardService: Engine '$engineId' failed, falling back to ngram")
-                    val fallbackResult = predictionManager?.initialize("ngram")
-                    DebugLog.i("DictationKeyboardService: Fallback ngram init result: success=${fallbackResult?.isSuccess}")
-                } else {
-                    DebugLog.e("DictationKeyboardService: NGram engine failed to initialize! Predictions disabled.")
-                }
-            }
-        }
     }
 
     /**
@@ -615,15 +516,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 DebugLog.w("DictationKeyboardService: Voice command failed - ${commandResult.reason}")
                             }
                             is VoiceCommandProcessor.CommandResult.NotACommand -> {
-                                // In terminal mode: raw output, no word replacements or corrections
-                                val processedText = if (isTerminalApp) {
-                                    text
-                                } else {
-                                    com.tinydictation.android.dictionary.WordReplacementManager
-                                        .getInstance(this@DictationKeyboardService)
-                                        .applyReplacements(text)
-                                }
-                                commitTextInternal(processedText + " ")
+                                commitTextInternal(text + " ")
 
                                 // Save to transcription history
                                 val language = prefs.getLanguage()
@@ -713,10 +606,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
 
-        // Release correction manager
-        correctionManager?.release()
-        correctionManager = null
-
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
 
@@ -735,10 +624,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         hideAKeyPopup()
         pulseAnimator?.cancel()
         pulseAnimator = null
-
-        // Release prediction manager
-        predictionManager?.release()
-        predictionManager = null
 
         super.onDestroy()
     }
@@ -1776,13 +1661,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             updateKeyboardMode()
         }
 
-        // Update predictions when showing QWERTY panel, clear when hiding
-        if (isKeyboardPanelVisible && currentKeyboardTab == 0) {
-            updatePredictions()
-        } else if (!isKeyboardPanelVisible) {
-            displayPredictions(emptyList())
-        }
-
         // Apply number row visibility when panel becomes visible
         if (isKeyboardPanelVisible) {
             updateNumberRowVisibility()
@@ -1873,7 +1751,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Update predictions when switching to QWERTY tab
         if (tab == 0) {
-            updatePredictions()
         }
     }
 
@@ -2015,19 +1892,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun setupQwertyKeyboard() {
         qwertyPanel ?: return
 
-        // Set up prediction strip
-        predictionStrip = qwertyPanel?.findViewById(R.id.predictionStrip)
-        prediction1 = qwertyPanel?.findViewById(R.id.prediction1)
-        prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
-        prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
-
-        DebugLog.i("DictationKeyboardService: setupQwertyKeyboard - prediction TextViews: p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
-
-        // Prediction tap handlers
-        prediction1?.setOnClickListener { onPredictionTapped(0) }
-        prediction2?.setOnClickListener { onPredictionTapped(1) }
-        prediction3?.setOnClickListener { onPredictionTapped(2) }
-
         // Number row and hints visibility (refreshed on each keyboard open)
         updateNumberRowVisibility()
 
@@ -2042,7 +1906,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
                 trackTypedText(char)  // Track for terminal apps
-                updatePredictions()
             }
         }
 
@@ -2079,7 +1942,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 }
 
                 // Update predictions after typing
-                updatePredictions()
             }
 
             // Add long-press for numbers on top row (only in letters mode)
@@ -2088,7 +1950,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     if (!isNumbersMode) {
                         currentInputConnection?.commitText(number, 1)
                         trackTypedText(number)  // Track for terminal apps
-                        updatePredictions()
                     }
                     true
                 }
@@ -2117,7 +1978,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_comma)?.setOnClickListener {
             currentInputConnection?.commitText(",", 1)
             trackTypedText(",")  // Track for terminal apps
-            updatePredictions()
         }
         // Period key - tap for ".", long press for punctuation popup (! and ?)
         periodButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_period)
@@ -2138,7 +1998,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             // Clear internal buffer after Enter (terminal command submitted)
             internalTextBuffer.clear()
             DebugLog.d("DictationKeyboardService: Enter pressed, cleared internal buffer")
-            updatePredictions()
         }
 
         // Backspace key (ImageView) - with hold-to-repeat (same behavior as dictation bar backspace)
@@ -2159,54 +2018,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     /**
-     * Request updated predictions based on current input.
-     * For terminal apps that don't expose text, we use our internal buffer.
-     */
-    private fun updatePredictions() {
-        // Skip predictions if disabled or in terminal apps
-        if (!predictionsEnabled || isTerminalApp) {
-            return
-        }
-
-        val ic = currentInputConnection
-        if (ic == null) {
-            DebugLog.w("DictationKeyboardService: updatePredictions - NO InputConnection!")
-            return
-        }
-
-        var textBefore = ic.getTextBeforeCursor(100, 0)?.toString() ?: ""
-
-        // If app doesn't provide text context (like terminal apps), use our internal buffer
-        if (textBefore.isEmpty() && internalTextBuffer.isNotEmpty()) {
-            textBefore = internalTextBuffer.toString()
-            useInternalBuffer = true
-            DebugLog.d("DictationKeyboardService: Using internal buffer: '$textBefore'")
-        } else if (textBefore.isNotEmpty()) {
-            // App provides text - don't need internal buffer, sync it
-            useInternalBuffer = false
-            // Keep internal buffer in sync (take last 100 chars)
-            internalTextBuffer.clear()
-            internalTextBuffer.append(textBefore.takeLast(100))
-        }
-
-        DebugLog.d("DictationKeyboardService: updatePredictions text='$textBefore' (len=${textBefore.length}, internal=$useInternalBuffer)")
-
-        val manager = predictionManager
-        if (manager == null) {
-            DebugLog.w("DictationKeyboardService: updatePredictions called but predictionManager is null")
-            return
-        }
-
-        manager.requestPredictions(textBefore) { predictions ->
-            currentPredictions = predictions
-            displayPredictions(predictions)
-            DebugLog.d("DictationKeyboardService: updatePredictions got ${predictions.size} predictions: ${predictions.map { it.word }}")
-        }
-    }
-
-    /**
      * Track typed character in internal buffer (for terminal apps).
-     * Also notifies the CorrectionManager for two-stage correction.
      */
     private fun trackTypedText(text: String) {
         internalTextBuffer.append(text)
@@ -2214,104 +2026,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (internalTextBuffer.length > 100) {
             internalTextBuffer.delete(0, internalTextBuffer.length - 100)
         }
-
-        // Check for correction override: if user was in override mode and types a space,
-        // check if they re-typed the original word and reject the correction
-        if (isInCorrectionOverrideMode && text == " ") {
-            checkCorrectionOverride()
-        }
-
-        // Any non-backspace typing after a long time clears override mode
-        if (isInCorrectionOverrideMode && text != " ") {
-            // Still tracking, user is typing - we'll check when they complete the word
-        }
-
-        // Notify correction manager if enabled
-        if (text.length == 1 && correctionManager?.isEnabled() == true) {
-            val textBefore = currentInputConnection?.getTextBeforeCursor(200, 0)?.toString() ?: internalTextBuffer.toString()
-            correctionManager?.onCharacterTyped(text[0], textBefore)
-        }
-    }
-
-    /**
-     * Check if user has typed back the original word, indicating they want to reject the correction.
-     * Called when user types a space after being in override detection mode.
-     */
-    private fun checkCorrectionOverride() {
-        if (!isInCorrectionOverrideMode) return
-
-        val original = overrideCorrectionOriginal ?: return
-        val corrected = overrideCorrectionCorrected ?: return
-
-        // Get the word the user just typed (before the space)
-        val textBefore = currentInputConnection?.getTextBeforeCursor(50, 0)?.toString() ?: return
-        val lastWord = textBefore.trimEnd().split(Regex("\\s+")).lastOrNull() ?: return
-
-        DebugLog.d("DictationKeyboardService: Override check - typed '$lastWord', original was '$original', corrected was '$corrected'")
-
-        // Check if what they typed matches (or is similar to) the original word
-        val isSimilar = lastWord.equals(original, ignoreCase = true) ||
-                        levenshteinDistanceSimple(lastWord.lowercase(), original.lowercase()) <= 1
-
-        if (isSimilar) {
-            // User re-typed the original word - they're rejecting the correction!
-            DebugLog.i("DictationKeyboardService: User rejected correction '$original' -> '$corrected'")
-
-            // Tell the correction manager to remember this rejection
-            correctionManager?.rejectLastCorrection()
-
-            // Show a brief toast to confirm
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(
-                    this,
-                    "Won't correct '$original' again",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-
-        // Clear override mode
-        resetCorrectionOverrideMode()
-    }
-
-    /**
-     * Reset the correction override detection state.
-     */
-    private fun resetCorrectionOverrideMode() {
-        isInCorrectionOverrideMode = false
-        overrideCorrectionOriginal = null
-        overrideCorrectionCorrected = null
-        overrideBackspaceCount = 0
-    }
-
-    /**
-     * Simple Levenshtein distance for override detection.
-     */
-    private fun levenshteinDistanceSimple(s1: String, s2: String): Int {
-        val m = s1.length
-        val n = s2.length
-        if (m == 0) return n
-        if (n == 0) return m
-        if (s1 == s2) return 0
-
-        var prevRow = IntArray(n + 1) { it }
-        var currRow = IntArray(n + 1)
-
-        for (i in 1..m) {
-            currRow[0] = i
-            for (j in 1..n) {
-                val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
-                currRow[j] = minOf(
-                    prevRow[j] + 1,
-                    currRow[j - 1] + 1,
-                    prevRow[j - 1] + cost
-                )
-            }
-            val temp = prevRow
-            prevRow = currRow
-            currRow = temp
-        }
-        return prevRow[n]
     }
 
     /**
@@ -2322,118 +2036,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (deleteCount > 0) {
             internalTextBuffer.delete(internalTextBuffer.length - deleteCount, internalTextBuffer.length)
         }
-    }
-
-    /**
-     * Show/hide prediction strip based on user preference and terminal app detection.
-     * Predictions are hidden when: disabled in settings OR in terminal apps.
-     * Also adjusts container height to prevent key size changes.
-     */
-    private fun updatePredictionStripVisibility() {
-        val shouldHide = !predictionsEnabled || isTerminalApp
-        predictionStrip?.visibility = if (shouldHide) View.GONE else View.VISIBLE
-        
-        // Adjust container height to prevent key size changes when prediction strip is hidden
-        // Prediction strip is ~50dp, so reduce from 320dp to 270dp when hidden
-        val container = keyboardTabbedPanel?.findViewById<View>(R.id.keyboardPagesContainer)
-        val heightDp = if (shouldHide) 270 else 320
-        val heightPx = (heightDp * resources.displayMetrics.density).toInt()
-        container?.layoutParams?.height = heightPx
-        container?.requestLayout()
-        
-        val reason = when {
-            !predictionsEnabled -> "disabled in settings"
-            isTerminalApp -> "terminal app"
-            else -> "enabled"
-        }
-        DebugLog.d("DictationKeyboardService: Prediction strip visibility: ${if (shouldHide) "HIDDEN" else "VISIBLE"} ($reason), container height: ${heightDp}dp")
-    }
-
-    /**
-     * Display predictions in the prediction strip.
-     * Best prediction goes in CENTER (prediction2), others on sides.
-     * Layout: [LEFT: 2nd best] [CENTER: BEST] [RIGHT: 3rd best]
-     */
-    private fun displayPredictions(predictions: List<com.tinydictation.android.prediction.Prediction>) {
-        // Debug: Check if TextViews are available
-        if (prediction1 == null || prediction2 == null || prediction3 == null) {
-            DebugLog.w("DictationKeyboardService: displayPredictions - TextViews NULL! p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
-            return
-        }
-
-        when (predictions.size) {
-            0 -> {
-                prediction1?.text = ""
-                prediction2?.text = ""
-                prediction3?.text = ""
-                DebugLog.d("DictationKeyboardService: DISPLAY cleared (0 predictions)")
-            }
-            1 -> {
-                prediction1?.text = ""
-                prediction2?.text = predictions[0].word
-                prediction3?.text = ""
-                DebugLog.d("DictationKeyboardService: DISPLAY center='${predictions[0].word}'")
-            }
-            2 -> {
-                prediction1?.text = predictions[1].word
-                prediction2?.text = predictions[0].word
-                prediction3?.text = ""
-                DebugLog.d("DictationKeyboardService: DISPLAY left='${predictions[1].word}' center='${predictions[0].word}'")
-            }
-            else -> {
-                prediction1?.text = predictions[1].word
-                prediction2?.text = predictions[0].word
-                prediction3?.text = predictions[2].word
-                DebugLog.d("DictationKeyboardService: DISPLAY left='${predictions[1].word}' center='${predictions[0].word}' right='${predictions[2].word}'")
-            }
-        }
-    }
-
-    /**
-     * Handle tap on a prediction to insert it.
-     * Maps UI position to prediction index: center=0, left=1, right=2
-     */
-    private fun onPredictionTapped(index: Int) {
-        // Map UI index to actual prediction index
-        // UI: 0=left, 1=center, 2=right
-        // Predictions: 0=best(center), 1=2nd(left), 2=3rd(right)
-        val predictionIndex = when (index) {
-            0 -> 1  // Left tapped -> 2nd best prediction
-            1 -> 0  // Center tapped -> best prediction
-            2 -> 2  // Right tapped -> 3rd best prediction
-            else -> return
-        }
-        val prediction = currentPredictions.getOrNull(predictionIndex) ?: return
-        val ic = currentInputConnection ?: return
-
-        if (prediction.isCompletion) {
-            // Complete the partial word - delete it first, then insert the full word
-            val textBefore = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
-            val partialWord = textBefore.split(Regex("\\s+")).lastOrNull() ?: ""
-
-            if (partialWord.isNotEmpty()) {
-                // Use deleteSurroundingText for atomic deletion (no race conditions)
-                ic.deleteSurroundingText(partialWord.length, 0)
-                trackBackspace(partialWord.length)
-                DebugLog.d("DictationKeyboardService: Deleted partial word '$partialWord' (${partialWord.length} chars)")
-            }
-            ic.commitText(prediction.word + " ", 1)
-            trackTypedText(prediction.word + " ")
-        } else {
-            // Insert next word
-            ic.commitText(prediction.word + " ", 1)
-            trackTypedText(prediction.word + " ")
-        }
-
-        // Let the engine learn from this selection
-        val textAfter = ic.getTextBeforeCursor(50, 0)?.toString() ?: ""
-        val words = textAfter.split(Regex("\\s+")).filter { it.isNotBlank() }.takeLast(3)
-        predictionManager?.onWordsConfirmed(words)
-
-        // Clear and refresh predictions
-        updatePredictions()
-
-        DebugLog.d("DictationKeyboardService: Inserted prediction '${prediction.word}' (completion=${prediction.isCompletion})")
     }
 
     /**
@@ -3372,27 +2974,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             MotionEvent.ACTION_DOWN -> {
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_DOWN")
 
-                // Check if there's a recent correction - if so, enter override detection mode
-                val lastCorrection = correctionManager?.getLastCorrection()
-                if (lastCorrection != null && !isInCorrectionOverrideMode) {
-                    isInCorrectionOverrideMode = true
-                    overrideCorrectionOriginal = lastCorrection.original
-                    overrideCorrectionCorrected = lastCorrection.corrected
-                    overrideBackspaceCount = 0
-                    DebugLog.d("DictationKeyboardService: Entering correction override detection mode for '${lastCorrection.corrected}' -> '${lastCorrection.original}'")
-                }
-
                 // Reset counter for this hold session
                 backspaceCount = 0
 
                 // Send first backspace immediately
                 sendBackspace()
                 backspaceCount++
-
-                // Track backspaces for override detection
-                if (isInCorrectionOverrideMode) {
-                    overrideBackspaceCount++
-                }
 
                 // Record start time and set flag to indicate button is held
                 backspaceStartTime = System.currentTimeMillis()
@@ -3408,18 +2995,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 val holdDuration = System.currentTimeMillis() - backspaceStartTime
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL after ${holdDuration}ms, $backspaceCount deletions")
-
-                // Track total backspaces for override detection
-                if (isInCorrectionOverrideMode) {
-                    overrideBackspaceCount += (backspaceCount - 1) // -1 because first was already counted in ACTION_DOWN
-                    DebugLog.d("DictationKeyboardService: Override mode: deleted $overrideBackspaceCount chars total, corrected word was '${overrideCorrectionCorrected}' (${overrideCorrectionCorrected?.length} chars)")
-
-                    // If user deleted roughly the corrected word length + space, they're likely reverting
-                    val correctedLen = (overrideCorrectionCorrected?.length ?: 0) + 1 // +1 for trailing space
-                    if (overrideBackspaceCount >= correctedLen) {
-                        DebugLog.d("DictationKeyboardService: User likely deleted the corrected word, waiting to see what they type")
-                    }
-                }
 
                 // Clear the flag - this will cause the runnable to stop on next iteration
                 isBackspaceHeld = false
@@ -3526,7 +3101,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val char = selectedAKeyOption ?: (if (isShiftActive || isCapsLock) "Ä" else "ä")
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
-                    updatePredictions()
                     hideAKeyPopup()
                     DebugLog.d("DictationKeyboardService: A key popup selected '$char'")
                 } else if (!isAKeyLongPressTriggered) {
@@ -3539,7 +3113,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         isShiftActive = false
                         updateShiftKeyDisplay()
                     }
-                    updatePredictions()
                 }
                 return true
             }
@@ -3724,7 +3297,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         isShiftActive = false
                         updateShiftKeyDisplay()
                     }
-                    updatePredictions()
                 }
                 return true
             }
@@ -3766,7 +3338,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         isShiftActive = false
                         updateShiftKeyDisplay()
                     }
-                    updatePredictions()
                 }
                 return true
             }
@@ -3782,7 +3353,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var lastShiftTapTime = 0L
 
     // Track last space tap time for double-tap correction trigger
-    private var lastSpaceTapTime = 0L
 
     /**
      * Handles touch events for the shift key.
@@ -3915,24 +3485,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
-                    val currentTime = System.currentTimeMillis()
-                    if (currentTime - lastSpaceTapTime < 300) {
-                        // Double-tap detected - trigger manual correction immediately
-                        val textBeforeCursor = currentInputConnection?.getTextBeforeCursor(500, 0)?.toString() ?: ""
-                        correctionManager?.triggerManualCorrection(textBeforeCursor)
-                        spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
-                        DebugLog.d("DictationKeyboardService: Double-tap space - triggering manual correction")
-                        // Don't insert space on double-tap - just trigger correction
-                    } else {
-                        // Single tap - insert space (normal behavior)
-                        currentInputConnection?.commitText(" ", 1)
-                        trackTypedText(" ")  // Track for terminal apps
-                        updatePredictions()
-
-                        // Check for sentence-end auto-correct
-                        checkAndTriggerAutoCorrect()
-                    }
-                    lastSpaceTapTime = currentTime
+                    // Insert space
+                    currentInputConnection?.commitText(" ", 1)
+                    trackTypedText(" ")  // Track for terminal apps
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }
@@ -3996,13 +3551,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // Commit selected punctuation
                     val char = selectedPunctuation ?: "."
                     currentInputConnection?.commitText(char, 1)
-                    updatePredictions()
                     hidePunctuationPopup()
                     DebugLog.d("DictationKeyboardService: Punctuation popup selected '$char'")
                 } else {
                     // Short tap - insert period
                     currentInputConnection?.commitText(".", 1)
-                    updatePredictions()
                 }
                 return true
             }
@@ -4395,145 +3948,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Check if the user just typed a sentence-ending punctuation followed by space,
-     * and if auto-correct is enabled, trigger spelling correction for the last sentence.
-     */
-    private fun checkAndTriggerAutoCorrect() {
-        val prefs = PreferenceManager(this)
-
-        // Check if auto-correct is enabled
-        if (!prefs.getAutoCorrectEnabled()) {
-            return
-        }
-
-        // Check if Groq API key is configured
-        if (!prefs.hasGroqApiKey()) {
-            DebugLog.d("DictationKeyboardService: Auto-correct skipped - no Groq API key")
-            return
-        }
-
-        val ic = currentInputConnection ?: return
-
-        // Get text before cursor (including the space we just typed)
-        val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: ""
-
-        // Need at least a few characters to have a sentence
-        if (textBefore.length < 3) return
-
-        // Check if there's a sentence-ending punctuation before the space
-        // Pattern: sentence text + (. or ? or !) + space
-        val trimmed = textBefore.trimEnd()
-        if (trimmed.isEmpty()) return
-
-        val lastChar = trimmed.lastOrNull() ?: return
-        if (lastChar !in listOf('.', '?', '!')) {
-            return
-        }
-
-        // Extract the last sentence (from previous sentence-end to current)
-        // Look for the second-to-last sentence ending
-        val sentenceEndPattern = Regex("[.!?]\\s")
-        val matches = sentenceEndPattern.findAll(trimmed.dropLast(1)).toList()
-
-        val sentenceStart = if (matches.isEmpty()) {
-            0  // This is the first sentence
-        } else {
-            matches.last().range.last + 1  // Start after previous sentence end
-        }
-
-        val lastSentence = trimmed.substring(sentenceStart).trim()
-
-        // Skip if sentence is too short or too long
-        if (lastSentence.length < 5 || lastSentence.length > 200) {
-            DebugLog.d("DictationKeyboardService: Auto-correct skipped - sentence length ${lastSentence.length}")
-            return
-        }
-
-        DebugLog.i("DictationKeyboardService: Auto-correct triggered for sentence: '$lastSentence'")
-
-        // Perform the correction
-        performAutoCorrect(lastSentence, sentenceStart, textBefore.length)
-    }
-
-    /**
-     * Perform auto-correct on the given sentence and replace it in the text field.
-     */
-    @Suppress("UNUSED_PARAMETER")
-    private fun performAutoCorrect(sentence: String, sentenceStart: Int, totalLength: Int) {
-        if (isAutoCorrectingPending) {
-            DebugLog.d("DictationKeyboardService: Auto-correct already in progress")
-            return
-        }
-
-        isAutoCorrectingPending = true
-
-        CoroutineScope(Dispatchers.Main).launch {
-            try {
-                val result = spellingCorrector?.correct(sentence)
-
-                if (result?.isSuccess == true) {
-                    val correctedSentence = result.getOrNull() ?: sentence
-
-                    // Only replace if something actually changed
-                    if (correctedSentence != sentence) {
-                        val ic = currentInputConnection
-                        if (ic != null) {
-                            DebugLog.i("DictationKeyboardService: Auto-correct replacing '$sentence' with '$correctedSentence'")
-
-                            ic.beginBatchEdit()
-                            try {
-                                // Calculate the position of the sentence in the current text
-                                // We need to select from sentenceStart to the end of the sentence (not including trailing space)
-                                val sentenceLength = sentence.length
-
-                                // Get current cursor position (after the space)
-                                val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: ""
-
-                                // The sentence ends at (textBefore.length - 1) because we typed a space after it
-                                // The sentence starts at (textBefore.length - 1 - sentenceLength)
-                                val selStart = textBefore.length - sentenceLength - 1  // -1 for the trailing space
-                                val selEnd = textBefore.length - 1  // Just before the trailing space
-
-                                if (selStart >= 0) {
-                                    // Select the original sentence
-                                    ic.setSelection(selStart, selEnd)
-
-                                    // Replace with corrected sentence
-                                    ic.commitText(correctedSentence, 1)
-
-                                    // Re-add the space after the corrected sentence
-                                    ic.commitText(" ", 1)
-
-                                    // Update internal buffer
-                                    if (internalTextBuffer.isNotEmpty()) {
-                                        val bufferStr = internalTextBuffer.toString()
-                                        if (bufferStr.length >= sentenceLength + 1) {
-                                            val newBuffer = bufferStr.substring(0, bufferStr.length - sentenceLength - 1) +
-                                                    correctedSentence + " "
-                                            internalTextBuffer.clear()
-                                            internalTextBuffer.append(newBuffer.takeLast(100))
-                                        }
-                                    }
-                                }
-                            } finally {
-                                ic.endBatchEdit()
-                            }
-                        }
-                    } else {
-                        DebugLog.d("DictationKeyboardService: Auto-correct - no changes needed")
-                    }
-                } else {
-                    val error = result?.exceptionOrNull()?.message ?: "Unknown error"
-                    DebugLog.e("DictationKeyboardService: Auto-correct failed - $error")
-                }
-            } catch (e: Exception) {
-                DebugLog.e("DictationKeyboardService: Auto-correct exception - ${e.message}")
-            } finally {
-                isAutoCorrectingPending = false
-            }
-        }
-    }
 
     private fun pasteFromClipboard() {
         Log.i(TAG, "DictationKeyboardService: Paste from clipboard")
@@ -4625,17 +4039,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             DebugLog.d("DictationKeyboardService: Cleared internal text buffer (new session)")
         }
 
-        // Load predictions preference and detect terminal apps
-        val prefManager = com.tinydictation.android.util.PreferenceManager(this)
-        val wasPredictionsEnabled = predictionsEnabled
-        predictionsEnabled = prefManager.getPredictionsEnabled()
+        // Detect terminal apps
         val currentPackage = info?.packageName ?: ""
         val wasTerminalApp = isTerminalApp
         isTerminalApp = isTerminalPackage(currentPackage)
-        if (isTerminalApp != wasTerminalApp || predictionsEnabled != wasPredictionsEnabled) {
-            DebugLog.i("DictationKeyboardService: Predictions: enabled=$predictionsEnabled, terminal=$isTerminalApp (package: $currentPackage)")
-            updatePredictionStripVisibility()
-        }
         // Set terminal mode on transcription engine (disables formatting, interims)
         if (isTerminalApp != wasTerminalApp) {
             transcriptionManager?.setTerminalMode(isTerminalApp)
@@ -4713,26 +4120,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
 
-        // Update predictions when cursor moves or text changes
-        // Always update if prediction TextViews exist AND panel is visible
-        // (predictions only show when QWERTY panel is open)
-        if (isKeyboardPanelVisible && prediction1 != null) {
-            // Only update if cursor actually moved (not just selection change)
-            if (oldSelStart != newSelStart || oldSelEnd != newSelEnd) {
-                DebugLog.d("DictationKeyboardService: onUpdateSelection cursor moved ($oldSelStart→$newSelStart), updating predictions")
-                updatePredictions()
-            }
-        }
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
-
-        // Reset correction override mode when keyboard is hidden
-        resetCorrectionOverrideMode()
-        correctionManager?.clearLastCorrection()
 
         // Cleanup PTT recording if keyboard closes mid-hold
         if (isPttRecording) {
@@ -4805,156 +4198,4 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         applyTheme()
     }
 
-    // ==================== Two-Stage Text Correction Handlers ====================
-
-    /**
-     * Handle a word-level correction from Stage 1 (local, instant).
-     * Replaces the last word in the input with the corrected version.
-     */
-    private fun handleWordCorrection(correction: Correction) {
-        val ic = currentInputConnection ?: return
-
-        DebugLog.i("DictationKeyboardService: Word correction: '${correction.original}' -> '${correction.corrected}'")
-
-        ic.beginBatchEdit()
-        try {
-            // Get text before cursor to find the word to replace
-            val textBefore = ic.getTextBeforeCursor(200, 0)?.toString() ?: return
-
-            // Find the original word in the text
-            val wordEndIndex = textBefore.trimEnd().length
-            val wordStartIndex = wordEndIndex - correction.original.length
-
-            if (wordStartIndex < 0) return
-
-            // Verify the word matches
-            val foundWord = textBefore.substring(wordStartIndex, wordEndIndex)
-            if (!foundWord.equals(correction.original, ignoreCase = true)) {
-                DebugLog.w("DictationKeyboardService: Word mismatch - expected '${correction.original}', found '$foundWord'")
-                return
-            }
-
-            // Select and replace the word
-            // Calculate distance from cursor to word start
-            val distanceFromCursor = textBefore.length - wordStartIndex
-            ic.deleteSurroundingText(distanceFromCursor, 0)
-            ic.commitText(correction.corrected + " ", 1)
-
-        } finally {
-            ic.endBatchEdit()
-        }
-    }
-
-    /**
-     * Handle a sentence-level correction from Stage 2 (AI-powered).
-     * Replaces the entire sentence with the corrected version.
-     */
-    private fun handleSentenceCorrection(correction: Correction) {
-        val ic = currentInputConnection ?: return
-        val prefs = PreferenceManager(this)
-
-        DebugLog.i("DictationKeyboardService: Sentence correction: '${correction.original}' -> '${correction.corrected}'")
-
-        // Show toast for major changes if enabled
-        if (correction.isMajorChange && prefs.getCorrectionShowMajorChangeToast()) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(
-                    this,
-                    "Corrected: ${correction.corrected.take(50)}...",
-                    Toast.LENGTH_SHORT
-                ).show()
-            }
-        }
-
-        ic.beginBatchEdit()
-        try {
-            // Get text before cursor
-            val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: return
-
-            // Find the original sentence in the text
-            val sentenceEndIndex = textBefore.lastIndexOf(correction.original)
-            if (sentenceEndIndex < 0) {
-                DebugLog.w("DictationKeyboardService: Sentence not found in text")
-                return
-            }
-
-            // Calculate positions
-            val sentenceStartIndex = sentenceEndIndex
-            val sentenceLength = correction.original.length
-
-            // Distance from cursor to sentence start
-            val distanceToStart = textBefore.length - sentenceStartIndex
-
-            // Delete the original sentence
-            ic.deleteSurroundingText(distanceToStart, 0)
-
-            // Insert the corrected sentence
-            ic.commitText(correction.corrected, 1)
-
-            // Restore any text that was after the sentence
-            val textAfterSentence = textBefore.substring(sentenceStartIndex + sentenceLength)
-            if (textAfterSentence.isNotEmpty()) {
-                ic.commitText(textAfterSentence, 1)
-            }
-
-        } finally {
-            ic.endBatchEdit()
-        }
-    }
-
-    /**
-     * Handle smart rewrite correction from double-tap space (Claude Opus via OpenRouter).
-     * Replaces ALL text before cursor with the rewritten version.
-     */
-    private fun handleSmartRewriteCorrection(correction: Correction) {
-        val ic = currentInputConnection ?: return
-
-        DebugLog.i("DictationKeyboardService: Smart rewrite: '${correction.original.take(50)}...' -> '${correction.corrected.take(50)}...'")
-
-        // Show toast with preview of the rewrite
-        Handler(Looper.getMainLooper()).post {
-            Toast.makeText(
-                this,
-                "✨ Rewritten!",
-                Toast.LENGTH_SHORT
-            ).show()
-        }
-
-        ic.beginBatchEdit()
-        try {
-            // Get text before cursor to verify it matches
-            val textBefore = ic.getTextBeforeCursor(2000, 0)?.toString() ?: return
-
-            // Find the original text in what's before cursor
-            // Smart rewrite operates on all text before cursor, so we look for it at the end
-            val originalTrimmed = correction.original.trimEnd()
-            val textBeforeTrimmed = textBefore.trimEnd()
-
-            // The original should be at the end of textBefore (possibly with trailing space difference)
-            if (!textBeforeTrimmed.endsWith(originalTrimmed) && textBeforeTrimmed != originalTrimmed) {
-                // Try to find it as a suffix with some tolerance
-                val matchIndex = textBefore.lastIndexOf(correction.original)
-                if (matchIndex < 0) {
-                    DebugLog.w("DictationKeyboardService: Smart rewrite text not found in current text")
-                    return
-                }
-            }
-
-            // Delete the original text (everything before cursor that was sent for rewrite)
-            ic.deleteSurroundingText(correction.original.length, 0)
-
-            // Insert the rewritten text
-            ic.commitText(correction.corrected, 1)
-
-        } finally {
-            ic.endBatchEdit()
-        }
-    }
-
-    /**
-     * Reload correction settings (call after settings change).
-     */
-    fun reloadCorrectionSettings() {
-        correctionManager?.reloadConfig()
-    }
 }

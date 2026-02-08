@@ -17,7 +17,6 @@ import com.tinydictation.android.settings.AudioSettingsActivity
 import com.tinydictation.android.settings.DeepgramFeaturesSettingsActivity
 import com.tinydictation.android.settings.OfflineModelsActivity
 import com.tinydictation.android.settings.PermissionsActivity
-import com.tinydictation.android.settings.TextCorrectionSettingsActivity
 import com.tinydictation.android.settings.TranscriptionSettingsActivity
 import com.tinydictation.android.settings.VoiceCommandsActivity
 
@@ -86,12 +85,6 @@ class SettingsActivity : AppCompatActivity() {
                 subtitle = "Keyboard theme"
             ),
             SettingsCategory(
-                id = "text_correction",
-                icon = R.drawable.ic_spellcheck,
-                title = "Text Correction",
-                subtitle = "Auto-fix typos and spacing"
-            ),
-            SettingsCategory(
                 id = "deepgram_features",
                 icon = R.drawable.ic_mic,
                 title = "Deepgram Features",
@@ -110,12 +103,6 @@ class SettingsActivity : AppCompatActivity() {
                 subtitle = "View past transcriptions"
             ),
             SettingsCategory(
-                id = "dictionary",
-                icon = R.drawable.ic_book,
-                title = "Word Dictionary",
-                subtitle = "Custom word replacements"
-            ),
-            SettingsCategory(
                 id = "about",
                 icon = R.drawable.ic_info,
                 title = "About",
@@ -132,11 +119,9 @@ class SettingsActivity : AppCompatActivity() {
             "audio" -> Intent(this, AudioSettingsActivity::class.java)
             "offline_models" -> Intent(this, OfflineModelsActivity::class.java)
             "appearance" -> Intent(this, AppearanceSettingsActivity::class.java)
-            "text_correction" -> Intent(this, TextCorrectionSettingsActivity::class.java)
             "deepgram_features" -> Intent(this, DeepgramFeaturesSettingsActivity::class.java)
             "permissions" -> Intent(this, PermissionsActivity::class.java)
             "history" -> Intent(this, HistoryActivity::class.java)
-            "dictionary" -> Intent(this, DictionaryActivity::class.java)
             "about" -> Intent(this, AboutActivity::class.java)
             else -> return
         }
