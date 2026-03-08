@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.33.1:
+            • FIX: Improve button broken - wrong Haiku model ID (20251101 → 20251001)
+
             v1.33.0:
             • NEW: Auto AI sentence fix - triggers after period or dictation
             • Prediction strip turns purple while AI is working

@@ -86,7 +86,7 @@ Rules:
 12. Return ONLY the corrected text, no explanations or comments"""
 
         val jsonBody = JSONObject().apply {
-            put("model", "claude-haiku-4-5-20251101")
+            put("model", "claude-haiku-4-5-20251001")
             put("max_tokens", 2048)
             put("system", systemPrompt)
             put("messages", JSONArray().apply {
