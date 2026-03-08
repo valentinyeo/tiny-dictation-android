@@ -4171,7 +4171,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Cancelled if user starts typing before response arrives.
      */
     private fun requestNextWordPrediction() {
-        if (isAutoFixRunning) return
+        if (isAutoFixRunning || isTerminalApp) return
 
         // Clear auto-fix undo if still showing - next-word prediction takes priority
         if (autoFixUndoAvailable) {

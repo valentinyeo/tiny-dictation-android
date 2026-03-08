@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.2:
+            • Disable AI next-word prediction in terminal apps (Termius, etc.)
+
             v1.34.1:
             • FIX: Next-word prediction not showing - auto-fix undo was blocking it
             • Shows "···" loading indicator while Haiku is thinking
