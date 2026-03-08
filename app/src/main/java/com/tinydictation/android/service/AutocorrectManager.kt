@@ -6,10 +6,12 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Offline word completion and autocorrect using a bundled dictionary.
+ * Offline word completion and autocorrect using a frequency-ranked dictionary.
+ *
+ * Dictionary format: word\trank (lower rank = more common, 99999 = no frequency data)
  *
  * Prediction priority:
- * 1. Prefix completions (typing "experi" → "experience", "experiment", "experiences")
+ * 1. Prefix completions sorted by frequency (typing "that" → "that's" not "thatch")
  * 2. Spell corrections via QWERTY-weighted Levenshtein distance (typing "hrlp" → "help")
  *
  * Results shown in prediction strip: [left=alt] [MIDDLE=best] [right=alt]
@@ -17,10 +19,12 @@ import java.io.InputStreamReader
 class AutocorrectManager(context: Context) {
 
     private val dictionary = HashSet<String>(65536)
+    // Word → frequency rank (lower = more common). 99999 = unranked.
+    private val wordFrequency = HashMap<String, Int>(65536)
     // Sorted list for efficient prefix search
     private var sortedWords: List<String> = emptyList()
     // Words grouped by first letter for fast spell correction
-    private val wordsByFirstLetter = HashMap<Char, List<String>>()
+    private val wordsByFirstLetter = HashMap<Char, MutableList<String>>()
     private val currentWord = StringBuilder()
 
     // Last autocorrect for undo-on-backspace
@@ -48,58 +52,49 @@ class AutocorrectManager(context: Context) {
             context.assets.open("dictionary.txt").use { stream ->
                 BufferedReader(InputStreamReader(stream)).use { reader ->
                     reader.forEachLine { line ->
-                        val word = line.trim().lowercase()
+                        val trimmed = line.trim()
+                        if (trimmed.isEmpty()) return@forEachLine
+
+                        // Format: word\trank or just word
+                        val parts = trimmed.split('\t')
+                        val word = parts[0].lowercase()
+                        val rank = parts.getOrNull(1)?.toIntOrNull() ?: 99999
+
                         if (word.isNotEmpty()) {
                             dictionary.add(word)
+                            wordFrequency[word] = rank
                             words.add(word)
+
+                            // Group by first letter
+                            wordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }.add(word)
                         }
                     }
                 }
             }
             sortedWords = words.sorted()
-            // Group by first letter for fast spell correction on large dictionaries
-            for (word in words) {
-                if (word.isNotEmpty()) {
-                    wordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }
-                }
-            }
-            // Convert to immutable lists
-            val grouped = HashMap<Char, List<String>>()
-            for (word in words) {
-                if (word.isNotEmpty()) {
-                    val list = grouped.getOrPut(word[0]) { mutableListOf() }
-                    (list as MutableList).add(word)
-                }
-            }
-            wordsByFirstLetter.clear()
-            wordsByFirstLetter.putAll(grouped)
-            DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words")
+            val rankedCount = wordFrequency.count { it.value < 99999 }
+            DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words ($rankedCount with frequency data)")
         } catch (e: Exception) {
             DebugLog.e("AutocorrectManager: Failed to load dictionary: ${e.message}")
         }
     }
 
+    /** Get frequency rank for a word (lower = more common, 99999 = unknown) */
+    private fun getFrequency(word: String): Int = wordFrequency[word.lowercase()] ?: 99999
+
     fun isKnownWord(word: String): Boolean = dictionary.contains(word.lowercase())
 
-    /**
-     * Called when user types a letter on the QWERTY keyboard.
-     */
     fun onLetterTyped(char: Char) {
         currentWord.append(char.lowercaseChar())
         clearUndoState()
         updateSuggestions()
     }
 
-    /**
-     * Called when user presses backspace.
-     * Returns true if an autocorrect was undone (caller should skip normal backspace).
-     */
     fun onBackspace(): Boolean {
-        // Check for undo first
         val undo = lastAutocorrect
         if (undo != null) {
             lastAutocorrect = null
-            return true // caller handles the actual undo
+            return true
         }
 
         if (currentWord.isNotEmpty()) {
@@ -114,10 +109,6 @@ class AutocorrectManager(context: Context) {
         return false
     }
 
-    /**
-     * Called when space is pressed. Returns the corrected word if autocorrect should fire,
-     * or null if the word is correct / no suggestion available.
-     */
     fun onSpace(): String? {
         val typed = currentWord.toString()
         currentWord.clear()
@@ -125,10 +116,8 @@ class AutocorrectManager(context: Context) {
         onSuggestionsUpdated?.invoke("", emptyList())
 
         if (typed.isEmpty() || typed.length < 2) return null
-        // Don't autocorrect if word is already in dictionary
         if (isKnownWord(typed)) return null
 
-        // Try spell corrections (not completions - user pressed space so they think they finished the word)
         val corrections = getSpellCorrections(typed, 1)
         if (corrections.isEmpty()) return null
 
@@ -141,25 +130,19 @@ class AutocorrectManager(context: Context) {
         return best
     }
 
-    /**
-     * Called when a word boundary (punctuation, cursor move) is reached without autocorrect.
-     */
     fun onWordBoundary() {
         currentWord.clear()
         cachedSuggestions = emptyList()
         onSuggestionsUpdated?.invoke("", emptyList())
     }
 
-    /**
-     * Called when user taps a prediction suggestion.
-     * Returns the replacement word (caller handles deletion + insertion).
-     */
     fun onPredictionTapped(suggestion: String): String {
         val typed = currentWord.toString()
         currentWord.clear()
         cachedSuggestions = emptyList()
         onSuggestionsUpdated?.invoke("", emptyList())
-        if (typed.isNotEmpty()) {
+        // Only record autocorrect if the suggestion differs from what was typed
+        if (typed.isNotEmpty() && suggestion != typed) {
             lastAutocorrect = AutocorrectRecord(original = typed, replacement = suggestion)
         }
         return suggestion
@@ -181,34 +164,43 @@ class AutocorrectManager(context: Context) {
             return
         }
 
-        // Combine completions and corrections, prioritizing completions
-        val suggestions = mutableListOf<String>()
+        // All candidates: typed word (if valid) + prefix completions + spell corrections
+        // Sorted by frequency. The typed word competes fairly with completions.
+        // This means "that" shows in middle (rank 10) while "thatch" (rank 99999) goes to sides.
+        val candidates = mutableListOf<String>()
 
-        // 1. Prefix completions (e.g., "experi" → "experience", "experiment")
-        // Only show completions that are longer than what's typed (actual completions)
-        val completions = getPrefixCompletions(typed, 5)
-            .filter { it != typed } // don't suggest what they already typed
-        suggestions.addAll(completions)
-
-        // 2. If we don't have enough completions, add spell corrections
-        if (suggestions.size < 3) {
-            val corrections = getSpellCorrections(typed, 3 - suggestions.size)
-                .filter { it !in suggestions } // no duplicates
-            suggestions.addAll(corrections)
+        // Include the typed word itself if it's a dictionary word
+        if (isKnownWord(typed)) {
+            candidates.add(typed)
         }
 
-        cachedSuggestions = suggestions.take(3)
+        // Add prefix completions (excluding exact match, already added above)
+        val completions = getPrefixCompletions(typed, 5)
+            .filter { it != typed }
+        candidates.addAll(completions)
+
+        // Add spell corrections as fallback
+        if (candidates.size < 3) {
+            val corrections = getSpellCorrections(typed, 3 - candidates.size)
+                .filter { it !in candidates }
+            candidates.addAll(corrections)
+        }
+
+        // Sort all by frequency - most common word wins the middle position
+        cachedSuggestions = candidates
+            .sortedBy { getFrequency(it) }
+            .take(3)
         onSuggestionsUpdated?.invoke(typed, cachedSuggestions)
     }
 
     /**
      * Find dictionary words that start with the given prefix.
-     * Returns results sorted by length (shorter = more common), then alphabetically.
+     * Returns results sorted by frequency (most common first).
      */
     private fun getPrefixCompletions(prefix: String, limit: Int): List<String> {
         val lower = prefix.lowercase()
 
-        // Binary search to find the start of the prefix range in sorted words
+        // Binary search for prefix range start
         var lo = 0
         var hi = sortedWords.size
         while (lo < hi) {
@@ -224,16 +216,16 @@ class AutocorrectManager(context: Context) {
             i++
         }
 
-        // Sort by length (shorter words first = more common), then alphabetically
+        // Sort by frequency (lower rank = more common first)
         return matches
-            .sortedWith(compareBy({ it.length }, { it }))
+            .sortedBy { getFrequency(it) }
             .take(limit)
     }
 
     /**
      * Find dictionary words closest to the input using QWERTY-weighted Levenshtein distance.
-     * Uses first-letter index for performance on large dictionaries (63K+ words).
-     * Also checks adjacent first-letter keys to handle first-letter typos.
+     * Uses first-letter index for performance. Also checks adjacent first-letter keys.
+     * Results sorted by: edit distance first, then frequency for ties.
      */
     private fun getSpellCorrections(word: String, limit: Int): List<String> {
         val lower = word.lowercase()
@@ -242,7 +234,6 @@ class AutocorrectManager(context: Context) {
         val minLen = (lower.length - 2).coerceAtLeast(1)
         val maxLen = lower.length + 2
 
-        // Check words starting with same letter + adjacent keys (handles first-letter typos)
         val firstLetterCandidates = mutableSetOf(lower[0])
         QWERTY_NEIGHBORS[lower[0]]?.let { firstLetterCandidates.addAll(it) }
 
@@ -252,18 +243,14 @@ class AutocorrectManager(context: Context) {
         return candidates
             .asSequence()
             .filter { it.length in minLen..maxLen }
-            .map { it to weightedLevenshtein(lower, it) }
+            .map { Triple(it, weightedLevenshtein(lower, it), getFrequency(it)) }
             .filter { it.second <= 2.0f && it.second > 0f }
-            .sortedBy { it.second }
+            .sortedWith(compareBy({ it.second }, { it.third })) // edit distance, then frequency
             .take(limit)
             .map { it.first }
             .toList()
     }
 
-    /**
-     * QWERTY-weighted Levenshtein distance.
-     * Substitutions between adjacent keys cost 0.5 instead of 1.0.
-     */
     private fun weightedLevenshtein(s1: String, s2: String): Float {
         val m = s1.length
         val n = s2.length
@@ -279,9 +266,9 @@ class AutocorrectManager(context: Context) {
                 else 1f
 
                 dp[i][j] = minOf(
-                    dp[i - 1][j] + 1f,        // deletion
-                    dp[i][j - 1] + 1f,        // insertion
-                    dp[i - 1][j - 1] + subCost // substitution
+                    dp[i - 1][j] + 1f,
+                    dp[i][j - 1] + 1f,
+                    dp[i - 1][j - 1] + subCost
                 )
             }
         }

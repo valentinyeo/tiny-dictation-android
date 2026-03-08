@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.4:
+            • Word frequency ranking for predictions (Google 10K frequency data)
+            • "th" → "the", "that", "this" instead of alphabetical
+            • "experi" → "experience", "experienced", "experiences"
+            • Spell corrections also ranked by frequency for ties
+
             v1.32.3:
             • Expanded dictionary from 3,198 to 63,730 words
             • Words like "completion", "experience", "keyboard" now available
