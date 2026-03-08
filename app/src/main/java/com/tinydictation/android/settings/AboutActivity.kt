@@ -35,6 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.33.0:
+            • NEW: Auto AI sentence fix - triggers after period or dictation
+            • Prediction strip turns purple while AI is working
+            • Turns green with "Undo fix" button when done (10s timeout)
+            • Tap "Undo fix" to revert to original text
+            • Uses Haiku for fast response (~500ms)
+            • Works for both typed sentences and dictated text
+
             v1.32.5:
             • NEW: Missing space detection - "thisis" → "this is", "ofthe" → "of the"
             • Uses frequency ranking to pick best split (won't break "together" into "to get her")

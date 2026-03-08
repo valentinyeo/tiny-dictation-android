@@ -207,6 +207,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var prediction2: TextView? = null
     private var prediction3: TextView? = null
 
+    // Auto AI fix (background sentence correction)
+    private var isAutoFixRunning = false
+    private var autoFixOriginalText: String? = null  // For undo
+    private var autoFixReplacementText: String? = null
+    private var autoFixUndoAvailable = false
+    private val autoFixHandler = Handler(Looper.getMainLooper())
+    private val AUTO_FIX_UNDO_TIMEOUT = 10000L  // Undo expires after 10 seconds
+    private val AUTO_FIX_COLOR = Color.parseColor("#5B4FCF")  // Purple while fixing
+    private val AUTO_FIX_DONE_COLOR = Color.parseColor("#2E7D32")  // Green when done
+
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
     private var isImproving = false  // Prevent multiple concurrent improvements
@@ -536,6 +546,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 val language = prefs.getLanguage()
                                 TranscriptionHistoryManager.getInstance(this@DictationKeyboardService).save(text, language)
                                 DebugLog.i("DictationKeyboardService: Saved transcription to history")
+
+                                // Auto AI fix after dictation
+                                triggerAutoFix()
                             }
                         }
                     }
@@ -3684,9 +3697,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     hidePunctuationPopup()
                     DebugLog.d("DictationKeyboardService: Punctuation popup selected '$char'")
+                    triggerAutoFix()
                 } else {
                     // Short tap - insert period
                     currentInputConnection?.commitText(".", 1)
+                    // Trigger auto AI fix after sentence end
+                    triggerAutoFix()
                 }
                 return true
             }
@@ -3975,6 +3991,163 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * - Using clear, professional, nonviolent language
      * - Preserving the user's tone and intent
      */
+    /**
+     * Triggers automatic AI sentence fixing in the background.
+     * Called after a sentence ends (period/dictation) to fix grammar/spelling via Haiku.
+     * Shows progress in prediction strip and offers undo after completion.
+     */
+    private fun triggerAutoFix() {
+        if (isAutoFixRunning || autoFixUndoAvailable) return
+        if (textImprover == null) {
+            textImprover = TextImprover(this)
+        }
+        if (!PreferenceManager(this).hasAnthropicApiKey()) return
+
+        val ic = currentInputConnection ?: return
+        // Get the last sentence (text before cursor)
+        val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: return
+        if (textBefore.isBlank() || textBefore.length < 5) return
+
+        // Find the last sentence (from previous sentence end or start of text)
+        val lastSentenceStart = findLastSentenceStart(textBefore)
+        val sentence = textBefore.substring(lastSentenceStart).trim()
+        if (sentence.length < 5) return
+
+        isAutoFixRunning = true
+        autoFixOriginalText = sentence
+
+        // Show "fixing" indicator in prediction strip
+        showAutoFixProgress()
+
+        CoroutineScope(Dispatchers.Main).launch {
+            try {
+                val result = textImprover?.improve(sentence)
+                val improved = result?.getOrNull()
+
+                if (improved != null && improved != sentence && improved.isNotBlank()) {
+                    // Apply the fix
+                    val currentIc = currentInputConnection
+                    if (currentIc != null) {
+                        currentIc.beginBatchEdit()
+                        currentIc.deleteSurroundingText(sentence.length, 0)
+                        currentIc.commitText(improved, 1)
+                        currentIc.endBatchEdit()
+
+                        autoFixReplacementText = improved
+                        autoFixUndoAvailable = true
+                        showAutoFixUndo()
+
+                        // Auto-expire undo after timeout
+                        autoFixHandler.postDelayed({
+                            clearAutoFixUndo()
+                        }, AUTO_FIX_UNDO_TIMEOUT)
+
+                        DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$improved'")
+                    } else {
+                        clearAutoFixState()
+                    }
+                } else {
+                    // No changes needed or error
+                    clearAutoFixState()
+                    DebugLog.d("DictationKeyboardService: Auto-fix: no changes needed")
+                }
+            } catch (e: Exception) {
+                DebugLog.e("DictationKeyboardService: Auto-fix failed: ${e.message}")
+                clearAutoFixState()
+            }
+            isAutoFixRunning = false
+        }
+    }
+
+    /** Find the start index of the last sentence in text */
+    private fun findLastSentenceStart(text: String): Int {
+        // Look for the last sentence-ending punctuation before the final one
+        val trimmed = text.trimEnd()
+        // Find second-to-last sentence end
+        for (i in trimmed.length - 2 downTo 0) {
+            if (trimmed[i] == '.' || trimmed[i] == '!' || trimmed[i] == '?') {
+                return i + 1
+            }
+        }
+        return 0 // entire text is one sentence
+    }
+
+    /** Show purple "Fixing..." indicator in prediction strip */
+    private fun showAutoFixProgress() {
+        prediction1?.text = ""
+        prediction2?.text = "AI fixing..."
+        prediction3?.text = ""
+        predictionStrip?.setBackgroundColor(AUTO_FIX_COLOR)
+        prediction2?.setTextColor(Color.WHITE)
+    }
+
+    /** Show green undo option in prediction strip */
+    private fun showAutoFixUndo() {
+        prediction1?.text = ""
+        prediction2?.text = "Undo fix"
+        prediction3?.text = ""
+        predictionStrip?.setBackgroundColor(AUTO_FIX_DONE_COLOR)
+        prediction2?.setTextColor(Color.WHITE)
+
+        // Make undo tappable
+        prediction2?.setOnClickListener {
+            undoAutoFix()
+        }
+    }
+
+    /** Undo the last auto-fix */
+    private fun undoAutoFix() {
+        val original = autoFixOriginalText ?: return
+        val replacement = autoFixReplacementText ?: return
+
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(replacement.length, 0)
+        ic.commitText(original, 1)
+        ic.endBatchEdit()
+
+        DebugLog.i("DictationKeyboardService: Auto-fix undone")
+        clearAutoFixUndo()
+    }
+
+    /** Clear auto-fix undo state and restore prediction strip */
+    private fun clearAutoFixUndo() {
+        autoFixUndoAvailable = false
+        autoFixOriginalText = null
+        autoFixReplacementText = null
+        autoFixHandler.removeCallbacksAndMessages(null)
+
+        // Restore prediction strip to normal
+        predictionStrip?.setBackgroundColor(Color.TRANSPARENT)
+        prediction1?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction2?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction3?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction1?.text = ""
+        prediction2?.text = ""
+        prediction3?.text = ""
+
+        // Re-attach normal prediction tap handlers
+        prediction1?.setOnClickListener { applyPrediction(0) }
+        prediction2?.setOnClickListener { applyPrediction(1) }
+        prediction3?.setOnClickListener { applyPrediction(2) }
+    }
+
+    /** Clear auto-fix state without restoring strip (for when fix didn't apply) */
+    private fun clearAutoFixState() {
+        isAutoFixRunning = false
+        autoFixOriginalText = null
+        autoFixReplacementText = null
+        autoFixUndoAvailable = false
+        // Restore prediction strip colors
+        predictionStrip?.setBackgroundColor(Color.TRANSPARENT)
+        prediction1?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction2?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction3?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
+        prediction1?.text = ""
+        prediction2?.text = ""
+        prediction3?.text = ""
+    }
+
     private fun improveText() {
         DebugLog.i("DictationKeyboardService: Improve button pressed")
 
