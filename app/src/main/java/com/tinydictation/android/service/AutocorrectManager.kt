@@ -16,9 +16,11 @@ import java.io.InputStreamReader
  */
 class AutocorrectManager(context: Context) {
 
-    private val dictionary = HashSet<String>(4096)
+    private val dictionary = HashSet<String>(65536)
     // Sorted list for efficient prefix search
     private var sortedWords: List<String> = emptyList()
+    // Words grouped by first letter for fast spell correction
+    private val wordsByFirstLetter = HashMap<Char, List<String>>()
     private val currentWord = StringBuilder()
 
     // Last autocorrect for undo-on-backspace
@@ -55,6 +57,22 @@ class AutocorrectManager(context: Context) {
                 }
             }
             sortedWords = words.sorted()
+            // Group by first letter for fast spell correction on large dictionaries
+            for (word in words) {
+                if (word.isNotEmpty()) {
+                    wordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }
+                }
+            }
+            // Convert to immutable lists
+            val grouped = HashMap<Char, List<String>>()
+            for (word in words) {
+                if (word.isNotEmpty()) {
+                    val list = grouped.getOrPut(word[0]) { mutableListOf() }
+                    (list as MutableList).add(word)
+                }
+            }
+            wordsByFirstLetter.clear()
+            wordsByFirstLetter.putAll(grouped)
             DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words")
         } catch (e: Exception) {
             DebugLog.e("AutocorrectManager: Failed to load dictionary: ${e.message}")
@@ -214,17 +232,24 @@ class AutocorrectManager(context: Context) {
 
     /**
      * Find dictionary words closest to the input using QWERTY-weighted Levenshtein distance.
-     * Used for spell correction (fixing typos).
+     * Uses first-letter index for performance on large dictionaries (63K+ words).
+     * Also checks adjacent first-letter keys to handle first-letter typos.
      */
     private fun getSpellCorrections(word: String, limit: Int): List<String> {
         val lower = word.lowercase()
         if (lower.length < 2) return emptyList()
 
-        // Pre-filter: only check words within ±2 chars of same length
         val minLen = (lower.length - 2).coerceAtLeast(1)
         val maxLen = lower.length + 2
 
-        return dictionary
+        // Check words starting with same letter + adjacent keys (handles first-letter typos)
+        val firstLetterCandidates = mutableSetOf(lower[0])
+        QWERTY_NEIGHBORS[lower[0]]?.let { firstLetterCandidates.addAll(it) }
+
+        val candidates = firstLetterCandidates
+            .flatMap { wordsByFirstLetter[it] ?: emptyList() }
+
+        return candidates
             .asSequence()
             .filter { it.length in minLen..maxLen }
             .map { it to weightedLevenshtein(lower, it) }

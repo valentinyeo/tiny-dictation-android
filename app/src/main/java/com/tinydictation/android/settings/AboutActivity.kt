@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.3:
+            • Expanded dictionary from 3,198 to 63,730 words
+            • Words like "completion", "experience", "keyboard" now available
+            • Optimized spell correction with first-letter indexing for large dictionary
+            • First-letter typo correction (checks QWERTY-adjacent first letters)
+
             v1.32.2:
             • Word completion: type "experi" → get "experience", "experiment", "experiences"
             • Prediction strip shows 3 words: middle=best, left/right=alternatives
