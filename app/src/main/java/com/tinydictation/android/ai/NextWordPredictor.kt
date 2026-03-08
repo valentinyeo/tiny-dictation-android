@@ -79,8 +79,8 @@ class NextWordPredictor(private val context: Context) {
             val response = httpClient.newCall(request).execute()
 
             if (!response.isSuccessful) {
-                DebugLog.e("$TAG: API error ${response.code}")
-                response.body?.close()
+                val errorBody = response.body?.string() ?: "Unknown error"
+                DebugLog.e("$TAG: API error ${response.code}: $errorBody")
                 return@withContext emptyList()
             }
 

@@ -4171,12 +4171,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Cancelled if user starts typing before response arrives.
      */
     private fun requestNextWordPrediction() {
-        if (isAutoFixRunning || autoFixUndoAvailable) return
+        if (isAutoFixRunning) return
+
+        // Clear auto-fix undo if still showing - next-word prediction takes priority
+        if (autoFixUndoAvailable) {
+            clearAutoFixUndo()
+        }
 
         if (nextWordPredictor == null) {
             nextWordPredictor = NextWordPredictor(this)
         }
-        if (nextWordPredictor?.isAvailable() != true) return
+        if (nextWordPredictor?.isAvailable() != true) {
+            DebugLog.d("NextWordPredictor: Not available (no API key)")
+            return
+        }
 
         // Cancel any existing prediction request
         activeNextWordJob?.cancel()
@@ -4185,10 +4193,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return
         if (contextText.isBlank()) return
 
+        // Show loading indicator immediately
+        isNextWordPredictionActive = true
+        prediction1?.text = ""
+        prediction2?.text = "···"
+        prediction3?.text = ""
+
+        DebugLog.d("NextWordPredictor: Requesting prediction for: \"${contextText.takeLast(30)}\"")
+
         activeNextWordJob = CoroutineScope(Dispatchers.Main).launch {
             val predictions = nextWordPredictor?.predict(contextText) ?: emptyList()
-            if (predictions.isNotEmpty()) {
-                isNextWordPredictionActive = true
+            if (predictions.isNotEmpty() && isNextWordPredictionActive) {
+                DebugLog.d("NextWordPredictor: Got predictions: $predictions")
                 // Show predictions: middle = best, left = second, right = third
                 prediction2?.text = predictions.getOrNull(0) ?: ""
                 prediction1?.text = predictions.getOrNull(1) ?: ""
@@ -4198,6 +4214,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 prediction1?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(1)) }
                 prediction2?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(0)) }
                 prediction3?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(2)) }
+            } else if (predictions.isEmpty() && isNextWordPredictionActive) {
+                DebugLog.d("NextWordPredictor: No predictions returned")
+                // Clear the loading indicator
+                prediction1?.text = ""
+                prediction2?.text = ""
+                prediction3?.text = ""
+                isNextWordPredictionActive = false
             }
         }
     }

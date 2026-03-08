@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.1:
+            • FIX: Next-word prediction not showing - auto-fix undo was blocking it
+            • Shows "···" loading indicator while Haiku is thinking
+            • Added debug logging to diagnose prediction issues
+
             v1.34.0:
             • NEW: AI next-word prediction powered by Claude Haiku
             • After pressing space, predicts 3 most likely next words
