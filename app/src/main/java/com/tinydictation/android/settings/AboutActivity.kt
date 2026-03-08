@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.2:
+            • Word completion: type "experi" → get "experience", "experiment", "experiences"
+            • Prediction strip shows 3 words: middle=best, left/right=alternatives
+            • Tap any prediction to complete the word
+            • Completions sorted by word length (shorter=more common first)
+            • Spell corrections shown as fallback when no prefix matches
+
             v1.32.1:
             • FIX: Reverted key margins to original 4dp (keys stay same size as before)
             • FIX: Prediction strip no longer resizes keys when suggestions appear/disappear

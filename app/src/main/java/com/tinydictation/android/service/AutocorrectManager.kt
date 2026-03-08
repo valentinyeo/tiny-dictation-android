@@ -6,12 +6,19 @@ import java.io.BufferedReader
 import java.io.InputStreamReader
 
 /**
- * Offline autocorrect using a bundled dictionary and QWERTY-aware Levenshtein distance.
- * Designed to be fast (< 1ms per lookup on 3K words) and fully offline.
+ * Offline word completion and autocorrect using a bundled dictionary.
+ *
+ * Prediction priority:
+ * 1. Prefix completions (typing "experi" → "experience", "experiment", "experiences")
+ * 2. Spell corrections via QWERTY-weighted Levenshtein distance (typing "hrlp" → "help")
+ *
+ * Results shown in prediction strip: [left=alt] [MIDDLE=best] [right=alt]
  */
 class AutocorrectManager(context: Context) {
 
     private val dictionary = HashSet<String>(4096)
+    // Sorted list for efficient prefix search
+    private var sortedWords: List<String> = emptyList()
     private val currentWord = StringBuilder()
 
     // Last autocorrect for undo-on-backspace
@@ -35,16 +42,19 @@ class AutocorrectManager(context: Context) {
 
     private fun loadDictionary(context: Context) {
         try {
+            val words = mutableListOf<String>()
             context.assets.open("dictionary.txt").use { stream ->
                 BufferedReader(InputStreamReader(stream)).use { reader ->
                     reader.forEachLine { line ->
                         val word = line.trim().lowercase()
                         if (word.isNotEmpty()) {
                             dictionary.add(word)
+                            words.add(word)
                         }
                     }
                 }
             }
+            sortedWords = words.sorted()
             DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words")
         } catch (e: Exception) {
             DebugLog.e("AutocorrectManager: Failed to load dictionary: ${e.message}")
@@ -97,14 +107,14 @@ class AutocorrectManager(context: Context) {
         onSuggestionsUpdated?.invoke("", emptyList())
 
         if (typed.isEmpty() || typed.length < 2) return null
+        // Don't autocorrect if word is already in dictionary
         if (isKnownWord(typed)) return null
 
-        // Get best suggestion
-        val suggestions = getSuggestions(typed, 1)
-        if (suggestions.isEmpty()) return null
+        // Try spell corrections (not completions - user pressed space so they think they finished the word)
+        val corrections = getSpellCorrections(typed, 1)
+        if (corrections.isEmpty()) return null
 
-        val best = suggestions.first()
-        // Only autocorrect if edit distance is small (1-2) relative to word length
+        val best = corrections.first()
         val dist = levenshteinDistance(typed, best)
         if (dist > 2 || dist >= typed.length) return null
 
@@ -153,14 +163,60 @@ class AutocorrectManager(context: Context) {
             return
         }
 
-        cachedSuggestions = getSuggestions(typed, 3)
+        // Combine completions and corrections, prioritizing completions
+        val suggestions = mutableListOf<String>()
+
+        // 1. Prefix completions (e.g., "experi" → "experience", "experiment")
+        // Only show completions that are longer than what's typed (actual completions)
+        val completions = getPrefixCompletions(typed, 5)
+            .filter { it != typed } // don't suggest what they already typed
+        suggestions.addAll(completions)
+
+        // 2. If we don't have enough completions, add spell corrections
+        if (suggestions.size < 3) {
+            val corrections = getSpellCorrections(typed, 3 - suggestions.size)
+                .filter { it !in suggestions } // no duplicates
+            suggestions.addAll(corrections)
+        }
+
+        cachedSuggestions = suggestions.take(3)
         onSuggestionsUpdated?.invoke(typed, cachedSuggestions)
     }
 
     /**
-     * Find dictionary words closest to the input using QWERTY-weighted Levenshtein distance.
+     * Find dictionary words that start with the given prefix.
+     * Returns results sorted by length (shorter = more common), then alphabetically.
      */
-    fun getSuggestions(word: String, limit: Int = 3): List<String> {
+    private fun getPrefixCompletions(prefix: String, limit: Int): List<String> {
+        val lower = prefix.lowercase()
+
+        // Binary search to find the start of the prefix range in sorted words
+        var lo = 0
+        var hi = sortedWords.size
+        while (lo < hi) {
+            val mid = (lo + hi) / 2
+            if (sortedWords[mid] < lower) lo = mid + 1 else hi = mid
+        }
+
+        // Collect all words starting with prefix
+        val matches = mutableListOf<String>()
+        var i = lo
+        while (i < sortedWords.size && sortedWords[i].startsWith(lower)) {
+            matches.add(sortedWords[i])
+            i++
+        }
+
+        // Sort by length (shorter words first = more common), then alphabetically
+        return matches
+            .sortedWith(compareBy({ it.length }, { it }))
+            .take(limit)
+    }
+
+    /**
+     * Find dictionary words closest to the input using QWERTY-weighted Levenshtein distance.
+     * Used for spell correction (fixing typos).
+     */
+    private fun getSpellCorrections(word: String, limit: Int): List<String> {
         val lower = word.lowercase()
         if (lower.length < 2) return emptyList()
 
@@ -225,9 +281,6 @@ class AutocorrectManager(context: Context) {
         return dp[m][n]
     }
 
-    /**
-     * QWERTY key adjacency map for proximity-weighted corrections.
-     */
     private fun areAdjacentKeys(a: Char, b: Char): Boolean {
         val neighbors = QWERTY_NEIGHBORS[a] ?: return false
         return b in neighbors

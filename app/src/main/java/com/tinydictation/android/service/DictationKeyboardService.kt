@@ -2060,38 +2060,43 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      */
     private fun updatePredictionStrip(typed: String, suggestions: List<String>) {
         if (typed.isEmpty() && suggestions.isEmpty()) {
-            // Clear text but keep strip visible (INVISIBLE children) to prevent key resizing
+            // Clear text but keep strip visible to prevent key resizing
             prediction1?.text = ""
             prediction2?.text = ""
             prediction3?.text = ""
             return
         }
 
-        // Slot 1: what user typed (tapping = keep as-is)
-        prediction1?.text = if (typed.isNotEmpty()) "\"$typed\"" else ""
-
-        // Slot 2: top suggestion (bold, will be auto-applied on space)
-        prediction2?.text = suggestions.getOrNull(0) ?: ""
-
-        // Slot 3: second suggestion
-        prediction3?.text = suggestions.getOrNull(1) ?: ""
+        // Layout: [left=alt] [MIDDLE=best, bold] [right=alt]
+        // Middle = best suggestion (most likely completion or correction)
+        // Left = second suggestion
+        // Right = third suggestion
+        prediction1?.text = suggestions.getOrNull(1) ?: ""
+        prediction2?.text = suggestions.getOrNull(0) ?: typed
+        prediction3?.text = suggestions.getOrNull(2) ?: ""
     }
 
     /**
      * Applies a prediction strip suggestion.
      * @param index 0 = typed word (keep as-is), 1 = top suggestion, 2 = second suggestion
      */
+    /**
+     * Applies a prediction strip suggestion.
+     * @param index 0 = left (suggestion index 1), 1 = middle (suggestion index 0), 2 = right (suggestion index 2)
+     */
     private fun applyPrediction(index: Int) {
         val manager = autocorrectManager ?: return
         val typed = manager.getCurrentWord()
         if (typed.isEmpty()) return
 
-        val replacement = when (index) {
-            0 -> typed // keep what they typed
-            1 -> manager.getCachedSuggestions().getOrNull(0) ?: return
-            2 -> manager.getCachedSuggestions().getOrNull(1) ?: return
+        // Map strip position to suggestion index
+        val suggestionIndex = when (index) {
+            0 -> 1  // left = second suggestion
+            1 -> 0  // middle = best suggestion
+            2 -> 2  // right = third suggestion
             else -> return
         }
+        val replacement = manager.getCachedSuggestions().getOrNull(suggestionIndex) ?: return
 
         val ic = currentInputConnection ?: return
         ic.beginBatchEdit()
@@ -2107,12 +2112,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         ic.endBatchEdit()
 
         trackTypedText("$cased ")
-
-        if (index != 0) {
-            manager.onPredictionTapped(replacement)
-        } else {
-            manager.onWordBoundary()
-        }
+        manager.onPredictionTapped(replacement)
     }
 
     /**
