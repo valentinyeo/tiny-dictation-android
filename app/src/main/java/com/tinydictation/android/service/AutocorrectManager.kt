@@ -118,6 +118,16 @@ class AutocorrectManager(context: Context) {
         if (typed.isEmpty() || typed.length < 2) return null
         if (isKnownWord(typed)) return null
 
+        // 1. Try word segmentation (missing space detection)
+        // e.g., "thisis" → "this is", "ofthe" → "of the"
+        val split = tryWordSplit(typed)
+        if (split != null) {
+            lastAutocorrect = AutocorrectRecord(original = typed, replacement = split)
+            DebugLog.d("AutocorrectManager: Split '$typed' → '$split'")
+            return split
+        }
+
+        // 2. Try spell correction
         val corrections = getSpellCorrections(typed, 1)
         if (corrections.isEmpty()) return null
 
@@ -128,6 +138,41 @@ class AutocorrectManager(context: Context) {
         lastAutocorrect = AutocorrectRecord(original = typed, replacement = best)
         DebugLog.d("AutocorrectManager: Corrected '$typed' → '$best'")
         return best
+    }
+
+    /**
+     * Try splitting an unknown word into two known words (missing space detection).
+     * e.g., "thisis" → "this is", "ofthe" → "of the"
+     * Returns the best split as "word1 word2", or null if no valid split found.
+     * Prefers splits where both words are common (low frequency rank).
+     */
+    private fun tryWordSplit(word: String): String? {
+        val lower = word.lowercase()
+        if (lower.length < 4) return null // minimum 2+2 chars
+
+        var bestSplit: String? = null
+        var bestScore = Int.MAX_VALUE // lower = better (sum of frequency ranks)
+
+        for (i in 2..lower.length - 2) {
+            val left = lower.substring(0, i)
+            val right = lower.substring(i)
+
+            if (isKnownWord(left) && isKnownWord(right)) {
+                // Both parts are valid words - score by combined frequency
+                val score = getFrequency(left) + getFrequency(right)
+                if (score < bestScore) {
+                    bestScore = score
+                    bestSplit = "$left $right"
+                }
+            }
+        }
+
+        // Only accept splits where both words are reasonably common
+        // (prevents splitting "together" into "to get her")
+        if (bestSplit != null && bestScore < 50000) {
+            return bestSplit
+        }
+        return null
     }
 
     fun onWordBoundary() {

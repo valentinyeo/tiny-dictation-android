@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.5:
+            • NEW: Missing space detection - "thisis" → "this is", "ofthe" → "of the"
+            • Uses frequency ranking to pick best split (won't break "together" into "to get her")
+            • Switched Improve button from Opus to Haiku (60x cheaper, 3-5x faster)
+
             v1.32.4:
             • Word frequency ranking for predictions (Google 10K frequency data)
             • "th" → "the", "that", "this" instead of alphabetical
