@@ -42,9 +42,11 @@ import com.tinydictation.android.history.TranscriptionHistoryManager
 import com.tinydictation.android.transcription.TranscriptionManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
+import com.tinydictation.android.ai.NextWordPredictor
 import com.tinydictation.android.ai.TextImprover
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -216,6 +218,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private val AUTO_FIX_UNDO_TIMEOUT = 10000L  // Undo expires after 10 seconds
     private val AUTO_FIX_COLOR = Color.parseColor("#5B4FCF")  // Purple while fixing
     private val AUTO_FIX_DONE_COLOR = Color.parseColor("#2E7D32")  // Green when done
+
+    // Next-word prediction (AI-powered via Haiku)
+    private var nextWordPredictor: NextWordPredictor? = null
+    private var activeNextWordJob: Job? = null
+    private var isNextWordPredictionActive = false  // true when strip shows AI predictions
 
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
@@ -1954,6 +1961,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                 // Feed letter to autocorrect (only for actual letters, not numbers/symbols)
                 if (!isNumbersMode && textToCommit.length == 1 && textToCommit[0].isLetter()) {
+                    cancelNextWordPrediction()
                     autocorrectManager?.onLetterTyped(textToCommit[0])
                 }
 
@@ -3221,6 +3229,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     trackTypedText(char)
 
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                     }
 
@@ -3408,6 +3417,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     trackTypedText(char)  // Track for terminal apps
 
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                     }
 
@@ -3453,6 +3463,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     trackTypedText(char)  // Track for terminal apps
 
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                     }
 
@@ -3608,6 +3619,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
+                    // Cancel any active AI next-word prediction
+                    cancelNextWordPrediction()
+
                     // Check autocorrect before inserting space
                     val correction = autocorrectManager?.onSpace()
                     if (correction != null) {
@@ -3631,6 +3645,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")  // Track for terminal apps
                     }
+
+                    // Request AI next-word prediction after space
+                    requestNextWordPrediction()
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }
@@ -4146,6 +4163,77 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction1?.text = ""
         prediction2?.text = ""
         prediction3?.text = ""
+    }
+
+    /**
+     * Request AI next-word prediction after space press.
+     * Fires a background Haiku call with recent context, updates prediction strip on response.
+     * Cancelled if user starts typing before response arrives.
+     */
+    private fun requestNextWordPrediction() {
+        if (isAutoFixRunning || autoFixUndoAvailable) return
+
+        if (nextWordPredictor == null) {
+            nextWordPredictor = NextWordPredictor(this)
+        }
+        if (nextWordPredictor?.isAvailable() != true) return
+
+        // Cancel any existing prediction request
+        activeNextWordJob?.cancel()
+
+        val ic = currentInputConnection ?: return
+        val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return
+        if (contextText.isBlank()) return
+
+        activeNextWordJob = CoroutineScope(Dispatchers.Main).launch {
+            val predictions = nextWordPredictor?.predict(contextText) ?: emptyList()
+            if (predictions.isNotEmpty()) {
+                isNextWordPredictionActive = true
+                // Show predictions: middle = best, left = second, right = third
+                prediction2?.text = predictions.getOrNull(0) ?: ""
+                prediction1?.text = predictions.getOrNull(1) ?: ""
+                prediction3?.text = predictions.getOrNull(2) ?: ""
+
+                // Set up tap handlers for AI predictions
+                prediction1?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(1)) }
+                prediction2?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(0)) }
+                prediction3?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(2)) }
+            }
+        }
+    }
+
+    /**
+     * Apply a next-word prediction: insert the word + space, then request another prediction.
+     */
+    private fun applyNextWordPrediction(word: String?) {
+        if (word.isNullOrBlank()) return
+
+        val ic = currentInputConnection ?: return
+        ic.commitText("$word ", 1)
+        trackTypedText("$word ")
+
+        // Clear state and request another prediction
+        isNextWordPredictionActive = false
+        autocorrectManager?.onWordBoundary()
+        requestNextWordPrediction()
+    }
+
+    /**
+     * Cancel any active next-word prediction and clear the strip if showing AI predictions.
+     */
+    private fun cancelNextWordPrediction() {
+        activeNextWordJob?.cancel()
+        activeNextWordJob = null
+        if (isNextWordPredictionActive) {
+            isNextWordPredictionActive = false
+            prediction1?.text = ""
+            prediction2?.text = ""
+            prediction3?.text = ""
+            // Restore normal tap handlers
+            prediction1?.setOnClickListener { applyPrediction(0) }
+            prediction2?.setOnClickListener { applyPrediction(1) }
+            prediction3?.setOnClickListener { applyPrediction(2) }
+        }
     }
 
     private fun improveText() {

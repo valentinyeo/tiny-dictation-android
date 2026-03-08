@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.0:
+            • NEW: AI next-word prediction powered by Claude Haiku
+            • After pressing space, predicts 3 most likely next words
+            • Tap a prediction to insert it and get the next prediction
+            • Predictions auto-cancel when you start typing
+
             v1.33.1:
             • FIX: Improve button broken - wrong Haiku model ID (20251101 → 20251001)
 
