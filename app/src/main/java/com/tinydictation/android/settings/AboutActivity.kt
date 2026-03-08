@@ -35,6 +35,15 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.0:
+            • NEW: Offline autocorrect with QWERTY-aware key proximity correction
+            • Autocorrect uses bundled 3,198-word dictionary (no API calls, instant)
+            • Adjacent-key typos weighted lower (e.g., "hrlp" → "help" because R is next to E)
+            • Prediction strip shows suggestions as you type, tap to apply
+            • Backspace after autocorrect undoes the correction
+            • Fixed empty prediction strip boxes always showing (now hidden when inactive)
+            • Reduced key margins from 4dp to 2dp for larger touch targets
+
             v1.31.5:
             • Fixed "scratch that" voice command not working in many apps
             • Use system-level Select All instead of unreliable text cursor approach

@@ -200,6 +200,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return terminalPackages.any { packageName.startsWith(it) }
     }
 
+    // Autocorrect
+    private var autocorrectManager: AutocorrectManager? = null
+    private var predictionStrip: LinearLayout? = null
+    private var prediction1: TextView? = null
+    private var prediction2: TextView? = null
+    private var prediction3: TextView? = null
+
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
     private var isImproving = false  // Prevent multiple concurrent improvements
@@ -1932,13 +1939,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 currentInputConnection?.commitText(textToCommit, 1)
                 trackTypedText(textToCommit)  // Track for terminal apps
 
+                // Feed letter to autocorrect (only for actual letters, not numbers/symbols)
+                if (!isNumbersMode && textToCommit.length == 1 && textToCommit[0].isLetter()) {
+                    autocorrectManager?.onLetterTyped(textToCommit[0])
+                }
+
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
                 if (!isNumbersMode && isShiftActive && !isCapsLock) {
                     isShiftActive = false
                     updateShiftKeyDisplay()
                 }
-
-                // Update predictions after typing
             }
 
             // Add long-press for numbers on top row (only in letters mode)
@@ -1973,6 +1983,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Punctuation keys
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_comma)?.setOnClickListener {
+            autocorrectManager?.onWordBoundary()
             currentInputConnection?.commitText(",", 1)
             trackTypedText(",")  // Track for terminal apps
         }
@@ -1991,6 +2002,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Enter key (ImageView)
         qwertyPanel?.findViewById<android.view.View>(R.id.key_enter)?.setOnClickListener {
+            autocorrectManager?.onWordBoundary()
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
             // Clear internal buffer after Enter (terminal command submitted)
             internalTextBuffer.clear()
@@ -2011,6 +2023,97 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // 123/ABC key - toggle between letters and numbers/symbols
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
+        }
+
+        // Autocorrect and prediction strip
+        setupAutocorrect()
+    }
+
+    /**
+     * Sets up the autocorrect manager and wires up the prediction strip.
+     */
+    private fun setupAutocorrect() {
+        // Initialize autocorrect manager (loads dictionary)
+        if (autocorrectManager == null) {
+            autocorrectManager = AutocorrectManager(this)
+        }
+
+        // Find prediction strip views
+        predictionStrip = qwertyPanel?.findViewById(R.id.predictionStrip)
+        prediction1 = qwertyPanel?.findViewById(R.id.prediction1)
+        prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
+        prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
+
+        // Set up suggestion callback
+        autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
+            updatePredictionStrip(typed, suggestions)
+        }
+
+        // Set up prediction strip tap handlers
+        prediction1?.setOnClickListener { applyPrediction(0) }
+        prediction2?.setOnClickListener { applyPrediction(1) }
+        prediction3?.setOnClickListener { applyPrediction(2) }
+    }
+
+    /**
+     * Updates the prediction strip with current word and suggestions.
+     */
+    private fun updatePredictionStrip(typed: String, suggestions: List<String>) {
+        if (typed.isEmpty() && suggestions.isEmpty()) {
+            predictionStrip?.visibility = View.GONE
+            return
+        }
+
+        predictionStrip?.visibility = View.VISIBLE
+
+        // Slot 1: what user typed (tapping = keep as-is)
+        prediction1?.text = if (typed.isNotEmpty()) "\"$typed\"" else ""
+        prediction1?.visibility = if (typed.isNotEmpty()) View.VISIBLE else View.GONE
+
+        // Slot 2: top suggestion (bold, will be auto-applied on space)
+        prediction2?.text = suggestions.getOrNull(0) ?: ""
+        prediction2?.visibility = if (suggestions.isNotEmpty()) View.VISIBLE else View.GONE
+
+        // Slot 3: second suggestion
+        prediction3?.text = suggestions.getOrNull(1) ?: ""
+        prediction3?.visibility = if (suggestions.size > 1) View.VISIBLE else View.GONE
+    }
+
+    /**
+     * Applies a prediction strip suggestion.
+     * @param index 0 = typed word (keep as-is), 1 = top suggestion, 2 = second suggestion
+     */
+    private fun applyPrediction(index: Int) {
+        val manager = autocorrectManager ?: return
+        val typed = manager.getCurrentWord()
+        if (typed.isEmpty()) return
+
+        val replacement = when (index) {
+            0 -> typed // keep what they typed
+            1 -> manager.getCachedSuggestions().getOrNull(0) ?: return
+            2 -> manager.getCachedSuggestions().getOrNull(1) ?: return
+            else -> return
+        }
+
+        val ic = currentInputConnection ?: return
+        ic.beginBatchEdit()
+        // Delete the typed word
+        ic.deleteSurroundingText(typed.length, 0)
+        // Apply case from original typed word
+        val cased = if (typed.first().isUpperCase()) {
+            replacement.replaceFirstChar { it.uppercase() }
+        } else {
+            replacement
+        }
+        ic.commitText("$cased ", 1)
+        ic.endBatchEdit()
+
+        trackTypedText("$cased ")
+
+        if (index != 0) {
+            manager.onPredictionTapped(replacement)
+        } else {
+            manager.onWordBoundary()
         }
     }
 
@@ -3106,6 +3209,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
+                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        autocorrectManager?.onLetterTyped(char[0])
+                    }
+
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
                         isShiftActive = false
                         updateShiftKeyDisplay()
@@ -3289,6 +3396,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
+                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        autocorrectManager?.onLetterTyped(char[0])
+                    }
+
                     // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
                         isShiftActive = false
@@ -3329,6 +3440,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val char = uKeyButton?.text?.toString() ?: "u"
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
+
+                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                        autocorrectManager?.onLetterTyped(char[0])
+                    }
 
                     // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -3482,9 +3597,29 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
-                    // Insert space
-                    currentInputConnection?.commitText(" ", 1)
-                    trackTypedText(" ")  // Track for terminal apps
+                    // Check autocorrect before inserting space
+                    val correction = autocorrectManager?.onSpace()
+                    if (correction != null) {
+                        val ic = currentInputConnection
+                        val typed = autocorrectManager?.lastAutocorrect?.original ?: ""
+                        if (ic != null && typed.isNotEmpty()) {
+                            ic.beginBatchEdit()
+                            ic.deleteSurroundingText(typed.length, 0)
+                            // Preserve case from original
+                            val cased = if (typed.first().isUpperCase()) {
+                                correction.replaceFirstChar { it.uppercase() }
+                            } else {
+                                correction
+                            }
+                            ic.commitText("$cased ", 1)
+                            ic.endBatchEdit()
+                            trackTypedText("$cased ")
+                        }
+                    } else {
+                        autocorrectManager?.onWordBoundary()
+                        currentInputConnection?.commitText(" ", 1)
+                        trackTypedText(" ")  // Track for terminal apps
+                    }
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }
@@ -3543,6 +3678,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_UP -> {
                 punctuationLongPressHandler.removeCallbacks(punctuationLongPressRunnable)
+                autocorrectManager?.onWordBoundary()
 
                 if (isPunctuationPopupShowing) {
                     // Commit selected punctuation
@@ -3799,8 +3935,23 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * If that fails, falls back to deleteSurroundingText() which works for regular apps.
      */
     private fun sendBackspace() {
-        // Use the built-in InputMethodService method - more reliable for terminals
-        // This sends proper key events through the system's input dispatch chain
+        // Check if we should undo an autocorrect
+        val undo = autocorrectManager?.lastAutocorrect
+        if (undo != null && autocorrectManager?.onBackspace() == true) {
+            // Undo: delete the corrected word + space, re-insert original
+            val ic = currentInputConnection
+            if (ic != null) {
+                ic.beginBatchEdit()
+                ic.deleteSurroundingText(undo.replacement.length + 1, 0) // +1 for space
+                ic.commitText(undo.original, 1)
+                ic.endBatchEdit()
+                DebugLog.d("DictationKeyboardService: Undid autocorrect '${undo.replacement}' → '${undo.original}'")
+                return
+            }
+        }
+
+        // Normal backspace
+        autocorrectManager?.onBackspace()
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
         trackBackspace(1)  // Track for terminal apps
     }
@@ -4117,6 +4268,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
 
+        // Clear autocorrect undo state on external cursor movement
+        // (e.g., user tapped elsewhere in the text field)
+        val expectedDelta = 1 // normal single char movement
+        if (Math.abs(newSelStart - oldSelStart) > expectedDelta + 1) {
+            autocorrectManager?.clearUndoState()
+            autocorrectManager?.onWordBoundary()
+        }
     }
 
     override fun onFinishInputView(finishingInput: Boolean) {

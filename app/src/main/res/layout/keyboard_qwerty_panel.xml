@@ -10,13 +10,14 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="4dp">
 
-    <!-- Prediction strip - styled like keyboard keys -->
+    <!-- Prediction strip - styled like keyboard keys, hidden until suggestions available -->
     <LinearLayout
         android:id="@+id/predictionStrip"
         android:layout_width="match_parent"
         android:layout_height="43dp"
         android:orientation="horizontal"
-        android:layout_marginBottom="7dp">
+        android:layout_marginBottom="7dp"
+        android:visibility="gone">
 
         <TextView
             android:id="@+id/prediction1"
