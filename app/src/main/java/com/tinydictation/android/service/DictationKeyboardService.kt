@@ -2060,23 +2060,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      */
     private fun updatePredictionStrip(typed: String, suggestions: List<String>) {
         if (typed.isEmpty() && suggestions.isEmpty()) {
-            predictionStrip?.visibility = View.GONE
+            // Clear text but keep strip visible (INVISIBLE children) to prevent key resizing
+            prediction1?.text = ""
+            prediction2?.text = ""
+            prediction3?.text = ""
             return
         }
 
-        predictionStrip?.visibility = View.VISIBLE
-
         // Slot 1: what user typed (tapping = keep as-is)
         prediction1?.text = if (typed.isNotEmpty()) "\"$typed\"" else ""
-        prediction1?.visibility = if (typed.isNotEmpty()) View.VISIBLE else View.GONE
 
         // Slot 2: top suggestion (bold, will be auto-applied on space)
         prediction2?.text = suggestions.getOrNull(0) ?: ""
-        prediction2?.visibility = if (suggestions.isNotEmpty()) View.VISIBLE else View.GONE
 
         // Slot 3: second suggestion
         prediction3?.text = suggestions.getOrNull(1) ?: ""
-        prediction3?.visibility = if (suggestions.size > 1) View.VISIBLE else View.GONE
     }
 
     /**

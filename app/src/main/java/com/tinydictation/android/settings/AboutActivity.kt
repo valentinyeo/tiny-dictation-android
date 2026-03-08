@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.32.1:
+            • FIX: Reverted key margins to original 4dp (keys stay same size as before)
+            • FIX: Prediction strip no longer resizes keys when suggestions appear/disappear
+            • Strip always occupies its space, text clears when no suggestions
+
             v1.32.0:
             • NEW: Offline autocorrect with QWERTY-aware key proximity correction
             • Autocorrect uses bundled 3,198-word dictionary (no API calls, instant)

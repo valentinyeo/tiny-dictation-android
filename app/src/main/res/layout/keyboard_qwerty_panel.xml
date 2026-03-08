@@ -10,14 +10,13 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="4dp">
 
-    <!-- Prediction strip - styled like keyboard keys, hidden until suggestions available -->
+    <!-- Prediction strip - always takes space to prevent key resizing -->
     <LinearLayout
         android:id="@+id/predictionStrip"
         android:layout_width="match_parent"
         android:layout_height="43dp"
         android:orientation="horizontal"
-        android:layout_marginBottom="7dp"
-        android:visibility="gone">
+        android:layout_marginBottom="7dp">
 
         <TextView
             android:id="@+id/prediction1"
