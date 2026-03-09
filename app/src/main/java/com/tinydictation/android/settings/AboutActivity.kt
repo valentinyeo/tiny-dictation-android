@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.6:
+            • FIX: "iwant" → "i want" now works (added "i" and "a" to dictionary)
+            • Word split now allows single-letter left parts (was requiring 2+ chars)
+
             v1.37.5:
             • Prediction strip now shows word splits (e.g. "andstill" → "and still")
             • Missing space detection appears as top suggestion while typing

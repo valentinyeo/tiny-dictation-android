@@ -148,12 +148,12 @@ class AutocorrectManager(context: Context) {
      */
     private fun tryWordSplit(word: String): String? {
         val lower = word.lowercase()
-        if (lower.length < 4) return null // minimum 2+2 chars
+        if (lower.length < 3) return null // minimum 1+2 chars (e.g. "iwant" → "i want")
 
         var bestSplit: String? = null
         var bestScore = Int.MAX_VALUE // lower = better (sum of frequency ranks)
 
-        for (i in 2..lower.length - 2) {
+        for (i in 1..lower.length - 2) {
             val left = lower.substring(0, i)
             val right = lower.substring(i)
 
