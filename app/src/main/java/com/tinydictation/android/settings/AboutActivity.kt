@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.8:
+            • FIX: Prediction middle tile no longer accumulates words in search bars
+            • Clear autocorrect word state on input view restart and backward cursor movement
+            • Fix dictation bar space button not clearing word state
+
             v1.37.7:
             • FIX: Word split no longer overrides prefix completions
             • "reall" now shows "really" (not "re all") since it's a valid prefix

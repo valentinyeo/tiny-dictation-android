@@ -1124,6 +1124,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Space button - insert space
         keyboardView?.findViewById<FrameLayout>(R.id.btnSpace)?.setOnClickListener {
+            autocorrectManager?.onWordBoundary()
             currentInputConnection?.commitText(" ", 1)
         }
 
@@ -4594,6 +4595,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: onStartInputView called, restarting=$restarting")
 
+        // Clear autocorrect state on any input view start to prevent word accumulation
+        // (e.g. search bars that trigger restarts, switching fields, etc.)
+        autocorrectManager?.onWordBoundary()
+
         // Clear internal text buffer on new input session (for terminal app tracking)
         if (!restarting) {
             internalTextBuffer.clear()
@@ -4682,11 +4687,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
 
-        // Clear autocorrect undo state on external cursor movement
-        // (e.g., user tapped elsewhere in the text field)
+        // Clear autocorrect state on unexpected cursor movement
+        // (e.g., user tapped elsewhere, search bar replaced text, app autocomplete)
         val expectedDelta = 1 // normal single char movement
         if (Math.abs(newSelStart - oldSelStart) > expectedDelta + 1) {
             autocorrectManager?.clearUndoState()
+            autocorrectManager?.onWordBoundary()
+        }
+
+        // Also detect backwards cursor movement (e.g. search bar cleared/replaced text)
+        // or cursor jumping to start (newSelStart == 0 while we had a word building)
+        if (newSelStart < oldSelStart && autocorrectManager?.getCurrentWord()?.isNotEmpty() == true) {
             autocorrectManager?.onWordBoundary()
         }
     }
