@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.3:
+            • DEBUG: Verbose logging to diagnose next-word prediction not firing
+
             v1.34.2:
             • Disable AI next-word prediction in terminal apps (Termius, etc.)
 

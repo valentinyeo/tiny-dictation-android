@@ -2065,6 +2065,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
+        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+
         // Set up suggestion callback
         autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
             updatePredictionStrip(typed, suggestions)
@@ -2087,6 +2089,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             prediction3?.text = ""
             return
         }
+        DebugLog.d("updatePredictionStrip: typed='$typed', suggestions=$suggestions")
 
         // Layout: [left=alt] [MIDDLE=best, bold] [right=alt]
         // Middle = best suggestion (most likely completion or correction)
@@ -3647,6 +3650,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     }
 
                     // Request AI next-word prediction after space
+                    DebugLog.d("Space: calling requestNextWordPrediction")
                     requestNextWordPrediction()
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
