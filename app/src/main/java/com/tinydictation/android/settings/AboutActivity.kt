@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.5:
+            • Prediction strip now shows word splits (e.g. "andstill" → "and still")
+            • Missing space detection appears as top suggestion while typing
+
             v1.37.4:
             • FIX: Predictions now preserve capitalization (e.g. "Testing" stays capitalized)
             • Was storing all letters as lowercase, so capital first letter was always lost

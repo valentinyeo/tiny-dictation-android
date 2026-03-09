@@ -243,19 +243,27 @@ class AutocorrectManager(context: Context) {
             return
         }
 
+        // Check for missing space first (e.g. "andstill" → "and still")
+        // If found, show split as top suggestion
+        val wordSplit = if (!isKnownWord(typed)) tryWordSplit(typed.lowercase()) else null
+
         // All candidates: typed word (if valid) + prefix completions + spell corrections
         // Sorted by frequency. The typed word competes fairly with completions.
-        // This means "that" shows in middle (rank 10) while "thatch" (rank 99999) goes to sides.
         val candidates = mutableListOf<String>()
+
+        // Word split gets highest priority
+        if (wordSplit != null) {
+            candidates.add(wordSplit)
+        }
 
         // Include the typed word itself if it's a dictionary word
         if (isKnownWord(typed)) {
-            candidates.add(typed)
+            candidates.add(typed.lowercase())
         }
 
         // Add prefix completions (excluding exact match, already added above)
         val completions = getPrefixCompletions(typed, 5)
-            .filter { it != typed }
+            .filter { it != typed.lowercase() && it != wordSplit }
         candidates.addAll(completions)
 
         // Add spell corrections as fallback
@@ -265,10 +273,13 @@ class AutocorrectManager(context: Context) {
             candidates.addAll(corrections)
         }
 
-        // Sort all by frequency - most common word wins the middle position
-        cachedSuggestions = candidates
-            .sortedBy { getFrequency(it) }
-            .take(3)
+        // Word split stays first, rest sorted by frequency
+        val split = if (wordSplit != null && candidates.firstOrNull() == wordSplit) {
+            listOf(wordSplit) + candidates.drop(1).sortedBy { getFrequency(it) }.take(2)
+        } else {
+            candidates.sortedBy { getFrequency(it) }.take(3)
+        }
+        cachedSuggestions = split
         onSuggestionsUpdated?.invoke(typed, cachedSuggestions)
     }
 
