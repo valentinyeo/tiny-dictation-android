@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.4:
+            • FIX: Predictions now preserve capitalization (e.g. "Testing" stays capitalized)
+            • Was storing all letters as lowercase, so capital first letter was always lost
+
             v1.37.3:
             • FIX: Auto-fix no longer corrupts text when user types during API call
             • Was adding extra letters (e.g. "tTo") because deletion count didn't account for new typing

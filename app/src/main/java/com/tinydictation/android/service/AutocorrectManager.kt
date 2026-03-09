@@ -85,7 +85,7 @@ class AutocorrectManager(context: Context) {
     fun isKnownWord(word: String): Boolean = dictionary.contains(word.lowercase())
 
     fun onLetterTyped(char: Char) {
-        currentWord.append(char.lowercaseChar())
+        currentWord.append(char)  // Preserve original case for capitalization detection
         clearUndoState()
         updateSuggestions()
     }
@@ -220,8 +220,8 @@ class AutocorrectManager(context: Context) {
         currentWord.clear()
         cachedSuggestions = emptyList()
         onSuggestionsUpdated?.invoke("", emptyList())
-        // Only record autocorrect if the suggestion differs from what was typed
-        if (typed.isNotEmpty() && suggestion != typed) {
+        // Only record autocorrect if the suggestion differs from what was typed (case-insensitive)
+        if (typed.isNotEmpty() && !suggestion.equals(typed, ignoreCase = true)) {
             lastAutocorrect = AutocorrectRecord(original = typed, replacement = suggestion)
         }
         return suggestion
