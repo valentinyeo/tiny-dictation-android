@@ -95,7 +95,7 @@ class NextWordPredictor(private val context: Context) {
 
             val words = text.split(",")
                 .map { it.trim().lowercase().replace(".", "").replace("\"", "") }
-                .filter { it.isNotBlank() && it.length < 20 && !it.contains(" ") }
+                .filter { it.isNotBlank() && it.length > 1 && it.length < 20 && !it.contains(" ") }
                 .take(3)
 
             val elapsedMs = System.currentTimeMillis() - startTime

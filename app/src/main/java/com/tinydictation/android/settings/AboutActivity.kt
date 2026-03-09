@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.1:
+            • Filter out single-letter predictions (no more standalone "i" in predictions)
+
             v1.37.0:
             • Removed sentence prediction feature entirely
             • Restored original keyboard layout (no extra UI elements)
