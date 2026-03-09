@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.7:
+            • FIX: Word split no longer overrides prefix completions
+            • "reall" now shows "really" (not "re all") since it's a valid prefix
+            • Word split only shows when no prefix completions exist (e.g. "andstill")
+
             v1.37.6:
             • FIX: "iwant" → "i want" now works (added "i" and "a" to dictionary)
             • Word split now allows single-letter left parts (was requiring 2+ chars)

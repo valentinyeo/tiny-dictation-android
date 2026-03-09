@@ -243,28 +243,31 @@ class AutocorrectManager(context: Context) {
             return
         }
 
-        // Check for missing space first (e.g. "andstill" → "and still")
-        // If found, show split as top suggestion
-        val wordSplit = if (!isKnownWord(typed)) tryWordSplit(typed.lowercase()) else null
-
         // All candidates: typed word (if valid) + prefix completions + spell corrections
         // Sorted by frequency. The typed word competes fairly with completions.
         val candidates = mutableListOf<String>()
-
-        // Word split gets highest priority
-        if (wordSplit != null) {
-            candidates.add(wordSplit)
-        }
 
         // Include the typed word itself if it's a dictionary word
         if (isKnownWord(typed)) {
             candidates.add(typed.lowercase())
         }
 
-        // Add prefix completions (excluding exact match, already added above)
+        // Add prefix completions (excluding exact match)
         val completions = getPrefixCompletions(typed, 5)
-            .filter { it != typed.lowercase() && it != wordSplit }
+            .filter { it != typed.lowercase() }
         candidates.addAll(completions)
+
+        // Check for missing space (e.g. "andstill" → "and still")
+        // Only show split if there are NO good prefix completions
+        // (prevents "reall" → "re all" when "really" is available)
+        val wordSplit = if (!isKnownWord(typed) && completions.isEmpty()) {
+            tryWordSplit(typed.lowercase())
+        } else null
+
+        if (wordSplit != null) {
+            // Insert split as first candidate
+            candidates.add(0, wordSplit)
+        }
 
         // Add spell corrections as fallback
         if (candidates.size < 3) {
@@ -273,13 +276,12 @@ class AutocorrectManager(context: Context) {
             candidates.addAll(corrections)
         }
 
-        // Word split stays first, rest sorted by frequency
-        val split = if (wordSplit != null && candidates.firstOrNull() == wordSplit) {
+        // Sort by frequency, but keep word split first if present
+        cachedSuggestions = if (wordSplit != null && candidates.firstOrNull() == wordSplit) {
             listOf(wordSplit) + candidates.drop(1).sortedBy { getFrequency(it) }.take(2)
         } else {
             candidates.sortedBy { getFrequency(it) }.take(3)
         }
-        cachedSuggestions = split
         onSuggestionsUpdated?.invoke(typed, cachedSuggestions)
     }
 
