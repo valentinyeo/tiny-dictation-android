@@ -35,11 +35,14 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.35.0:
+            v1.36.0:
+            • NEW: AI sentence completion bar above prediction strip
+            • Shows ghosted text predicting how your sentence will end
+            • Tap to accept and insert the completion
+            • Regenerates as you type more letters
             • NEW: AI word completion in right prediction slot (Haiku)
             • Left + Middle = offline dictionary, Right = AI completion
-            • Debounced (400ms) to avoid spamming API while typing fast
-            • AI understands context for complex/technical words
+            • FIX: Standalone "i" auto-capitalizes to "I" on space/prediction tap
 
             v1.34.6:
             • Auto-fix adds trailing space after improved sentence for seamless typing

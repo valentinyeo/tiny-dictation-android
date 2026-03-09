@@ -230,6 +230,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var aiCompletionWord: String? = null  // current AI completion shown in right slot
     private val AI_COMPLETION_DEBOUNCE = 400L  // ms after last keystroke before firing
 
+    // AI sentence completion (bar above prediction strip)
+    private var sentencePredictionView: TextView? = null
+    private var sentenceCompletionJob: Job? = null
+    private val sentenceCompletionHandler = Handler(Looper.getMainLooper())
+    private var currentSentenceCompletion: String? = null
+    private val SENTENCE_COMPLETION_DEBOUNCE = 600L
+
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
     private var isImproving = false  // Prevent multiple concurrent improvements
@@ -1970,6 +1977,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     cancelNextWordPrediction()
                     autocorrectManager?.onLetterTyped(textToCommit[0])
                     requestAiCompletion()
+                    requestSentenceCompletion()
                 }
 
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
@@ -2072,7 +2080,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+        // Sentence prediction bar
+        sentencePredictionView = qwertyPanel?.findViewById(R.id.sentencePrediction)
+        sentencePredictionView?.setOnClickListener { acceptSentenceCompletion() }
+
+        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}, sentenceBar=${sentencePredictionView != null}")
 
         // Set up suggestion callback
         autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
@@ -2135,9 +2147,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         ic.beginBatchEdit()
         // Delete the typed word
         ic.deleteSurroundingText(typed.length, 0)
-        // Apply case from original typed word
+        // Apply case: uppercase first letter if original was uppercase, or "i" → "I"
         val cased = if (typed.first().isUpperCase()) {
             replacement.replaceFirstChar { it.uppercase() }
+        } else if (replacement == "i") {
+            "I"  // Standalone "i" is always capitalized in English
         } else {
             replacement
         }
@@ -2150,6 +2164,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         // Trigger AI next-word prediction (word + space already committed)
         requestNextWordPrediction()
+        requestSentenceCompletion()
     }
 
     /**
@@ -3248,6 +3263,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
+                        requestSentenceCompletion()
                     }
 
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -3437,6 +3453,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
+                        requestSentenceCompletion()
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3484,6 +3501,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
+                        requestSentenceCompletion()
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3661,14 +3679,28 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             trackTypedText("$cased ")
                         }
                     } else {
+                        // Auto-capitalize standalone "i" → "I"
+                        val currentWord = autocorrectManager?.getCurrentWord() ?: ""
+                        if (currentWord == "i") {
+                            val ic = currentInputConnection
+                            if (ic != null) {
+                                ic.beginBatchEdit()
+                                ic.deleteSurroundingText(1, 0)
+                                ic.commitText("I ", 1)
+                                ic.endBatchEdit()
+                                trackTypedText("I ")
+                            }
+                        } else {
+                            currentInputConnection?.commitText(" ", 1)
+                            trackTypedText(" ")  // Track for terminal apps
+                        }
                         autocorrectManager?.onWordBoundary()
-                        currentInputConnection?.commitText(" ", 1)
-                        trackTypedText(" ")  // Track for terminal apps
                     }
 
                     // Request AI next-word prediction after space
                     DebugLog.d("Space: calling requestNextWordPrediction")
                     requestNextWordPrediction()
+                    requestSentenceCompletion()
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }
@@ -4055,6 +4087,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         autoFixOriginalText = sentence
 
         // Show "fixing" indicator in prediction strip
+        hideSentenceCompletion()
         showAutoFixProgress()
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -4338,6 +4371,63 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         aiCompletionJob = null
         aiCompletionWord = null
         prediction3?.text = ""
+    }
+
+    /**
+     * Request AI sentence completion. Shows predicted rest of sentence in bar above predictions.
+     * Debounced 600ms. Fires on each keystroke and after space/prediction tap.
+     */
+    private fun requestSentenceCompletion() {
+        if (isAutoFixRunning || isTerminalApp) return
+
+        if (nextWordPredictor == null) {
+            nextWordPredictor = NextWordPredictor(this)
+        }
+        if (nextWordPredictor?.isAvailable() != true) return
+
+        sentenceCompletionHandler.removeCallbacksAndMessages(null)
+        sentenceCompletionHandler.postDelayed({
+            val ic = currentInputConnection ?: return@postDelayed
+            val contextText = ic.getTextBeforeCursor(150, 0)?.toString() ?: return@postDelayed
+            if (contextText.isBlank() || contextText.length < 3) return@postDelayed
+
+            sentenceCompletionJob?.cancel()
+            sentenceCompletionJob = CoroutineScope(Dispatchers.Main).launch {
+                val completion = nextWordPredictor?.completeSentence(contextText)
+                if (completion != null) {
+                    currentSentenceCompletion = completion
+                    sentencePredictionView?.text = completion
+                    sentencePredictionView?.visibility = View.VISIBLE
+                } else {
+                    hideSentenceCompletion()
+                }
+            }
+        }, SENTENCE_COMPLETION_DEBOUNCE)
+    }
+
+    /**
+     * Accept the current sentence completion - insert it and hide the bar.
+     */
+    private fun acceptSentenceCompletion() {
+        val completion = currentSentenceCompletion ?: return
+        val ic = currentInputConnection ?: return
+
+        ic.commitText(completion, 1)
+        trackTypedText(completion)
+        autocorrectManager?.onWordBoundary()
+        hideSentenceCompletion()
+    }
+
+    /**
+     * Hide the sentence completion bar and cancel any pending request.
+     */
+    private fun hideSentenceCompletion() {
+        sentenceCompletionHandler.removeCallbacksAndMessages(null)
+        sentenceCompletionJob?.cancel()
+        sentenceCompletionJob = null
+        currentSentenceCompletion = null
+        sentencePredictionView?.text = ""
+        sentencePredictionView?.visibility = View.GONE
     }
 
     private fun improveText() {
