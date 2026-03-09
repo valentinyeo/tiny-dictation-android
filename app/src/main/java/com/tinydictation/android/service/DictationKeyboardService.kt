@@ -1973,7 +1973,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 trackTypedText(textToCommit)  // Track for terminal apps
 
                 // Feed letter to autocorrect (only for actual letters, not numbers/symbols)
-                if (!isNumbersMode && textToCommit.length == 1 && textToCommit[0].isLetter()) {
+                if (!isNumbersMode && !isTerminalApp && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
                     autocorrectManager?.onLetterTyped(textToCommit[0])
                     requestAiCompletion()
@@ -3259,7 +3259,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
-                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3449,7 +3449,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
-                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3497,7 +3497,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
-                    if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3660,47 +3660,53 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     cancelNextWordPrediction()
                     cancelAiCompletion()
 
-                    // Check autocorrect before inserting space
-                    val correction = autocorrectManager?.onSpace()
-                    if (correction != null) {
-                        val ic = currentInputConnection
-                        val typed = autocorrectManager?.lastAutocorrect?.original ?: ""
-                        if (ic != null && typed.isNotEmpty()) {
-                            ic.beginBatchEdit()
-                            ic.deleteSurroundingText(typed.length, 0)
-                            // Preserve case from original
-                            val cased = if (typed.first().isUpperCase()) {
-                                correction.replaceFirstChar { it.uppercase() }
-                            } else {
-                                correction
-                            }
-                            ic.commitText("$cased ", 1)
-                            ic.endBatchEdit()
-                            trackTypedText("$cased ")
-                        }
+                    if (isTerminalApp) {
+                        // Terminal apps: no autocorrect, no predictions, just space
+                        autocorrectManager?.onWordBoundary()
+                        currentInputConnection?.commitText(" ", 1)
+                        trackTypedText(" ")
                     } else {
-                        // Auto-capitalize standalone "i" → "I"
-                        val currentWord = autocorrectManager?.getCurrentWord() ?: ""
-                        if (currentWord == "i") {
+                        // Check autocorrect before inserting space
+                        val correction = autocorrectManager?.onSpace()
+                        if (correction != null) {
                             val ic = currentInputConnection
-                            if (ic != null) {
+                            val typed = autocorrectManager?.lastAutocorrect?.original ?: ""
+                            if (ic != null && typed.isNotEmpty()) {
                                 ic.beginBatchEdit()
-                                ic.deleteSurroundingText(1, 0)
-                                ic.commitText("I ", 1)
+                                ic.deleteSurroundingText(typed.length, 0)
+                                // Preserve case from original
+                                val cased = if (typed.first().isUpperCase()) {
+                                    correction.replaceFirstChar { it.uppercase() }
+                                } else {
+                                    correction
+                                }
+                                ic.commitText("$cased ", 1)
                                 ic.endBatchEdit()
-                                trackTypedText("I ")
+                                trackTypedText("$cased ")
                             }
                         } else {
-                            currentInputConnection?.commitText(" ", 1)
-                            trackTypedText(" ")  // Track for terminal apps
+                            // Auto-capitalize standalone "i" → "I"
+                            val currentWord = autocorrectManager?.getCurrentWord() ?: ""
+                            if (currentWord == "i") {
+                                val ic = currentInputConnection
+                                if (ic != null) {
+                                    ic.beginBatchEdit()
+                                    ic.deleteSurroundingText(1, 0)
+                                    ic.commitText("I ", 1)
+                                    ic.endBatchEdit()
+                                    trackTypedText("I ")
+                                }
+                            } else {
+                                currentInputConnection?.commitText(" ", 1)
+                                trackTypedText(" ")
+                            }
+                            autocorrectManager?.onWordBoundary()
                         }
-                        autocorrectManager?.onWordBoundary()
-                    }
 
-                    // Request AI next-word prediction after space
-                    DebugLog.d("Space: calling requestNextWordPrediction")
-                    requestNextWordPrediction()
-                    requestSentenceCompletion()
+                        // Request AI predictions (non-terminal only)
+                        requestNextWordPrediction()
+                        requestSentenceCompletion()
+                    }
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
                 }
@@ -4067,7 +4073,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Shows progress in prediction strip and offers undo after completion.
      */
     private fun triggerAutoFix() {
-        if (isAutoFixRunning || autoFixUndoAvailable) return
+        if (isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
         if (textImprover == null) {
             textImprover = TextImprover(this)
         }

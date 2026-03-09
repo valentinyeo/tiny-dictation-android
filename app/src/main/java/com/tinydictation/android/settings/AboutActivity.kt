@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.1:
+            • FIX: Disable ALL autocorrect/predictions/auto-fix in terminal apps
+            • Word autocorrect, AI predictions, and sentence fix all skip Termius
+
             v1.36.0:
             • NEW: AI sentence completion bar above prediction strip
             • Shows ghosted text predicting how your sentence will end
