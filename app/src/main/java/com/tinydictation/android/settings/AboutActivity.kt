@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.3:
+            • FIX: AI word completion no longer shows same word you already typed
+            • Reduced debounce from 400ms to 200ms for faster response
+
             v1.36.2:
             • AI word completion now fires from 1st letter (was 3rd)
             • Uses sentence context: "next time we a" → predicts "are"

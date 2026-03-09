@@ -169,7 +169,9 @@ class NextWordPredictor(private val context: Context) {
                 .replace("\"", "")
                 .split(" ").first()  // Take only first word if multiple returned
 
-            if (word.isBlank() || word.length > 30 || !word.startsWith(partialWord.lowercase())) {
+            if (word.isBlank() || word.length > 30 || !word.startsWith(partialWord.lowercase())
+                || word == partialWord.lowercase()) {
+                // Don't return the same word user already typed - that's useless
                 return@withContext null
             }
 

@@ -228,7 +228,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var aiCompletionJob: Job? = null
     private val aiCompletionHandler = Handler(Looper.getMainLooper())
     private var aiCompletionWord: String? = null  // current AI completion shown in right slot
-    private val AI_COMPLETION_DEBOUNCE = 400L  // ms after last keystroke before firing
+    private val AI_COMPLETION_DEBOUNCE = 200L  // ms after last keystroke before firing
 
     // AI sentence completion (bar above prediction strip)
     private var sentencePredictionView: TextView? = null
