@@ -4049,15 +4049,18 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val improved = result?.getOrNull()
 
                 if (improved != null && improved != sentence && improved.isNotBlank()) {
+                    // Ensure first letter is capitalized (start of sentence)
+                    val capitalizedImproved = improved.replaceFirstChar { it.uppercase() }
+
                     // Apply the fix
                     val currentIc = currentInputConnection
                     if (currentIc != null) {
                         currentIc.beginBatchEdit()
                         currentIc.deleteSurroundingText(sentence.length, 0)
-                        currentIc.commitText(improved, 1)
+                        currentIc.commitText(capitalizedImproved, 1)
                         currentIc.endBatchEdit()
 
-                        autoFixReplacementText = improved
+                        autoFixReplacementText = capitalizedImproved
                         autoFixUndoAvailable = true
                         showAutoFixUndo()
 
@@ -4066,7 +4069,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             clearAutoFixUndo()
                         }, AUTO_FIX_UNDO_TIMEOUT)
 
-                        DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$improved'")
+                        DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$capitalizedImproved'")
                     } else {
                         clearAutoFixState()
                     }
