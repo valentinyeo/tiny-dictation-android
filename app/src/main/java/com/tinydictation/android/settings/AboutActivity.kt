@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.5:
+            • Skip auto-fix for dictated text (Deepgram already handles corrections)
+            • Auto-fix now only triggers for typed text (period key, punctuation popup)
+
             v1.36.4:
             • FIX: Sentence prediction bar no longer resizes keyboard (always reserves space)
             • Sentence bar now has gray box background matching prediction strip style

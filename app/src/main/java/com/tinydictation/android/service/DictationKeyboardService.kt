@@ -567,8 +567,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 TranscriptionHistoryManager.getInstance(this@DictationKeyboardService).save(text, language)
                                 DebugLog.i("DictationKeyboardService: Saved transcription to history")
 
-                                // Auto AI fix after dictation
-                                triggerAutoFix()
+                                // Skip auto-fix for dictated text - Deepgram already handles corrections
                             }
                         }
                     }
