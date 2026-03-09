@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.6:
+            • Auto-fix adds trailing space after improved sentence for seamless typing
+
             v1.34.5:
             • FIX: Auto-fix now capitalizes first letter of sentence
 

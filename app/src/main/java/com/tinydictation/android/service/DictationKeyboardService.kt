@@ -4057,10 +4057,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     if (currentIc != null) {
                         currentIc.beginBatchEdit()
                         currentIc.deleteSurroundingText(sentence.length, 0)
-                        currentIc.commitText(capitalizedImproved, 1)
+                        // Add trailing space so user can type the next word immediately
+                        val improvedWithSpace = "$capitalizedImproved "
+                        currentIc.commitText(improvedWithSpace, 1)
                         currentIc.endBatchEdit()
 
-                        autoFixReplacementText = capitalizedImproved
+                        autoFixReplacementText = improvedWithSpace
                         autoFixUndoAvailable = true
                         showAutoFixUndo()
 
