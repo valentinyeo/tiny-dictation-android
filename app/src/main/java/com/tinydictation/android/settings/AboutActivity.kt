@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.4:
+            • FIX: Sentence prediction bar no longer resizes keyboard (always reserves space)
+            • Sentence bar now has gray box background matching prediction strip style
+
             v1.36.3:
             • FIX: AI word completion no longer shows same word you already typed
             • Reduced debounce from 400ms to 200ms for faster response

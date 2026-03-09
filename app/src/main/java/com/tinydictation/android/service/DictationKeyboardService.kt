@@ -4428,7 +4428,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         sentenceCompletionJob = null
         currentSentenceCompletion = null
         sentencePredictionView?.text = ""
-        sentencePredictionView?.visibility = View.GONE
+        sentencePredictionView?.visibility = View.INVISIBLE
     }
 
     private fun improveText() {

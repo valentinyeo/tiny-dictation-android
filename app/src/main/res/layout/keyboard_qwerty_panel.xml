@@ -10,20 +10,22 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="4dp">
 
-    <!-- AI sentence completion bar - tap to accept -->
+    <!-- AI sentence completion bar - tap to accept. Always takes space to prevent key resizing. -->
     <TextView
         android:id="@+id/sentencePrediction"
         android:layout_width="match_parent"
         android:layout_height="28dp"
+        android:layout_marginHorizontal="4dp"
         android:paddingHorizontal="12dp"
         android:gravity="center_vertical"
         android:textSize="13sp"
-        android:textColor="#80FFFFFF"
+        android:textColor="#B0FFFFFF"
+        android:background="@drawable/keyboard_key_background"
         android:singleLine="true"
         android:ellipsize="end"
         android:clickable="true"
         android:focusable="true"
-        android:visibility="gone" />
+        android:visibility="invisible" />
 
     <!-- Prediction strip - always takes space to prevent key resizing -->
     <LinearLayout
