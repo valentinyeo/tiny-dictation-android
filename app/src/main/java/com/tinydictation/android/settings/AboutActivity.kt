@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.34.4:
+            • FIX: Next-word prediction now triggers after tapping a word prediction
+            • Previously only fired on space bar - now fires on both
+
             v1.34.3:
             • DEBUG: Verbose logging to diagnose next-word prediction not firing
 

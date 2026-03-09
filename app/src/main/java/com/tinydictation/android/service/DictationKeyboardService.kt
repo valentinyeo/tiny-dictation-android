@@ -2137,6 +2137,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         trackTypedText("$cased ")
         manager.onPredictionTapped(replacement)
+
+        // Trigger AI next-word prediction (word + space already committed)
+        requestNextWordPrediction()
     }
 
     /**
