@@ -10,79 +10,55 @@
     android:paddingHorizontal="4dp"
     android:paddingVertical="4dp">
 
-    <!-- Prediction area - FrameLayout overlays sentence bar on top of word predictions -->
-    <FrameLayout
+    <!-- Prediction strip - styled like keyboard keys -->
+    <LinearLayout
+        android:id="@+id/predictionStrip"
         android:layout_width="match_parent"
         android:layout_height="43dp"
+        android:orientation="horizontal"
         android:layout_marginBottom="7dp">
 
-        <!-- Word prediction strip (3 slots) -->
-        <LinearLayout
-            android:id="@+id/predictionStrip"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/prediction1"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:gravity="center"
-                android:textSize="16sp"
-                android:textColor="@color/keyboard_key_text"
-                android:background="@drawable/keyboard_key_background"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <TextView
-                android:id="@+id/prediction2"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:gravity="center"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/keyboard_key_text"
-                android:background="@drawable/keyboard_key_background"
-                android:clickable="true"
-                android:focusable="true" />
-
-            <TextView
-                android:id="@+id/prediction3"
-                android:layout_width="0dp"
-                android:layout_height="match_parent"
-                android:layout_weight="1"
-                android:layout_margin="4dp"
-                android:gravity="center"
-                android:textSize="16sp"
-                android:textColor="@color/keyboard_key_text"
-                android:background="@drawable/keyboard_key_background"
-                android:clickable="true"
-                android:focusable="true" />
-
-        </LinearLayout>
-
-        <!-- AI sentence completion bar - overlays word predictions when active -->
         <TextView
-            android:id="@+id/sentencePrediction"
-            android:layout_width="match_parent"
+            android:id="@+id/prediction1"
+            android:layout_width="0dp"
             android:layout_height="match_parent"
+            android:layout_weight="1"
             android:layout_margin="4dp"
-            android:paddingHorizontal="12dp"
-            android:gravity="center_vertical"
-            android:textSize="14sp"
-            android:textColor="#B0FFFFFF"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="@color/keyboard_key_text"
             android:background="@drawable/keyboard_key_background"
-            android:singleLine="true"
-            android:ellipsize="end"
             android:clickable="true"
-            android:focusable="true"
-            android:visibility="gone" />
+            android:focusable="true" />
 
-    </FrameLayout>
+        <TextView
+            android:id="@+id/prediction2"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:textColor="@color/keyboard_key_text"
+            android:background="@drawable/keyboard_key_background"
+            android:clickable="true"
+            android:focusable="true" />
+
+        <TextView
+            android:id="@+id/prediction3"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:layout_margin="4dp"
+            android:gravity="center"
+            android:textSize="16sp"
+            android:textColor="@color/keyboard_key_text"
+            android:background="@drawable/keyboard_key_background"
+            android:clickable="true"
+            android:focusable="true" />
+
+    </LinearLayout>
 
     <!-- Number row (optional, toggled via settings) - reduced height for Samsung style -->
     <LinearLayout

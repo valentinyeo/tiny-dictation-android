@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.0:
+            • Removed sentence prediction feature entirely
+            • Restored original keyboard layout (no extra UI elements)
+            • Auto-fix only runs on typed text, not dictated text
+
             v1.36.6:
             • FIX: Keyboard button sizes restored - sentence bar now overlays prediction strip instead of adding height
             • Sentence prediction overlays word predictions when active, hides when empty
