@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.6:
+            • FIX: Keyboard button sizes restored - sentence bar now overlays prediction strip instead of adding height
+            • Sentence prediction overlays word predictions when active, hides when empty
+
             v1.36.5:
             • Skip auto-fix for dictated text (Deepgram already handles corrections)
             • Auto-fix now only triggers for typed text (period key, punctuation popup)

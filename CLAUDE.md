@@ -57,6 +57,16 @@ Previous sessions skipped commits and lost 8 versions of work. Another session c
 - **Minor (1.x.0)**: New features, significant changes
 - **Major (x.0.0)**: Breaking changes, major rewrites
 
+## ⛔ KEYBOARD BUTTON SIZE - DO NOT CHANGE
+
+**NEVER add UI elements that change the keyboard key sizes.** The QWERTY key rows use `layout_weight="1"` to split available vertical space. Adding any fixed-height element (like a sentence prediction bar) steals space from the keys and makes them smaller.
+
+**Rules:**
+- Never add new fixed-height elements to `keyboard_qwerty_panel.xml` outside the existing structure
+- The prediction strip is 43dp, number row is 43dp, key rows share remaining space equally via `layout_weight="1"`
+- Any new UI (like sentence prediction) must overlay existing elements (e.g. inside the prediction strip's FrameLayout), NOT add new rows
+- If in doubt, compare key heights against commit `5258e96` (the baseline)
+
 ## UI Architecture - IMPORTANT TERMINOLOGY
 
 ⚠️ **Read this section carefully to avoid confusion when discussing UI changes.**
