@@ -175,6 +175,40 @@ class AutocorrectManager(context: Context) {
         return null
     }
 
+    /**
+     * Try to correct a word (spell correction + word split) without modifying internal state.
+     * Used when the word was already captured on space touch-down.
+     */
+    fun tryCorrectWord(typed: String): String? {
+        if (typed.isEmpty() || typed.length < 2) return null
+        if (isKnownWord(typed)) return null
+
+        // 1. Try word segmentation (missing space detection)
+        val split = tryWordSplit(typed)
+        if (split != null) {
+            DebugLog.d("AutocorrectManager: Split '$typed' → '$split'")
+            return split
+        }
+
+        // 2. Try spell correction
+        val corrections = getSpellCorrections(typed, 1)
+        if (corrections.isEmpty()) return null
+
+        val best = corrections.first()
+        val dist = levenshteinDistance(typed, best)
+        if (dist > 2 || dist >= typed.length) return null
+
+        DebugLog.d("AutocorrectManager: Corrected '$typed' → '$best'")
+        return best
+    }
+
+    /**
+     * Record an autocorrect for undo-on-backspace support.
+     */
+    fun recordAutocorrect(original: String, replacement: String) {
+        lastAutocorrect = AutocorrectRecord(original = original, replacement = replacement)
+    }
+
     fun onWordBoundary() {
         currentWord.clear()
         cachedSuggestions = emptyList()

@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.2:
+            • FIX: Fast typing word merge bug - space now captures word on touch-down
+            • Prevents "is pretty" becoming "ispretty" during fast typing
+            • Fix "i" → "I" auto-capitalize (was broken because onSpace cleared word too early)
+
             v1.37.1:
             • Filter out single-letter predictions (no more standalone "i" in predictions)
 

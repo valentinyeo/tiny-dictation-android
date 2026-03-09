@@ -323,6 +323,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Space bar cursor trackpad mode (long-press and drag to move cursor)
     private var spaceKeyButton: android.widget.TextView? = null
     private var isSpaceTrackpadMode = false
+    private var spaceDownWord = ""  // Word captured on space touch-down for autocorrect on touch-up
     private var spaceTrackpadStartX = 0f
     private var spaceTrackpadLastX = 0f
     private var spaceTrackpadAccumulatedDelta = 0f
@@ -3592,6 +3593,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadAccumulatedDelta = 0f
                 spaceTrackpadLastMoveTime = System.currentTimeMillis()
 
+                // Snapshot the current word and clear the autocorrect buffer immediately.
+                // This prevents fast typing from appending the next word's letters to the
+                // previous word (e.g. "is" + fast "p" → "isp" instead of "is" + "p").
+                // The saved word is used on ACTION_UP for autocorrect.
+                spaceDownWord = autocorrectManager?.getCurrentWord() ?: ""
+                autocorrectManager?.onWordBoundary()
+
                 // Start long-press timer
                 spaceTrackpadHandler.postDelayed(
                     spaceTrackpadRunnable,
@@ -3650,18 +3658,23 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     cancelNextWordPrediction()
                     cancelAiCompletion()
 
+                    // Use the word captured on touch-down (not getCurrentWord which was
+                    // cleared on DOWN to prevent fast-typing race conditions)
+                    val typed = spaceDownWord
+
                     if (isTerminalApp) {
                         // Terminal apps: no autocorrect, no predictions, just space
-                        autocorrectManager?.onWordBoundary()
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")
                     } else {
-                        // Check autocorrect before inserting space
-                        val correction = autocorrectManager?.onSpace()
+                        // Check autocorrect using the saved word
+                        val correction = if (typed.length >= 2 && !autocorrectManager?.isKnownWord(typed)!!) {
+                            autocorrectManager?.tryCorrectWord(typed)
+                        } else null
+
                         if (correction != null) {
                             val ic = currentInputConnection
-                            val typed = autocorrectManager?.lastAutocorrect?.original ?: ""
-                            if (ic != null && typed.isNotEmpty()) {
+                            if (ic != null) {
                                 ic.beginBatchEdit()
                                 ic.deleteSurroundingText(typed.length, 0)
                                 // Preserve case from original
@@ -3673,11 +3686,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 ic.commitText("$cased ", 1)
                                 ic.endBatchEdit()
                                 trackTypedText("$cased ")
+                                autocorrectManager?.recordAutocorrect(typed, correction)
                             }
                         } else {
                             // Auto-capitalize standalone "i" → "I"
-                            val currentWord = autocorrectManager?.getCurrentWord() ?: ""
-                            if (currentWord == "i") {
+                            if (typed == "i") {
                                 val ic = currentInputConnection
                                 if (ic != null) {
                                     ic.beginBatchEdit()
@@ -3690,12 +3703,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 currentInputConnection?.commitText(" ", 1)
                                 trackTypedText(" ")
                             }
-                            autocorrectManager?.onWordBoundary()
                         }
 
                         // Request AI predictions (non-terminal only)
                         requestNextWordPrediction()
-    
+
                     }
                 } else {
                     DebugLog.d("DictationKeyboardService: Cursor trackpad mode DEACTIVATED")
