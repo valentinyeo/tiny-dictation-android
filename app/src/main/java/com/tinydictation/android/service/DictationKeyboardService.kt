@@ -4106,26 +4106,42 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // Ensure first letter is capitalized (start of sentence)
                     val capitalizedImproved = improved.replaceFirstChar { it.uppercase() }
 
-                    // Apply the fix
+                    // Apply the fix - recapture text to handle user typing during API call
                     val currentIc = currentInputConnection
                     if (currentIc != null) {
-                        currentIc.beginBatchEdit()
-                        currentIc.deleteSurroundingText(sentence.length, 0)
-                        // Add trailing space so user can type the next word immediately
-                        val improvedWithSpace = "$capitalizedImproved "
-                        currentIc.commitText(improvedWithSpace, 1)
-                        currentIc.endBatchEdit()
+                        // Re-read text before cursor to find the original sentence
+                        // (user may have typed more characters since we captured it)
+                        val currentText = currentIc.getTextBeforeCursor(500, 0)?.toString() ?: ""
+                        val sentencePos = currentText.lastIndexOf(sentence)
 
-                        autoFixReplacementText = improvedWithSpace
-                        autoFixUndoAvailable = true
-                        showAutoFixUndo()
+                        if (sentencePos >= 0) {
+                            // Calculate how many chars to delete: from sentence start to cursor
+                            val charsToDelete = currentText.length - sentencePos
+                            // Text typed after the sentence that we need to preserve
+                            val textAfterSentence = currentText.substring(sentencePos + sentence.length)
 
-                        // Auto-expire undo after timeout
-                        autoFixHandler.postDelayed({
-                            clearAutoFixUndo()
-                        }, AUTO_FIX_UNDO_TIMEOUT)
+                            currentIc.beginBatchEdit()
+                            currentIc.deleteSurroundingText(charsToDelete, 0)
+                            // Add trailing space so user can type the next word immediately
+                            val improvedWithSpace = "$capitalizedImproved "
+                            currentIc.commitText(improvedWithSpace + textAfterSentence, 1)
+                            currentIc.endBatchEdit()
 
-                        DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$capitalizedImproved'")
+                            autoFixReplacementText = improvedWithSpace
+                            autoFixUndoAvailable = true
+                            showAutoFixUndo()
+
+                            // Auto-expire undo after timeout
+                            autoFixHandler.postDelayed({
+                                clearAutoFixUndo()
+                            }, AUTO_FIX_UNDO_TIMEOUT)
+
+                            DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$capitalizedImproved'")
+                        } else {
+                            // Original sentence not found (user deleted it or moved cursor)
+                            DebugLog.w("DictationKeyboardService: Auto-fix: original sentence not found, skipping")
+                            clearAutoFixState()
+                        }
                     } else {
                         clearAutoFixState()
                     }

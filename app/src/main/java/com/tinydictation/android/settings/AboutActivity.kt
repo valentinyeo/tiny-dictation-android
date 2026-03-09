@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.37.3:
+            • FIX: Auto-fix no longer corrupts text when user types during API call
+            • Was adding extra letters (e.g. "tTo") because deletion count didn't account for new typing
+            • Now re-reads cursor position and preserves any text typed after the sentence
+
             v1.37.2:
             • FIX: Fast typing word merge bug - space now captures word on touch-down
             • Prevents "is pretty" becoming "ispretty" during fast typing
