@@ -224,6 +224,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var activeNextWordJob: Job? = null
     private var isNextWordPredictionActive = false  // true when strip shows AI predictions
 
+    // AI word completion (right slot of prediction strip, debounced)
+    private var aiCompletionJob: Job? = null
+    private val aiCompletionHandler = Handler(Looper.getMainLooper())
+    private var aiCompletionWord: String? = null  // current AI completion shown in right slot
+    private val AI_COMPLETION_DEBOUNCE = 400L  // ms after last keystroke before firing
+
     // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
     private var isImproving = false  // Prevent multiple concurrent improvements
@@ -1963,6 +1969,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 if (!isNumbersMode && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
                     autocorrectManager?.onLetterTyped(textToCommit[0])
+                    requestAiCompletion()
                 }
 
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
@@ -2086,41 +2093,43 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             // Clear text but keep strip visible to prevent key resizing
             prediction1?.text = ""
             prediction2?.text = ""
-            prediction3?.text = ""
+            // Only clear right slot if no AI completion is showing
+            if (aiCompletionWord == null) {
+                prediction3?.text = ""
+            }
             return
         }
-        DebugLog.d("updatePredictionStrip: typed='$typed', suggestions=$suggestions")
 
-        // Layout: [left=alt] [MIDDLE=best, bold] [right=alt]
-        // Middle = best suggestion (most likely completion or correction)
-        // Left = second suggestion
-        // Right = third suggestion
+        // Layout: [left=alt] [MIDDLE=best] [right=AI completion]
+        // Left + Middle = offline dictionary predictions
+        // Right = AI (Haiku) word completion (managed separately)
         prediction1?.text = suggestions.getOrNull(1) ?: ""
         prediction2?.text = suggestions.getOrNull(0) ?: typed
-        prediction3?.text = suggestions.getOrNull(2) ?: ""
+        // Don't overwrite right slot - it's managed by AI completion
     }
 
     /**
      * Applies a prediction strip suggestion.
-     * @param index 0 = typed word (keep as-is), 1 = top suggestion, 2 = second suggestion
-     */
-    /**
-     * Applies a prediction strip suggestion.
-     * @param index 0 = left (suggestion index 1), 1 = middle (suggestion index 0), 2 = right (suggestion index 2)
+     * @param index 0 = left (offline alt), 1 = middle (offline best), 2 = right (AI completion)
      */
     private fun applyPrediction(index: Int) {
         val manager = autocorrectManager ?: return
         val typed = manager.getCurrentWord()
         if (typed.isEmpty()) return
 
-        // Map strip position to suggestion index
-        val suggestionIndex = when (index) {
-            0 -> 1  // left = second suggestion
-            1 -> 0  // middle = best suggestion
-            2 -> 2  // right = third suggestion
-            else -> return
+        val replacement: String
+        if (index == 2 && aiCompletionWord != null) {
+            // Right slot = AI completion
+            replacement = aiCompletionWord!!
+        } else {
+            // Left/middle = offline dictionary
+            val suggestionIndex = when (index) {
+                0 -> 1  // left = second suggestion
+                1 -> 0  // middle = best suggestion
+                else -> return
+            }
+            replacement = manager.getCachedSuggestions().getOrNull(suggestionIndex) ?: return
         }
-        val replacement = manager.getCachedSuggestions().getOrNull(suggestionIndex) ?: return
 
         val ic = currentInputConnection ?: return
         ic.beginBatchEdit()
@@ -2137,6 +2146,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         trackTypedText("$cased ")
         manager.onPredictionTapped(replacement)
+        cancelAiCompletion()
 
         // Trigger AI next-word prediction (word + space already committed)
         requestNextWordPrediction()
@@ -3237,6 +3247,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
+                        requestAiCompletion()
                     }
 
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -3425,6 +3436,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
+                        requestAiCompletion()
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3471,6 +3483,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     if (!isNumbersMode && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
+                        requestAiCompletion()
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3625,8 +3638,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
-                    // Cancel any active AI next-word prediction
+                    // Cancel any active AI predictions
                     cancelNextWordPrediction()
+                    cancelAiCompletion()
 
                     // Check autocorrect before inserting space
                     val correction = autocorrectManager?.onSpace()
@@ -4269,6 +4283,61 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             prediction2?.setOnClickListener { applyPrediction(1) }
             prediction3?.setOnClickListener { applyPrediction(2) }
         }
+    }
+
+    /**
+     * Request AI word completion for the right prediction slot.
+     * Debounced: waits 400ms after last keystroke before firing API call.
+     */
+    private fun requestAiCompletion() {
+        if (isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
+
+        if (nextWordPredictor == null) {
+            nextWordPredictor = NextWordPredictor(this)
+        }
+        if (nextWordPredictor?.isAvailable() != true) return
+
+        val partialWord = autocorrectManager?.getCurrentWord() ?: return
+        if (partialWord.length < 3) {
+            // Too short for AI completion - clear right slot
+            aiCompletionWord = null
+            prediction3?.text = ""
+            return
+        }
+
+        // Debounce: cancel previous timer, start new one
+        aiCompletionHandler.removeCallbacksAndMessages(null)
+        aiCompletionHandler.postDelayed({
+            // Re-check the word hasn't changed
+            val currentWord = autocorrectManager?.getCurrentWord() ?: return@postDelayed
+            if (currentWord.length < 3) return@postDelayed
+
+            val ic = currentInputConnection ?: return@postDelayed
+            val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return@postDelayed
+
+            aiCompletionJob?.cancel()
+            aiCompletionJob = CoroutineScope(Dispatchers.Main).launch {
+                val completed = nextWordPredictor?.completeWord(contextText, currentWord)
+                // Only show if user is still typing the same word
+                val stillTyping = autocorrectManager?.getCurrentWord() ?: ""
+                if (completed != null && stillTyping.isNotEmpty() && completed.startsWith(stillTyping.lowercase())) {
+                    aiCompletionWord = completed
+                    prediction3?.text = completed
+                    prediction3?.setOnClickListener { applyPrediction(2) }
+                }
+            }
+        }, AI_COMPLETION_DEBOUNCE)
+    }
+
+    /**
+     * Cancel any active AI word completion request and clear the right slot.
+     */
+    private fun cancelAiCompletion() {
+        aiCompletionHandler.removeCallbacksAndMessages(null)
+        aiCompletionJob?.cancel()
+        aiCompletionJob = null
+        aiCompletionWord = null
+        prediction3?.text = ""
     }
 
     private fun improveText() {

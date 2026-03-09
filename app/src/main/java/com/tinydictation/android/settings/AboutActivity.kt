@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.35.0:
+            • NEW: AI word completion in right prediction slot (Haiku)
+            • Left + Middle = offline dictionary, Right = AI completion
+            • Debounced (400ms) to avoid spamming API while typing fast
+            • AI understands context for complex/technical words
+
             v1.34.6:
             • Auto-fix adds trailing space after improved sentence for seamless typing
 
