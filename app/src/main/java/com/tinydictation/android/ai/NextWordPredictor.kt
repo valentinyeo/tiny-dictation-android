@@ -116,7 +116,7 @@ class NextWordPredictor(private val context: Context) {
      * @return The completed word (e.g. "experience"), or null if no completion
      */
     suspend fun completeWord(contextText: String, partialWord: String): String? = withContext(Dispatchers.IO) {
-        if (partialWord.length < 2) return@withContext null
+        if (partialWord.isEmpty()) return@withContext null
 
         val apiKey = prefs.getAnthropicApiKey()
         if (apiKey.isNullOrBlank()) return@withContext null

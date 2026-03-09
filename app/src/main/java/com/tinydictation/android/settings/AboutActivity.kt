@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.36.2:
+            • AI word completion now fires from 1st letter (was 3rd)
+            • Uses sentence context: "next time we a" → predicts "are"
+
             v1.36.1:
             • FIX: Disable ALL autocorrect/predictions/auto-fix in terminal apps
             • Word autocorrect, AI predictions, and sentence fix all skip Termius

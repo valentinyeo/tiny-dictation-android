@@ -4337,19 +4337,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (nextWordPredictor?.isAvailable() != true) return
 
         val partialWord = autocorrectManager?.getCurrentWord() ?: return
-        if (partialWord.length < 3) {
-            // Too short for AI completion - clear right slot
-            aiCompletionWord = null
-            prediction3?.text = ""
-            return
-        }
+        if (partialWord.isEmpty()) return
 
         // Debounce: cancel previous timer, start new one
         aiCompletionHandler.removeCallbacksAndMessages(null)
         aiCompletionHandler.postDelayed({
             // Re-check the word hasn't changed
             val currentWord = autocorrectManager?.getCurrentWord() ?: return@postDelayed
-            if (currentWord.length < 3) return@postDelayed
+            if (currentWord.isEmpty()) return@postDelayed
 
             val ic = currentInputConnection ?: return@postDelayed
             val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return@postDelayed
