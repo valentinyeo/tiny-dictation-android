@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.38.0:
+            • German dictionary support (50,000 words with umlauts)
+            • Language switch button now also switches autocorrect/predictions dictionary
+            • Disable autocorrect in URL bars and email fields (no more mangled URLs)
+
             v1.37.8:
             • FIX: Prediction middle tile no longer accumulates words in search bars
             • Clear autocorrect word state on input view restart and backward cursor movement

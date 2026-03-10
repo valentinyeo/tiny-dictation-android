@@ -7,6 +7,7 @@ import java.io.InputStreamReader
 
 /**
  * Offline word completion and autocorrect using a frequency-ranked dictionary.
+ * Supports multiple languages (en, de) with per-language dictionary files.
  *
  * Dictionary format: word\trank (lower rank = more common, 99999 = no frequency data)
  *
@@ -16,16 +17,29 @@ import java.io.InputStreamReader
  *
  * Results shown in prediction strip: [left=alt] [MIDDLE=best] [right=alt]
  */
-class AutocorrectManager(context: Context) {
+class AutocorrectManager(private val context: Context) {
 
-    private val dictionary = HashSet<String>(65536)
+    private var dictionary = HashSet<String>(65536)
     // Word → frequency rank (lower = more common). 99999 = unranked.
-    private val wordFrequency = HashMap<String, Int>(65536)
+    private var wordFrequency = HashMap<String, Int>(65536)
     // Sorted list for efficient prefix search
     private var sortedWords: List<String> = emptyList()
     // Words grouped by first letter for fast spell correction
-    private val wordsByFirstLetter = HashMap<Char, MutableList<String>>()
+    private var wordsByFirstLetter = HashMap<Char, MutableList<String>>()
     private val currentWord = StringBuilder()
+
+    // Current language
+    private var currentLanguage: String = "en"
+
+    // Cache loaded dictionaries to avoid reloading on every language switch
+    private val dictionaryCache = HashMap<String, DictionaryData>()
+
+    private data class DictionaryData(
+        val dictionary: HashSet<String>,
+        val wordFrequency: HashMap<String, Int>,
+        val sortedWords: List<String>,
+        val wordsByFirstLetter: HashMap<Char, MutableList<String>>
+    )
 
     // Last autocorrect for undo-on-backspace
     var lastAutocorrect: AutocorrectRecord? = null
@@ -43,13 +57,52 @@ class AutocorrectManager(context: Context) {
     )
 
     init {
-        loadDictionary(context)
+        loadDictionary("en")
     }
 
-    private fun loadDictionary(context: Context) {
+    /**
+     * Switch to a different language dictionary.
+     * Caches previously loaded dictionaries for instant switching.
+     */
+    fun setLanguage(language: String) {
+        if (language == currentLanguage) return
+        DebugLog.d("AutocorrectManager: Switching language from $currentLanguage to $language")
+        currentLanguage = language
+        loadDictionary(language)
+        // Clear current word state on language switch
+        onWordBoundary()
+    }
+
+    fun getLanguage(): String = currentLanguage
+
+    private fun getDictionaryFilename(language: String): String {
+        return when (language) {
+            "de" -> "dictionary_de.txt"
+            else -> "dictionary.txt"  // English is the default
+        }
+    }
+
+    private fun loadDictionary(language: String) {
+        // Check cache first
+        val cached = dictionaryCache[language]
+        if (cached != null) {
+            dictionary = cached.dictionary
+            wordFrequency = cached.wordFrequency
+            sortedWords = cached.sortedWords
+            wordsByFirstLetter = cached.wordsByFirstLetter
+            currentLanguage = language
+            DebugLog.d("AutocorrectManager: Loaded $language dictionary from cache (${dictionary.size} words)")
+            return
+        }
+
+        val filename = getDictionaryFilename(language)
         try {
+            val newDictionary = HashSet<String>(65536)
+            val newWordFrequency = HashMap<String, Int>(65536)
+            val newWordsByFirstLetter = HashMap<Char, MutableList<String>>()
             val words = mutableListOf<String>()
-            context.assets.open("dictionary.txt").use { stream ->
+
+            context.assets.open(filename).use { stream ->
                 BufferedReader(InputStreamReader(stream)).use { reader ->
                     reader.forEachLine { line ->
                         val trimmed = line.trim()
@@ -61,21 +114,43 @@ class AutocorrectManager(context: Context) {
                         val rank = parts.getOrNull(1)?.toIntOrNull() ?: 99999
 
                         if (word.isNotEmpty()) {
-                            dictionary.add(word)
-                            wordFrequency[word] = rank
+                            newDictionary.add(word)
+                            newWordFrequency[word] = rank
                             words.add(word)
 
                             // Group by first letter
-                            wordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }.add(word)
+                            newWordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }.add(word)
                         }
                     }
                 }
             }
-            sortedWords = words.sorted()
-            val rankedCount = wordFrequency.count { it.value < 99999 }
-            DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words ($rankedCount with frequency data)")
+
+            val newSortedWords = words.sorted()
+
+            // Cache this dictionary
+            dictionaryCache[language] = DictionaryData(
+                dictionary = newDictionary,
+                wordFrequency = newWordFrequency,
+                sortedWords = newSortedWords,
+                wordsByFirstLetter = newWordsByFirstLetter
+            )
+
+            // Set as active
+            dictionary = newDictionary
+            wordFrequency = newWordFrequency
+            sortedWords = newSortedWords
+            wordsByFirstLetter = newWordsByFirstLetter
+            currentLanguage = language
+
+            val rankedCount = newWordFrequency.count { it.value < 99999 }
+            DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words for '$language' ($rankedCount with frequency data)")
         } catch (e: Exception) {
-            DebugLog.e("AutocorrectManager: Failed to load dictionary: ${e.message}")
+            DebugLog.e("AutocorrectManager: Failed to load dictionary for '$language': ${e.message}")
+            // If non-English fails, fall back to English
+            if (language != "en" && dictionary.isEmpty()) {
+                DebugLog.d("AutocorrectManager: Falling back to English dictionary")
+                loadDictionary("en")
+            }
         }
     }
 
@@ -417,7 +492,12 @@ class AutocorrectManager(context: Context) {
             'v' to setOf('c', 'f', 'g', 'b'),
             'b' to setOf('v', 'g', 'h', 'n'),
             'n' to setOf('b', 'h', 'j', 'm'),
-            'm' to setOf('n', 'j', 'k')
+            'm' to setOf('n', 'j', 'k'),
+            // German umlauts - adjacent to their base letters
+            'ä' to setOf('a', 's', 'q', 'w'),
+            'ö' to setOf('o', 'i', 'p', 'k', 'l'),
+            'ü' to setOf('u', 'y', 'i', 'h', 'j'),
+            'ß' to setOf('s', 'a', 'd')
         )
     }
 }

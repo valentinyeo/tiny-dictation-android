@@ -204,6 +204,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     // Autocorrect
     private var autocorrectManager: AutocorrectManager? = null
+    private var isUrlField = false  // Disable autocorrect in URL/URI input fields
     private var predictionStrip: LinearLayout? = null
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
@@ -1426,6 +1427,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val newLang = if (currentLang == "en") "de" else "en"
         prefs.setLanguage(newLang)
 
+        // Switch autocorrect dictionary to match
+        autocorrectManager?.setLanguage(newLang)
+
         // If currently recording, restart mic to apply new language immediately
         if (isRecording || isProcessing) {
             Log.i(TAG, "Restarting mic to apply language change")
@@ -1967,8 +1971,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 currentInputConnection?.commitText(textToCommit, 1)
                 trackTypedText(textToCommit)  // Track for terminal apps
 
-                // Feed letter to autocorrect (only for actual letters, not numbers/symbols)
-                if (!isNumbersMode && !isTerminalApp && textToCommit.length == 1 && textToCommit[0].isLetter()) {
+                // Feed letter to autocorrect (only for actual letters, not numbers/symbols, not URL fields)
+                if (!isNumbersMode && !isTerminalApp && !isUrlField && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
                     autocorrectManager?.onLetterTyped(textToCommit[0])
                     requestAiCompletion()
@@ -2068,6 +2072,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (autocorrectManager == null) {
             autocorrectManager = AutocorrectManager(this)
         }
+        // Sync autocorrect language with current transcription language
+        val currentLang = PreferenceManager(this).getLanguage()
+        autocorrectManager?.setLanguage(currentLang)
 
         // Find prediction strip views
         predictionStrip = qwertyPanel?.findViewById(R.id.predictionStrip)
@@ -3251,11 +3258,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
-                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
-    
+
                     }
 
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
@@ -3441,11 +3448,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
-                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
-    
+
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3489,11 +3496,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)  // Track for terminal apps
 
-                    if (!isNumbersMode && !isTerminalApp && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
-    
+
                     }
 
                     // Turn off shift after one character (unless caps lock)
@@ -3663,8 +3670,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // cleared on DOWN to prevent fast-typing race conditions)
                     val typed = spaceDownWord
 
-                    if (isTerminalApp) {
-                        // Terminal apps: no autocorrect, no predictions, just space
+                    if (isTerminalApp || isUrlField) {
+                        // Terminal apps / URL fields: no autocorrect, no predictions, just space
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")
                     } else {
@@ -4594,6 +4601,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         super.onStartInputView(info, restarting)
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: onStartInputView called, restarting=$restarting")
+
+        // Detect URL/URI/email input fields - disable autocorrect for these
+        val inputType = info?.inputType ?: 0
+        val variation = inputType and android.text.InputType.TYPE_MASK_VARIATION
+        val wasUrlField = isUrlField
+        isUrlField = variation == android.text.InputType.TYPE_TEXT_VARIATION_URI ||
+                     variation == android.text.InputType.TYPE_TEXT_VARIATION_EMAIL_ADDRESS ||
+                     variation == android.text.InputType.TYPE_TEXT_VARIATION_WEB_EMAIL_ADDRESS
+        if (isUrlField != wasUrlField) {
+            DebugLog.d("DictationKeyboardService: URL field detection: $isUrlField (variation=$variation)")
+        }
 
         // Clear autocorrect state on any input view start to prevent word accumulation
         // (e.g. search bars that trigger restarts, switching fields, etc.)
