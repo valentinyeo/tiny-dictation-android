@@ -22,6 +22,9 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private lateinit var numberRowSwitch: MaterialSwitch
     private lateinit var predictionStripSwitch: MaterialSwitch
     private lateinit var autocorrectSwitch: MaterialSwitch
+    private lateinit var aiNextWordSwitch: MaterialSwitch
+    private lateinit var aiWordCompletionSwitch: MaterialSwitch
+    private lateinit var autoFixSwitch: MaterialSwitch
     private lateinit var compactBarSwitch: MaterialSwitch
     private lateinit var panelClaudeSwitch: MaterialSwitch
     private lateinit var panelShellSwitch: MaterialSwitch
@@ -60,6 +63,9 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         numberRowSwitch = findViewById(R.id.switchNumberRow)
         predictionStripSwitch = findViewById(R.id.switchPredictionStrip)
         autocorrectSwitch = findViewById(R.id.switchAutocorrect)
+        aiNextWordSwitch = findViewById(R.id.switchAiNextWord)
+        aiWordCompletionSwitch = findViewById(R.id.switchAiWordCompletion)
+        autoFixSwitch = findViewById(R.id.switchAutoFix)
         compactBarSwitch = findViewById(R.id.switchCompactBar)
         panelClaudeSwitch = findViewById(R.id.switchPanelClaude)
         panelShellSwitch = findViewById(R.id.switchPanelShell)
@@ -86,6 +92,9 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         numberRowSwitch.isChecked = preferenceManager.getShowNumberRow()
         predictionStripSwitch.isChecked = preferenceManager.getPredictionStripEnabled()
         autocorrectSwitch.isChecked = preferenceManager.getAutocorrectEnabled()
+        aiNextWordSwitch.isChecked = preferenceManager.getAiNextWordEnabled()
+        aiWordCompletionSwitch.isChecked = preferenceManager.getAiWordCompletionEnabled()
+        autoFixSwitch.isChecked = preferenceManager.getAutoFixEnabled()
         compactBarSwitch.isChecked = preferenceManager.getCompactDictationBar()
         panelClaudeSwitch.isChecked = preferenceManager.getPanelClaudeEnabled()
         panelShellSwitch.isChecked = preferenceManager.getPanelShellEnabled()
@@ -124,6 +133,24 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         autocorrectSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setAutocorrectEnabled(isChecked)
             DebugLog.i("Autocorrect setting changed to: $isChecked")
+        }
+
+        // AI Next-Word Prediction toggle
+        aiNextWordSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAiNextWordEnabled(isChecked)
+            DebugLog.i("AI next-word prediction setting changed to: $isChecked")
+        }
+
+        // AI Word Completion toggle
+        aiWordCompletionSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAiWordCompletionEnabled(isChecked)
+            DebugLog.i("AI word completion setting changed to: $isChecked")
+        }
+
+        // Auto-Fix toggle
+        autoFixSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoFixEnabled(isChecked)
+            DebugLog.i("Auto-fix setting changed to: $isChecked")
         }
 
         // Compact dictation bar toggle

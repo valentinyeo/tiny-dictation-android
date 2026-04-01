@@ -207,6 +207,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isUrlField = false  // Disable autocorrect in URL/URI input fields
     private var isPredictionStripEnabled = true  // User setting
     private var isAutocorrectEnabled = true      // User setting
+    private var isAiNextWordEnabled = true       // User setting
+    private var isAiWordCompletionEnabled = true // User setting
+    private var isAutoFixEnabled = true          // User setting
     private var predictionStrip: LinearLayout? = null
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
@@ -2090,6 +2093,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val prefs = PreferenceManager(this)
         isPredictionStripEnabled = prefs.getPredictionStripEnabled()
         isAutocorrectEnabled = prefs.getAutocorrectEnabled()
+        isAiNextWordEnabled = prefs.getAiNextWordEnabled()
+        isAiWordCompletionEnabled = prefs.getAiWordCompletionEnabled()
+        isAutoFixEnabled = prefs.getAutoFixEnabled()
 
         // Initialize autocorrect manager (loads dictionary)
         if (autocorrectManager == null) {
@@ -4113,7 +4119,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Shows progress in prediction strip and offers undo after completion.
      */
     private fun triggerAutoFix() {
-        if (isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
+        if (!isAutoFixEnabled || isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
         if (textImprover == null) {
             textImprover = TextImprover(this)
         }
@@ -4291,7 +4297,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Cancelled if user starts typing before response arrives.
      */
     private fun requestNextWordPrediction() {
-        if (isAutoFixRunning || isTerminalApp) return
+        if (!isAiNextWordEnabled || isAutoFixRunning || isTerminalApp) return
 
         // Clear auto-fix undo if still showing - next-word prediction takes priority
         if (autoFixUndoAvailable) {
@@ -4384,7 +4390,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Debounced: waits 400ms after last keystroke before firing API call.
      */
     private fun requestAiCompletion() {
-        if (isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
+        if (!isAiWordCompletionEnabled || isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
 
         if (nextWordPredictor == null) {
             nextWordPredictor = NextWordPredictor(this)

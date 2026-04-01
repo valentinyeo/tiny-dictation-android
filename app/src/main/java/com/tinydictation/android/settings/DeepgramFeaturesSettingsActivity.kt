@@ -36,6 +36,8 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
     private lateinit var etReplacementReplace: TextInputEditText
     private lateinit var btnAddReplacement: MaterialButton
     private lateinit var layoutReplacementsList: LinearLayout
+    private lateinit var switchSmartFormat: MaterialSwitch
+    private lateinit var switchPunctuate: MaterialSwitch
     private lateinit var switchNumerals: MaterialSwitch
     private lateinit var switchDictation: MaterialSwitch
 
@@ -67,6 +69,8 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         etReplacementReplace = findViewById(R.id.etReplacementReplace)
         btnAddReplacement = findViewById(R.id.btnAddReplacement)
         layoutReplacementsList = findViewById(R.id.layoutReplacementsList)
+        switchSmartFormat = findViewById(R.id.switchSmartFormat)
+        switchPunctuate = findViewById(R.id.switchPunctuate)
         switchNumerals = findViewById(R.id.switchNumerals)
         switchDictation = findViewById(R.id.switchDictation)
     }
@@ -89,6 +93,8 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         refreshReplacementsList()
 
         // Load toggles
+        switchSmartFormat.isChecked = preferenceManager.getSmartFormat()
+        switchPunctuate.isChecked = preferenceManager.getAutoPunctuation()
         switchNumerals.isChecked = preferenceManager.getDeepgramNumerals()
         switchDictation.isChecked = preferenceManager.getDeepgramDictation()
     }
@@ -137,6 +143,16 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
             etReplacementFind.text?.clear()
             etReplacementReplace.text?.clear()
             DebugLog.i("$TAG: Added replacement: $find → $replace")
+        }
+
+        switchSmartFormat.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setSmartFormat(isChecked)
+            DebugLog.i("$TAG: Smart format changed to: $isChecked")
+        }
+
+        switchPunctuate.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoPunctuation(isChecked)
+            DebugLog.i("$TAG: Auto punctuation changed to: $isChecked")
         }
 
         switchNumerals.setOnCheckedChangeListener { _, isChecked ->

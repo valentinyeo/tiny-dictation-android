@@ -39,6 +39,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private var currentLanguage = "en"
     private var currentModel = PreferenceManager.DEEPGRAM_NOVA_2
     var terminalMode = false
+    var smartFormat: Boolean = true
+    var punctuate: Boolean = true
     var keywords: List<String> = emptyList()
     var replacements: List<Pair<String, String>> = emptyList()
     var numerals: Boolean = false
@@ -113,6 +115,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                 language = currentLanguage,
                 model = currentModel,
                 terminalMode = terminalMode,
+                smartFormat = smartFormat,
+                punctuate = punctuate,
                 keywords = keywords,
                 replacements = replacements,
                 numerals = numerals,

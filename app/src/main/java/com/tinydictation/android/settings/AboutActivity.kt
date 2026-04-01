@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.0:
+            • Toggle every feature on/off: Smart Format, Auto Punctuation, Numerals, Dictation (Deepgram Features)
+            • Toggle AI features: Next-Word Prediction, Word Completion, Auto-Fix Sentences (Appearance)
+            • Disabling features reduces latency — fewer API calls = faster keyboard
+            • Smart Format and Auto Punctuation now respect user settings (were previously hardcoded on)
+
             v1.38.1:
             • Settings to disable word predictions and autocorrect (Appearance → toggles)
             • Auto-mute mic when opening QWERTY keyboard panel for typing (grey mic)

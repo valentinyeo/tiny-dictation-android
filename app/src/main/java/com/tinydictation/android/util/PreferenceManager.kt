@@ -46,6 +46,9 @@ class PreferenceManager(context: Context) {
         private const val KEY_COMPACT_DICTATION_BAR = "compact_dictation_bar"
         private const val KEY_PREDICTION_STRIP_ENABLED = "prediction_strip_enabled"
         private const val KEY_AUTOCORRECT_ENABLED = "autocorrect_enabled"
+        private const val KEY_AI_NEXT_WORD_ENABLED = "ai_next_word_enabled"
+        private const val KEY_AI_WORD_COMPLETION_ENABLED = "ai_word_completion_enabled"
+        private const val KEY_AUTO_FIX_ENABLED = "auto_fix_enabled"
         private const val KEY_PUSH_TO_TALK = "push_to_talk_enabled"
         private const val KEY_PANEL_CLAUDE_ENABLED = "panel_claude_enabled"
         private const val KEY_PANEL_SHELL_ENABLED = "panel_shell_enabled"
@@ -832,6 +835,30 @@ class PreferenceManager(context: Context) {
 
     fun setAutocorrectEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_AUTOCORRECT_ENABLED, enabled).apply()
+    }
+
+    fun getAiNextWordEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AI_NEXT_WORD_ENABLED, true)
+    }
+
+    fun setAiNextWordEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AI_NEXT_WORD_ENABLED, enabled).apply()
+    }
+
+    fun getAiWordCompletionEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AI_WORD_COMPLETION_ENABLED, true)
+    }
+
+    fun setAiWordCompletionEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AI_WORD_COMPLETION_ENABLED, enabled).apply()
+    }
+
+    fun getAutoFixEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AUTO_FIX_ENABLED, true)
+    }
+
+    fun setAutoFixEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTO_FIX_ENABLED, enabled).apply()
     }
 
     // ========== Push-to-Talk Mode ==========

@@ -684,6 +684,8 @@ class TranscriptionManager(
             engine?.setModel(preferenceManager.getDeepgramModel())
             if (autoDetect) engine?.setAutoDetectLanguage(true)
             // Set Deepgram-specific features
+            engine?.smartFormat = preferenceManager.getSmartFormat()
+            engine?.punctuate = preferenceManager.getAutoPunctuation()
             engine?.keywords = preferenceManager.getDeepgramKeywords(currentLanguage)
             engine?.replacements = preferenceManager.getDeepgramReplacements(currentLanguage)
             engine?.numerals = preferenceManager.getDeepgramNumerals()

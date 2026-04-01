@@ -48,6 +48,8 @@ class DeepgramClient {
             language: String = "en",
             model: String = "nova-2",
             terminalMode: Boolean = false,
+            smartFormat: Boolean = true,
+            punctuate: Boolean = true,
             keywords: List<String> = emptyList(),
             replacements: List<Pair<String, String>> = emptyList(),
             numerals: Boolean = false,
@@ -63,8 +65,8 @@ class DeepgramClient {
                 params.append("&interim_results=false")
                 params.append("&endpointing=150")
             } else {
-                params.append("&smart_format=true")
-                params.append("&punctuate=true")
+                params.append("&smart_format=$smartFormat")
+                params.append("&punctuate=$punctuate")
                 params.append("&interim_results=true")
                 params.append("&endpointing=150")
             }
@@ -137,6 +139,8 @@ class DeepgramClient {
         language: String = "en",
         model: String = "nova-2",
         terminalMode: Boolean = false,
+        smartFormat: Boolean = true,
+        punctuate: Boolean = true,
         keywords: List<String> = emptyList(),
         replacements: List<Pair<String, String>> = emptyList(),
         numerals: Boolean = false,
@@ -174,7 +178,7 @@ class DeepgramClient {
                 .build()
             okHttpClient = client
 
-            val params = buildParams(language, model, terminalMode, keywords, replacements, numerals, dictation)
+            val params = buildParams(language, model, terminalMode, smartFormat, punctuate, keywords, replacements, numerals, dictation)
             val url = "$BASE_URL?$params"
             Log.d(TAG, "Deepgram URL: $url (language=$language, model=$model)")
 
