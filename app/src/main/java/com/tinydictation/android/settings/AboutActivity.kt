@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.1:
+            • Unified "Corrections" settings page — all correction features in one place
+            • Three sections: During Dictation (Deepgram), After Dictation (AI), While Typing
+            • Every correction layer is now independently toggleable
+            • Moved correction toggles out of Appearance into dedicated Corrections page
+
             v1.39.0:
             • Toggle every feature on/off: Smart Format, Auto Punctuation, Numerals, Dictation (Deepgram Features)
             • Toggle AI features: Next-Word Prediction, Word Completion, Auto-Fix Sentences (Appearance)
