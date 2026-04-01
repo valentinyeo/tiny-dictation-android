@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.38.1:
+            • Settings to disable word predictions and autocorrect (Appearance → toggles)
+            • Auto-mute mic when opening QWERTY keyboard panel for typing (grey mic)
+            • Manual unmute required to resume dictation after typing
+
             v1.38.0:
             • German dictionary support (50,000 words with umlauts)
             • Language switch button now also switches autocorrect/predictions dictionary

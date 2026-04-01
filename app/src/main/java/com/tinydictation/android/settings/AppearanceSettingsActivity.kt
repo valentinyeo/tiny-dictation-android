@@ -20,6 +20,8 @@ class AppearanceSettingsActivity : AppCompatActivity() {
 
     private lateinit var keyboardThemeDropdown: AutoCompleteTextView
     private lateinit var numberRowSwitch: MaterialSwitch
+    private lateinit var predictionStripSwitch: MaterialSwitch
+    private lateinit var autocorrectSwitch: MaterialSwitch
     private lateinit var compactBarSwitch: MaterialSwitch
     private lateinit var panelClaudeSwitch: MaterialSwitch
     private lateinit var panelShellSwitch: MaterialSwitch
@@ -56,6 +58,8 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private fun initViews() {
         keyboardThemeDropdown = findViewById(R.id.actvKeyboardTheme)
         numberRowSwitch = findViewById(R.id.switchNumberRow)
+        predictionStripSwitch = findViewById(R.id.switchPredictionStrip)
+        autocorrectSwitch = findViewById(R.id.switchAutocorrect)
         compactBarSwitch = findViewById(R.id.switchCompactBar)
         panelClaudeSwitch = findViewById(R.id.switchPanelClaude)
         panelShellSwitch = findViewById(R.id.switchPanelShell)
@@ -80,6 +84,8 @@ class AppearanceSettingsActivity : AppCompatActivity() {
 
     private fun loadSettings() {
         numberRowSwitch.isChecked = preferenceManager.getShowNumberRow()
+        predictionStripSwitch.isChecked = preferenceManager.getPredictionStripEnabled()
+        autocorrectSwitch.isChecked = preferenceManager.getAutocorrectEnabled()
         compactBarSwitch.isChecked = preferenceManager.getCompactDictationBar()
         panelClaudeSwitch.isChecked = preferenceManager.getPanelClaudeEnabled()
         panelShellSwitch.isChecked = preferenceManager.getPanelShellEnabled()
@@ -106,6 +112,18 @@ class AppearanceSettingsActivity : AppCompatActivity() {
             preferenceManager.setShowNumberRow(isChecked)
             DebugLog.i("Number row setting changed to: $isChecked")
             // Note: Keyboard needs to be reopened to see the change
+        }
+
+        // Prediction strip toggle
+        predictionStripSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setPredictionStripEnabled(isChecked)
+            DebugLog.i("Prediction strip setting changed to: $isChecked")
+        }
+
+        // Autocorrect toggle
+        autocorrectSwitch.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutocorrectEnabled(isChecked)
+            DebugLog.i("Autocorrect setting changed to: $isChecked")
         }
 
         // Compact dictation bar toggle

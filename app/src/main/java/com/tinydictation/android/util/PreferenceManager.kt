@@ -44,6 +44,8 @@ class PreferenceManager(context: Context) {
         private const val KEY_SHOW_NUMBER_ROW = "show_number_row"
         
         private const val KEY_COMPACT_DICTATION_BAR = "compact_dictation_bar"
+        private const val KEY_PREDICTION_STRIP_ENABLED = "prediction_strip_enabled"
+        private const val KEY_AUTOCORRECT_ENABLED = "autocorrect_enabled"
         private const val KEY_PUSH_TO_TALK = "push_to_talk_enabled"
         private const val KEY_PANEL_CLAUDE_ENABLED = "panel_claude_enabled"
         private const val KEY_PANEL_SHELL_ENABLED = "panel_shell_enabled"
@@ -812,6 +814,24 @@ class PreferenceManager(context: Context) {
      */
     fun setCompactDictationBar(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_COMPACT_DICTATION_BAR, enabled).apply()
+    }
+
+    // ========== Prediction Strip & Autocorrect Settings ==========
+
+    fun getPredictionStripEnabled(): Boolean {
+        return prefs.getBoolean(KEY_PREDICTION_STRIP_ENABLED, true)
+    }
+
+    fun setPredictionStripEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PREDICTION_STRIP_ENABLED, enabled).apply()
+    }
+
+    fun getAutocorrectEnabled(): Boolean {
+        return prefs.getBoolean(KEY_AUTOCORRECT_ENABLED, true)
+    }
+
+    fun setAutocorrectEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_AUTOCORRECT_ENABLED, enabled).apply()
     }
 
     // ========== Push-to-Talk Mode ==========

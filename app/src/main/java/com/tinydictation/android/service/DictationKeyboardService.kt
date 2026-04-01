@@ -205,6 +205,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Autocorrect
     private var autocorrectManager: AutocorrectManager? = null
     private var isUrlField = false  // Disable autocorrect in URL/URI input fields
+    private var isPredictionStripEnabled = true  // User setting
+    private var isAutocorrectEnabled = true      // User setting
     private var predictionStrip: LinearLayout? = null
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
@@ -1693,6 +1695,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         keyboardTabbedPanel?.visibility = if (isKeyboardPanelVisible) View.VISIBLE else View.GONE
         updateKeyboardButtonState()
 
+        // Auto-mute mic when opening keyboard panel for typing (user must manually unmute)
+        if (isKeyboardPanelVisible && !isMuteLocked && !isPushToTalkMode) {
+            isMuteLocked = true
+            if (isRecording || isProcessing || isStandby) {
+                transcriptionManager?.stopListening()
+                isRecording = false
+                isProcessing = false
+                isStandby = false
+            }
+            updateMicButton()
+            DebugLog.i("DictationKeyboardService: Auto-muted mic for typing")
+        }
+
         // Reset to letters mode when closing the keyboard
         if (!isKeyboardPanelVisible && isNumbersMode) {
             isNumbersMode = false
@@ -1974,9 +1989,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 // Feed letter to autocorrect (only for actual letters, not numbers/symbols, not URL fields)
                 if (!isNumbersMode && !isTerminalApp && !isUrlField && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
-                    autocorrectManager?.onLetterTyped(textToCommit[0])
-                    requestAiCompletion()
-
+                    if (isAutocorrectEnabled || isPredictionStripEnabled) {
+                        autocorrectManager?.onLetterTyped(textToCommit[0])
+                    }
+                    if (isPredictionStripEnabled) {
+                        requestAiCompletion()
+                    }
                 }
 
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
@@ -2068,12 +2086,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Sets up the autocorrect manager and wires up the prediction strip.
      */
     private fun setupAutocorrect() {
+        // Read user settings
+        val prefs = PreferenceManager(this)
+        isPredictionStripEnabled = prefs.getPredictionStripEnabled()
+        isAutocorrectEnabled = prefs.getAutocorrectEnabled()
+
         // Initialize autocorrect manager (loads dictionary)
         if (autocorrectManager == null) {
             autocorrectManager = AutocorrectManager(this)
         }
         // Sync autocorrect language with current transcription language
-        val currentLang = PreferenceManager(this).getLanguage()
+        val currentLang = prefs.getLanguage()
         autocorrectManager?.setLanguage(currentLang)
 
         // Find prediction strip views
@@ -2082,13 +2105,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        // Sentence prediction bar
+        // Hide prediction strip if disabled (keeps 43dp space to avoid resizing keys)
+        if (!isPredictionStripEnabled) {
+            prediction1?.visibility = View.INVISIBLE
+            prediction2?.visibility = View.INVISIBLE
+            prediction3?.visibility = View.INVISIBLE
+        }
 
-        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, predictions=$isPredictionStripEnabled, autocorrect=$isAutocorrectEnabled")
 
-        // Set up suggestion callback
+        // Set up suggestion callback (only updates strip if predictions enabled)
         autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
-            updatePredictionStrip(typed, suggestions)
+            if (isPredictionStripEnabled) {
+                updatePredictionStrip(typed, suggestions)
+            }
         }
 
         // Set up prediction strip tap handlers
@@ -3670,8 +3700,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // cleared on DOWN to prevent fast-typing race conditions)
                     val typed = spaceDownWord
 
-                    if (isTerminalApp || isUrlField) {
-                        // Terminal apps / URL fields: no autocorrect, no predictions, just space
+                    if (isTerminalApp || isUrlField || !isAutocorrectEnabled) {
+                        // Terminal apps / URL fields / autocorrect disabled: no autocorrect, just space
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")
                     } else {
