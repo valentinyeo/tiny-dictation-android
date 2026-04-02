@@ -10,6 +10,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.inputmethodservice.InputMethodService
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -170,6 +172,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isProcessing = false
     private var isStandby = false  // True when in standby/hibernation mode
     private var isMuteLocked = false  // True when mic is locked muted via long press
+    private var wasAutoMutedByPlayback = false  // True when auto-muted due to phone audio playback
+    private var audioPlaybackCallback: AudioManager.AudioPlaybackCallback? = null
 
     // Push-to-talk mode
     private var isPushToTalkMode = false  // Persisted via PreferenceManager
@@ -489,6 +493,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Initialize text improver (uses Anthropic API)
         textImprover = TextImprover(this)
 
+        // Register audio playback callback to detect when phone plays audio
+        // (e.g., WhatsApp voice messages, YouTube, music) and auto-pause transcription
+        registerAudioPlaybackCallback()
     }
 
     /**
@@ -652,6 +659,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardHistoryManager?.removeOnHistoryChangedListener(this)
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
+
+        // Unregister audio playback callback
+        unregisterAudioPlaybackCallback()
 
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
@@ -1306,6 +1316,60 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         updateMicButton()
+    }
+
+    /**
+     * Registers AudioPlaybackCallback to detect when the phone plays audio
+     * (WhatsApp voice messages, YouTube, music, etc.) and auto-pause transcription.
+     */
+    private fun registerAudioPlaybackCallback() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioPlaybackCallback = object : AudioManager.AudioPlaybackCallback() {
+            override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) {
+                val hasActivePlayback = configs.isNotEmpty()
+                Handler(Looper.getMainLooper()).post {
+                    if (hasActivePlayback && !isMuteLocked && !isPushToTalkMode &&
+                        (isRecording || isProcessing || isStandby)) {
+                        // Phone is playing audio — auto-mute to prevent transcribing it
+                        wasAutoMutedByPlayback = true
+                        isMuteLocked = true
+                        transcriptionManager?.stopListening()
+                        isRecording = false
+                        isProcessing = false
+                        isStandby = false
+                        updateMicButton()
+                        DebugLog.i("DictationKeyboardService: Auto-muted — phone playing audio")
+                    } else if (!hasActivePlayback && wasAutoMutedByPlayback && isMuteLocked) {
+                        // Audio stopped — auto-unmute
+                        wasAutoMutedByPlayback = false
+                        isMuteLocked = false
+                        if (transcriptionManager == null) {
+                            initializeTranscriptionManager()
+                        }
+                        transcriptionManager?.let { manager ->
+                            try {
+                                manager.startListening()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error restarting after audio playback ended", e)
+                            }
+                        }
+                        updateMicButton()
+                        DebugLog.i("DictationKeyboardService: Auto-unmuted — phone audio stopped")
+                    }
+                }
+            }
+        }
+        audioManager.registerAudioPlaybackCallback(audioPlaybackCallback!!, Handler(Looper.getMainLooper()))
+        DebugLog.d("DictationKeyboardService: Audio playback callback registered")
+    }
+
+    private fun unregisterAudioPlaybackCallback() {
+        audioPlaybackCallback?.let { callback ->
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.unregisterAudioPlaybackCallback(callback)
+            DebugLog.d("DictationKeyboardService: Audio playback callback unregistered")
+        }
+        audioPlaybackCallback = null
     }
 
     private fun enterPushToTalkMode() {

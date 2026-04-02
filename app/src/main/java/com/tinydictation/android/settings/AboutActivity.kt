@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.2:
+            • Auto-pause transcription when phone plays audio (WhatsApp voice messages, YouTube, music)
+            • Auto-resume when audio stops — no manual unmute needed
+            • Prevents mic from transcribing phone speaker output
+
             v1.39.1:
             • Unified "Corrections" settings page — all correction features in one place
             • Three sections: During Dictation (Deepgram), After Dictation (AI), While Typing
