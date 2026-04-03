@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.3:
+            • Hide prediction strip completely when disabled (keyboard is shorter now)
+            • Swipe up on dictation bar to open keyboard panel
+            • Swipe down on keyboard panel to close it
+
             v1.39.2:
             • Auto-pause transcription when phone plays audio (WhatsApp voice messages, YouTube, music)
             • Auto-resume when audio stops — no manual unmute needed

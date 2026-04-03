@@ -1828,10 +1828,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         tabClipboard?.visibility = if (prefs.getPanelClipboardEnabled()) View.VISIBLE else View.GONE
         tabHistory?.visibility = if (prefs.getPanelHistoryEnabled()) View.VISIBLE else View.GONE
 
-        // Pass all touch events through to the target panel (no swipe gestures)
+        // Swipe overlay: detect swipe-down to close panel, pass other touches through
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
+        var overlayDownY = 0f
+        var overlayDownX = 0f
+        var overlaySwipeHandled = false
         swipeOverlay?.setOnTouchListener { _, event ->
-            // Get the target panel for passing through events (7 tabs)
             val targetPanel = when (currentKeyboardTab) {
                 0 -> qwertyPanel
                 1 -> cursorNumpadPanel
@@ -1842,7 +1844,69 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 6 -> historyTabPanel
                 else -> null
             }
-            targetPanel?.dispatchTouchEvent(event)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    overlayDownY = event.rawY
+                    overlayDownX = event.rawX
+                    overlaySwipeHandled = false
+                    targetPanel?.dispatchTouchEvent(event)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = event.rawY - overlayDownY
+                    val dx = Math.abs(event.rawX - overlayDownX)
+                    if (!overlaySwipeHandled && dy > 80 && dy > dx) {
+                        // Swipe down detected — close keyboard panel
+                        overlaySwipeHandled = true
+                        // Send cancel to target so it doesn't act on the partial gesture
+                        val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                        targetPanel?.dispatchTouchEvent(cancel)
+                        cancel.recycle()
+                        if (isKeyboardPanelVisible) toggleKeyboardPanel()
+                    } else if (!overlaySwipeHandled) {
+                        targetPanel?.dispatchTouchEvent(event)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!overlaySwipeHandled) {
+                        targetPanel?.dispatchTouchEvent(event)
+                    }
+                }
+                else -> targetPanel?.dispatchTouchEvent(event)
+            }
+            true
+        }
+
+        // Swipe up on dictation bar to open keyboard panel
+        val dictationBar = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
+        var barDownY = 0f
+        var barDownX = 0f
+        var barSwipeHandled = false
+        dictationBar?.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    barDownY = event.rawY
+                    barDownX = event.rawX
+                    barSwipeHandled = false
+                    // Let the ScrollView handle horizontal scrolling
+                    v.onTouchEvent(event)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = barDownY - event.rawY  // positive = swipe up
+                    val dx = Math.abs(event.rawX - barDownX)
+                    if (!barSwipeHandled && dy > 80 && dy > dx) {
+                        barSwipeHandled = true
+                        if (!isKeyboardPanelVisible) toggleKeyboardPanel()
+                    } else {
+                        v.onTouchEvent(event)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!barSwipeHandled) {
+                        v.onTouchEvent(event)
+                    }
+                }
+                else -> v.onTouchEvent(event)
+            }
             true
         }
 
@@ -2175,11 +2239,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        // Hide prediction strip if disabled (keeps 43dp space to avoid resizing keys)
+        // Hide entire prediction strip if disabled (saves vertical space)
         if (!isPredictionStripEnabled) {
-            prediction1?.visibility = View.INVISIBLE
-            prediction2?.visibility = View.INVISIBLE
-            prediction3?.visibility = View.INVISIBLE
+            predictionStrip?.visibility = View.GONE
         }
 
         DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, predictions=$isPredictionStripEnabled, autocorrect=$isAutocorrectEnabled")
