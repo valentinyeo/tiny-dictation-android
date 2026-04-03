@@ -2239,9 +2239,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        // Hide entire prediction strip if disabled (saves vertical space)
+        // Hide prediction strip AND shrink container so key sizes stay identical
         if (!isPredictionStripEnabled) {
             predictionStrip?.visibility = View.GONE
+            // Reduce container height by 50dp (43dp strip + 7dp margin) to keep keys same size
+            val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
+            container?.let {
+                val reducePx = (50 * resources.displayMetrics.density).toInt()
+                it.layoutParams = it.layoutParams.apply { height -= reducePx }
+            }
         }
 
         DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, predictions=$isPredictionStripEnabled, autocorrect=$isAutocorrectEnabled")
