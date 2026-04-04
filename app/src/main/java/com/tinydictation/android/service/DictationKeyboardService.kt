@@ -701,6 +701,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
+        // Force IME window background and navigation bar to black (prevents white bar in light mode)
+        window?.window?.let { w ->
+            w.navigationBarColor = Color.BLACK
+            w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.BLACK))
+        }
+
         return try {
             // Reset lazy-loaded panel state before creating new view
             // This ensures panels are re-inflated and listeners re-registered

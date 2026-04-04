@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.40.1:
+            • Fix white bar below keyboard in light mode (force IME window to black)
+
             v1.40.0:
             • Fat finger correction: taps between keys now register on nearest key
             • Screen awake button: keep screen on while keyboard is open (sun icon in dictation bar)
