@@ -701,10 +701,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
-        // Force IME window background and navigation bar to black (prevents white bar in light mode)
+        // Force IME window to black (prevents white bar in light mode)
         window?.window?.let { w ->
             w.navigationBarColor = Color.BLACK
-            w.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.BLACK))
+            w.decorView?.setBackgroundColor(Color.BLACK)
         }
 
         return try {
@@ -762,6 +762,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             updateLanguageButton()
             setupVersionDisplay()
             scrollDictationBarToDefault()
+
+            // Force all parent views to black after attachment (fixes white bar in light mode)
+            keyboardView!!.post {
+                var parent = keyboardView?.parent
+                while (parent is View) {
+                    (parent as View).setBackgroundColor(Color.BLACK)
+                    parent = parent.getParent()
+                }
+            }
 
             keyboardView!!
         } catch (e: Exception) {
