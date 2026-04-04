@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.5:
+            • Fix white bar below keyboard in light/day mode
+
             v1.39.4:
             • Fix: hide prediction strip AND shrink container so key sizes stay identical
             • Keyboard is now 50dp shorter when predictions are off
