@@ -252,6 +252,24 @@
                         app:tint="@color/keyboard_key_text" />
                 </FrameLayout>
 
+                <!-- 12. Screen awake button - keeps screen on -->
+                <FrameLayout
+                    android:id="@+id/btnScreenAwake"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="6dp"
+                    android:background="@drawable/keyboard_button_background"
+                    android:contentDescription="Keep screen awake">
+
+                    <ImageView
+                        android:id="@+id/ivScreenAwake"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:layout_gravity="center"
+                        android:src="@drawable/ic_screen_lock"
+                        app:tint="@color/keyboard_key_text" />
+                </FrameLayout>
+
             </LinearLayout>
         </HorizontalScrollView>
 

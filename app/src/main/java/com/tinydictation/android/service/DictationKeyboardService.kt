@@ -14,6 +14,7 @@ import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.content.pm.PackageManager
 import android.os.Build
@@ -174,6 +175,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isMuteLocked = false  // True when mic is locked muted via long press
     private var wasAutoMutedByPlayback = false  // True when auto-muted due to phone audio playback
     private var audioPlaybackCallback: AudioManager.AudioPlaybackCallback? = null
+
+    // Screen awake (keep screen on)
+    private var isScreenAwake = false
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var screenAwakeButton: FrameLayout? = null
+    private var screenAwakeIcon: ImageView? = null
 
     // Push-to-talk mode
     private var isPushToTalkMode = false  // Persisted via PreferenceManager
@@ -666,6 +673,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
 
+        // Release wake lock if held
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+        isScreenAwake = false
+
         instance = null
         doubleTapHandler?.removeCallbacksAndMessages(null)
         isBackspaceHeld = false
@@ -1012,13 +1024,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val standardButtons = listOf(
             R.id.btnSelectAll, R.id.btnEmoji, R.id.btnSpace, R.id.btnLanguage,
             R.id.btnBackspace, R.id.btnKeyboardMic, R.id.btnEnter,
-            R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove
+            R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove, R.id.btnScreenAwake
         )
 
         // Standard icons inside those buttons
         val standardIcons = listOf(
             R.id.ivSelectAll, R.id.ivEmoji, R.id.ivSpace, R.id.ivBackspace,
-            R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove
+            R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove,
+            R.id.ivScreenAwake
         )
 
         // Apply compact size to standard buttons
@@ -1165,6 +1178,39 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         improveButton?.setOnClickListener {
             improveText()
         }
+
+        // Screen awake button - toggle keep screen on
+        screenAwakeButton = keyboardView?.findViewById(R.id.btnScreenAwake)
+        screenAwakeIcon = keyboardView?.findViewById(R.id.ivScreenAwake)
+        screenAwakeButton?.setOnClickListener {
+            toggleScreenAwake()
+        }
+        updateScreenAwakeButton()
+    }
+
+    private fun toggleScreenAwake() {
+        isScreenAwake = !isScreenAwake
+        if (isScreenAwake) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "TinyDictation::ScreenAwake"
+            )
+            wakeLock?.acquire()
+            DebugLog.i("DictationKeyboardService: Screen awake ON")
+        } else {
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+            wakeLock = null
+            DebugLog.i("DictationKeyboardService: Screen awake OFF")
+        }
+        updateScreenAwakeButton()
+    }
+
+    private fun updateScreenAwakeButton() {
+        val color = if (isScreenAwake) Color.parseColor("#FFD700") else Color.WHITE  // Gold when active
+        screenAwakeIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
     /**
@@ -2209,8 +2255,85 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             toggleNumbersMode()
         }
 
+        // Fat finger correction: intercept touches on QWERTY rows and route to nearest key
+        setupProximityTouchOnRows()
+
         // Autocorrect and prediction strip
         setupAutocorrect()
+    }
+
+    /**
+     * Fat finger correction: intercepts touches on each QWERTY letter row
+     * and routes them to the nearest key by center distance.
+     * This means taps in the gap between keys (the 4dp margins) still register
+     * on the closest key, and edge taps on the wrong key get corrected.
+     */
+    private fun setupProximityTouchOnRows() {
+        val panel = qwertyPanel as? LinearLayout ?: return
+        // Letter rows are children 2,3,4 (index: 0=prediction, 1=number row, 2=QWERTY row1, 3=row2, 4=row3)
+        // But if prediction/number row are GONE, indices shift. Find rows by their letter key content.
+        // Safer approach: iterate children and find LinearLayouts that contain letter keys
+        val letterRowIds = listOf(
+            listOf(R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
+                   R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p),
+            listOf(R.id.key_a, R.id.key_s, R.id.key_d, R.id.key_f, R.id.key_g,
+                   R.id.key_h, R.id.key_j, R.id.key_k, R.id.key_l),
+            listOf(R.id.key_z, R.id.key_x, R.id.key_c, R.id.key_v,
+                   R.id.key_b, R.id.key_n, R.id.key_m)
+        )
+
+        for (i in 0 until panel.childCount) {
+            val row = panel.getChildAt(i) as? LinearLayout ?: continue
+            // Check if this row contains any of our letter key IDs
+            val rowKeyIds = letterRowIds.firstOrNull { ids ->
+                ids.any { row.findViewById<View>(it) != null }
+            } ?: continue
+
+            // Collect the actual key views in this row (FrameLayouts or TextViews with letter IDs)
+            val keyViews = mutableListOf<View>()
+            for (id in rowKeyIds) {
+                // Keys are either direct TextViews or inside FrameLayouts
+                val view = row.findViewById<View>(id)
+                // Use the parent FrameLayout if it's a KeyboardKeyFrame, otherwise the view itself
+                val target = if (view?.parent is FrameLayout && view.parent != row) {
+                    view.parent as View
+                } else {
+                    view
+                }
+                if (target != null) keyViews.add(target)
+            }
+
+            row.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    // Find the nearest key by center distance
+                    var nearestKey: View? = null
+                    var minDist = Float.MAX_VALUE
+                    val touchX = event.x
+                    val touchY = event.y
+
+                    for (key in keyViews) {
+                        val centerX = key.left + key.width / 2f
+                        val centerY = key.top + key.height / 2f
+                        val dx = touchX - centerX
+                        val dy = touchY - centerY
+                        val dist = dx * dx + dy * dy
+                        if (dist < minDist) {
+                            minDist = dist
+                            nearestKey = key
+                        }
+                    }
+
+                    nearestKey?.let {
+                        it.performClick()
+                        it.isPressed = true
+                        it.postDelayed({ it.isPressed = false }, 100)
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /**
