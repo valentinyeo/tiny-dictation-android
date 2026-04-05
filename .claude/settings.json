@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(nice -n 19 ./gradlew*)",
+      "Bash(cp app/build/outputs/*)",
+      "Read",
+      "Glob",
+      "Grep"
+    ]
+  }
+}

@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 363
-        versionName = "1.40.3"
+        versionCode = 364
+        versionName = "1.41.0"
     }
 
     // Generate separate APKs per ABI to reduce size
@@ -68,6 +68,16 @@ android {
     buildFeatures {
         viewBinding = true
     }
+
+    testOptions {
+        unitTests.all {
+            it.useJUnitPlatform()
+        }
+    }
+}
+
+dependencyLocking {
+    lockAllConfigurations()
 }
 
 dependencies {
@@ -112,4 +122,8 @@ dependencies {
 
     // Glide for loading GIF images
     implementation("com.github.bumptech.glide:glide:4.16.0")
+
+    // Unit testing
+    testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
+    testImplementation("com.google.truth:truth:1.4.2")
 }

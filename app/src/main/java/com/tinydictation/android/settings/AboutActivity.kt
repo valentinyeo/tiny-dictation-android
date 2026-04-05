@@ -35,6 +35,12 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.41.0:
+            • Codebase health: extract QwertyDisplayHelper (130 lines out of god-class)
+            • Add 37 unit tests for VoiceCommandProcessor
+            • Add .editorconfig, Gradle dependency locking
+            • Add .claude/settings.json for AI agent permissions
+
             v1.40.3:
             • Fix white bar: fitsSystemWindows + disable nav bar contrast enforcement
 
