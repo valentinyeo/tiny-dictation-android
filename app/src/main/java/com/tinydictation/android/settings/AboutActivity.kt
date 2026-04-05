@@ -35,8 +35,8 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
-            v1.40.2:
-            • Fix white bar: force all IME parent views to black background
+            v1.40.3:
+            • Fix white bar: fitsSystemWindows + disable nav bar contrast enforcement
 
             v1.40.0:
             • Fat finger correction: taps between keys now register on nearest key

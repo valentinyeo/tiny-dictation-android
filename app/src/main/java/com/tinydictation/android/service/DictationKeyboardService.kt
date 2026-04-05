@@ -705,6 +705,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         window?.window?.let { w ->
             w.navigationBarColor = Color.BLACK
             w.decorView?.setBackgroundColor(Color.BLACK)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                w.isNavigationBarContrastEnforced = false
+            }
         }
 
         return try {
