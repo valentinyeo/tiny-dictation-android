@@ -35,6 +35,10 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.41.1:
+            • Fix headset mic: use DEFAULT audio source instead of VOICE_RECOGNITION when headset selected
+            • VOICE_RECOGNITION ignores setPreferredDevice() on many Android devices, routing to built-in mic
+
             v1.41.0:
             • Codebase health: extract QwertyDisplayHelper (130 lines out of god-class)
             • Add 37 unit tests for VoiceCommandProcessor

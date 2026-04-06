@@ -270,8 +270,10 @@ class AudioRecorder {
                 }
             }
 
-            // Choose audio source - use DEFAULT for Bluetooth SCO, VOICE_RECOGNITION otherwise
-            val audioSource = if (needsBluetoothSco && bluetoothScoStarted) {
+            // Choose audio source:
+            // - DEFAULT when headset mic requested (VOICE_RECOGNITION ignores setPreferredDevice on many devices)
+            // - VOICE_RECOGNITION for built-in mic (better noise cancellation, echo suppression)
+            val audioSource = if (useHeadphoneMic && headsetMic != null) {
                 MediaRecorder.AudioSource.DEFAULT
             } else {
                 MediaRecorder.AudioSource.VOICE_RECOGNITION
