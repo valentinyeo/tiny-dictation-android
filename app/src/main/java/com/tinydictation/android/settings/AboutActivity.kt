@@ -35,6 +35,11 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.41.2:
+            • Tab labels (ABC/123/Agent/Shell/Snip/Clip/Hist): bigger (13sp) and higher contrast
+            • Active tab: light purple; inactive tabs: light gray (readable on black)
+            • Removed the thin selected-tab underline bar
+
             v1.41.1:
             • Fix headset mic: use DEFAULT audio source instead of VOICE_RECOGNITION when headset selected
             • VOICE_RECOGNITION ignores setPreferredDevice() on many Android devices, routing to built-in mic

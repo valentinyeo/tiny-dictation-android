@@ -130,7 +130,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var tabSnippets: TextView? = null
     private var tabClipboard: TextView? = null
     private var tabHistory: TextView? = null
-    private var tabIndicator: View? = null
     private var qwertyPanel: View? = null
     private var cursorNumpadPanel: View? = null
     private var claudePanel: View? = null
@@ -746,7 +745,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             tabSnippets = keyboardTabbedPanel?.findViewById(R.id.tabSnippets)
             tabClipboard = keyboardTabbedPanel?.findViewById(R.id.tabClipboard)
             tabHistory = keyboardTabbedPanel?.findViewById(R.id.tabHistory)
-            tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             qwertyDisplayHelper = qwertyPanel?.let { QwertyDisplayHelper(it) }
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
@@ -2116,23 +2114,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Updates the tab indicator position and colors for 7 tabs.
      */
     private fun updateTabIndicator() {
-        val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
-        val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
+        val activeColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_active)
+        val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_inactive)
 
-        // Update tab colors - active tab gets primary color
+        // Update tab colors - active tab gets light purple, inactive gets light gray (high contrast on black)
         val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabSnippets, tabClipboard, tabHistory)
         tabs.forEachIndexed { index, tab ->
-            tab?.setTextColor(if (index == currentKeyboardTab) primaryColor else inactiveColor)
-        }
-
-        // Update indicator position (1/7 width, positioned under selected tab)
-        tabIndicator?.post {
-            val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
-            val indicatorWidth = parentWidth / 7
-            tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
-                width = indicatorWidth
-            }
-            tabIndicator?.translationX = (currentKeyboardTab * indicatorWidth).toFloat()
+            tab?.setTextColor(if (index == currentKeyboardTab) activeColor else inactiveColor)
         }
     }
 
