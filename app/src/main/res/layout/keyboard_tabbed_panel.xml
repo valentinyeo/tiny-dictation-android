@@ -22,7 +22,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="ABC"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_active"
             android:background="@android:color/transparent" />
@@ -34,7 +34,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="123"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
@@ -46,7 +46,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Agent"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
@@ -58,7 +58,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Shell"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
@@ -70,7 +70,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Snip"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
@@ -82,7 +82,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Clip"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
@@ -94,7 +94,7 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Hist"
-            android:textSize="13sp"
+            android:textSize="16sp"
             android:textStyle="bold"
             android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />

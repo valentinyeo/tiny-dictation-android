@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.41.3:
+            • Tab labels bumped up again: 13sp -> 16sp for easier reading
+
             v1.41.2:
             • Tab labels (ABC/123/Agent/Shell/Snip/Clip/Hist): bigger (13sp) and higher contrast
             • Active tab: light purple; inactive tabs: light gray (readable on black)
