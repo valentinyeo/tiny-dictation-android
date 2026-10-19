@@ -16,7 +16,7 @@ class DeepgramErrorsTest {
             "Deepgram rejected the API key. Open Settings > API Keys and paste a new key.",
             error.message
         )
-        assertTrue(error.fatal)
+        assertFalse(error.fatal)
     }
 
     @Test
