@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.os.SystemClock
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
@@ -77,12 +78,8 @@ class TranscriptionManager(
     private var isEngineConnected = false
     private val audioBuffer = mutableListOf<ShortArray>()
     private val AUDIO_BUFFER_MAX_CHUNKS = 25  // ~500ms of audio at 20ms chunks
-    private val SPEECH_RMS_THRESHOLD = 800    // RMS threshold to detect speech start
-    private val SILENCE_RMS_THRESHOLD = 300   // RMS threshold to detect silence
-    private var consecutiveSilenceChunks = 0
-    private val SILENCE_CHUNKS_TO_STOP = 75   // ~1.5 seconds of silence to stop streaming
-    private var consecutiveSpeechChunks = 0
-    private val SPEECH_CHUNKS_TO_START = 3    // ~60ms of speech to start streaming
+    private val streamGate = StreamGate()
+    private var directStreamingStartedAt: Long? = null
 
     // Available engines
     private val engines = mutableMapOf<String, TranscriptionEngine>()
@@ -165,8 +162,8 @@ class TranscriptionManager(
         isListening = true
         isEngineConnected = false
         audioChunkCount = 0
-        consecutiveSilenceChunks = 0
-        consecutiveSpeechChunks = 0
+        streamGate.start()
+        directStreamingStartedAt = null
         audioBuffer.clear()
 
         // Request audio focus to pause other media apps (if enabled)
@@ -244,6 +241,7 @@ class TranscriptionManager(
     /**
      * Stops listening and closes all connections.
      */
+    @Synchronized
     fun stopListening() {
         if (!isListening) {
             Log.d(TAG, "TranscriptionManager not listening")
@@ -257,6 +255,9 @@ class TranscriptionManager(
         // Cancel silence auto-stop timer
         cancelSilenceTimeout()
 
+        streamGate.stop()
+        isEngineConnected = false
+        directStreamingStartedAt = null
         audioRecorder.stopRecording()
         currentEngine?.endSession()
 
@@ -275,6 +276,7 @@ class TranscriptionManager(
      * In STANDBY mode: buffers audio, runs VAD, connects to engine when speech detected
      * In TRANSCRIBING mode: streams to engine, runs VAD, disconnects when silence detected
      */
+    @Synchronized
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
 
@@ -289,43 +291,24 @@ class TranscriptionManager(
             }
         }
 
-        if (!isEngineConnected) {
-            // STANDBY mode - waiting for speech
-            if (rms > SPEECH_RMS_THRESHOLD) {
-                consecutiveSpeechChunks++
-                consecutiveSilenceChunks = 0
-
-                if (consecutiveSpeechChunks >= SPEECH_CHUNKS_TO_START) {
-                    // Speech detected! Connect to engine and start streaming
-                    Log.i(TAG, "Speech detected (RMS=$rms), connecting to engine")
-                    DebugLog.i("TranscriptionManager: Speech detected, connecting to cloud")
-                    connectAndStartStreaming()
+        when (streamGate.process(rms, SystemClock.elapsedRealtime())) {
+            StreamGate.Action.OPEN -> connectAndStartStreaming()
+            StreamGate.Action.SEND -> {
+                if (streamGate.resumeChunks > 0) {
+                    synchronized(audioBuffer) {
+                        audioBuffer.takeLast(streamGate.resumeChunks).forEach {
+                            currentEngine?.processAudio(it)
+                        }
+                    }
+                } else {
+                    currentEngine?.processAudio(samples)
                 }
-            } else {
-                consecutiveSpeechChunks = 0
             }
-        } else {
-            // TRANSCRIBING mode - actively streaming
-            currentEngine?.processAudio(samples)
-
-            // Reset silence auto-stop timer
-            resetSilenceTimeout()
-
-            if (rms < SILENCE_RMS_THRESHOLD) {
-                consecutiveSilenceChunks++
-                consecutiveSpeechChunks = 0
-
-                if (consecutiveSilenceChunks >= SILENCE_CHUNKS_TO_STOP) {
-                    // Silence detected! Disconnect from engine, return to standby
-                    Log.i(TAG, "Silence detected, returning to standby")
-                    DebugLog.i("TranscriptionManager: Silence detected, returning to standby")
-                    disconnectAndStandby()
-                }
-            } else {
-                consecutiveSilenceChunks = 0
-                consecutiveSpeechChunks++
-            }
+            StreamGate.Action.KEEPALIVE -> currentEngine?.sendKeepAlive()
+            StreamGate.Action.CLOSE -> disconnectAndStandby()
+            StreamGate.Action.NONE -> Unit
         }
+        if (isEngineConnected) resetSilenceTimeout()
 
         // Log periodically
         if (audioChunkCount % 100 == 0) {
@@ -355,7 +338,6 @@ class TranscriptionManager(
         val currentScope = scope ?: return
 
         isEngineConnected = true
-        consecutiveSilenceChunks = 0
         updateState(TranscriptionState.TRANSCRIBING)
 
         // Clear any stale audio and start session
@@ -389,8 +371,7 @@ class TranscriptionManager(
                         // Connection failed (e.g., went offline) - reset state and return to standby
                         // This allows automatic reconnection when speech is detected again
                         isEngineConnected = false
-                        consecutiveSpeechChunks = 0
-                        consecutiveSilenceChunks = 0
+                        streamGate.start()
                         currentEngine?.endSession()
 
                         // Clear audio buffer to avoid sending stale data on reconnect
@@ -423,7 +404,6 @@ class TranscriptionManager(
      */
     private fun disconnectAndStandby() {
         isEngineConnected = false
-        consecutiveSpeechChunks = 0
         cancelSilenceTimeout()
 
         currentEngine?.endSession()
@@ -466,6 +446,8 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Starting PTT buffering")
         isListening = true
         isEngineConnected = false
+        streamGate.stop()
+        directStreamingStartedAt = null
         audioChunkCount = 0
         audioBuffer.clear()
 
@@ -531,10 +513,16 @@ class TranscriptionManager(
      * Simplified audio chunk handler for PTT mode.
      * Just buffers or streams directly - no VAD thresholds.
      */
+    @Synchronized
     private fun processAudioChunkPTT(samples: ShortArray) {
         if (!isListening) return
 
         audioChunkCount++
+        val startedAt = directStreamingStartedAt
+        if (startedAt != null && SystemClock.elapsedRealtime() - startedAt >= StreamGate.MAX_OPEN_MS) {
+            stopBuffering()
+            return
+        }
 
         if (!isEngineConnected) {
             // Buffering mode - store audio for later
@@ -560,6 +548,7 @@ class TranscriptionManager(
      * Connects to engine, flushes buffered audio, starts live streaming.
      * Called when PTT hold exceeds 500ms threshold.
      */
+    @Synchronized
     fun startDirectStreaming() {
         val engine = currentEngine ?: run {
             Log.e(TAG, "PTT: No engine available for streaming")
@@ -567,6 +556,8 @@ class TranscriptionManager(
         }
         val currentScope = scope ?: return
 
+        if (!isListening || isEngineConnected) return
+        directStreamingStartedAt = SystemClock.elapsedRealtime()
         Log.i(TAG, "PTT: Starting direct streaming")
         DebugLog.i("TranscriptionManager: PTT streaming started")
 
@@ -621,6 +612,7 @@ class TranscriptionManager(
      * Stops PTT recording. If streaming was active, ends the session.
      * If only buffering, discards the buffer.
      */
+    @Synchronized
     fun stopBuffering(discard: Boolean = false) {
         if (!isListening) return
 
@@ -628,6 +620,9 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Stopping PTT (discard=$discard)")
 
         val wasStreaming = isEngineConnected
+        streamGate.stop()
+        directStreamingStartedAt = null
+        cancelSilenceTimeout()
         isListening = false
         isEngineConnected = false
 

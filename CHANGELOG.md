@@ -2,6 +2,14 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.39.0]
+
+- Sends audio to Deepgram only while you speak; pauses send a keep-alive instead of silence
+- Closes the stream after 4 seconds of silence and never streams longer than 2 minutes in one go
+- Stops listening at once when the keyboard hides or the screen turns off
+- Fixed dictation stopping with a false connection error after a short pause
+- Tags every Deepgram request tiny-dictation and logs streamed seconds per day
+
 ## [1.38.1]
 
 ### Fixed

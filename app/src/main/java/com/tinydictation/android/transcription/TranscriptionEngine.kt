@@ -66,6 +66,8 @@ interface TranscriptionEngine {
      */
     fun endSession()
 
+    fun sendKeepAlive() {}
+
     /**
      * Change the transcription language.
      * May require re-initialization for offline engines.

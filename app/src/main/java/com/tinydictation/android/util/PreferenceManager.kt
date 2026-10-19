@@ -4,8 +4,11 @@ import android.content.Context
 import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.tinydictation.android.transcription.DeepgramUsage
+import com.tinydictation.android.transcription.StreamedUsage
 import org.json.JSONArray
 import org.json.JSONObject
+import java.time.LocalDate
 
 /**
  * Wrapper for EncryptedSharedPreferences to securely store app settings.
@@ -16,6 +19,10 @@ import org.json.JSONObject
 class PreferenceManager(context: Context) {
 
     companion object {
+        private val deepgramUsageLock = Any()
+        private const val STREAMED_BYTES_PREFIX = "deepgram_streamed_bytes_"
+        private const val STREAMED_REQUESTS_PREFIX = "deepgram_streamed_requests_"
+
         private const val PREFS_FILE_NAME = "tiny_dictation_secure_prefs"
 
         // Preference keys
@@ -999,5 +1006,31 @@ class PreferenceManager(context: Context) {
             arr.put(obj)
         }
         prefs.edit().putString("deepgram_replace_$language", arr.toString()).apply()
+    }
+
+    fun recordDeepgramUsage(
+        audioBytes: Long,
+        today: LocalDate = LocalDate.now()
+    ): StreamedUsage = synchronized(deepgramUsageLock) {
+        val previous = prefs.all.keys.filter { it.startsWith(STREAMED_BYTES_PREFIX) }
+            .associate { key ->
+                val date = key.removePrefix(STREAMED_BYTES_PREFIX)
+                date to StreamedUsage(
+                    prefs.getLong(key, 0),
+                    prefs.getInt("$STREAMED_REQUESTS_PREFIX$date", 0)
+                )
+            }
+        val totals = DeepgramUsage.accumulate(previous, audioBytes, today)
+        val editor = prefs.edit()
+        for (date in previous.keys - totals.keys) {
+            editor.remove("$STREAMED_BYTES_PREFIX$date")
+            editor.remove("$STREAMED_REQUESTS_PREFIX$date")
+        }
+        for ((date, usage) in totals) {
+            editor.putLong("$STREAMED_BYTES_PREFIX$date", usage.audioBytes)
+            editor.putInt("$STREAMED_REQUESTS_PREFIX$date", usage.requests)
+        }
+        editor.apply()
+        totals.getValue(today.toString())
     }
 }

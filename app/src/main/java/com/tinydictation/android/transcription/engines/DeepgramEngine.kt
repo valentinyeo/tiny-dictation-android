@@ -12,6 +12,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -34,7 +35,13 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     override val displayName = "Deepgram (Cloud)"
     override val requiresInternet = true
 
-    private val deepgramClient = DeepgramClient()
+    private var preferenceManager: PreferenceManager? = null
+    private val deepgramClient = DeepgramClient { bytes ->
+        val usage = preferenceManager?.recordDeepgramUsage(bytes)
+        if (usage != null) {
+            DebugLog.i("Deepgram streamed today: ${usage.seconds}s (${usage.requests} requests)")
+        }
+    }
     private val audioRecorder = AudioRecorder()
     private var scope: CoroutineScope? = null
     private var currentLanguage = "en"
@@ -69,6 +76,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     }
 
     override suspend fun initialize(context: Context, language: String): Result<Unit> {
+        preferenceManager = PreferenceManager(context.applicationContext)
         currentLanguage = language
         return if (apiKey.isNotBlank()) {
             Result.success(Unit)
@@ -77,6 +85,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         }
     }
 
+    @Synchronized
     override fun startSession(
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
         onError: (TranscriptionError) -> Unit
@@ -96,32 +105,38 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         onTranscriptCallback = onTranscript
         onErrorCallback = onError
         isSessionActive = true
+        scope?.cancel()
         scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
 
         scope?.launch {
-            deepgramClient.connect(
-                apiKey = apiKey,
-                onInterim = { text ->
-                    onTranscriptCallback?.invoke(text, false)
-                },
-                onFinal = { text ->
-                    onTranscriptCallback?.invoke(text, true)
-                },
-                onError = { error ->
-                    DebugLog.e("DeepgramEngine: Error - $error")
-                    onErrorCallback?.invoke(error)
-                },
-                language = currentLanguage,
-                model = currentModel,
-                terminalMode = terminalMode,
-                keywords = keywords,
-                replacements = replacements,
-                numerals = numerals,
-                dictation = dictation
-            )
+            synchronized(this@DeepgramEngine) {
+                ensureActive()
+                if (!isSessionActive) return@synchronized
+                deepgramClient.connect(
+                    apiKey = apiKey,
+                    onInterim = { text ->
+                        onTranscript(text, false)
+                    },
+                    onFinal = { text ->
+                        onTranscript(text, true)
+                    },
+                    onError = { error ->
+                        DebugLog.e("DeepgramEngine: Error - $error")
+                        onError(error)
+                    },
+                    language = currentLanguage,
+                    model = currentModel,
+                    terminalMode = terminalMode,
+                    keywords = keywords,
+                    replacements = replacements,
+                    numerals = numerals,
+                    dictation = dictation
+                )
+            }
         }
     }
 
+    @Synchronized
     override fun processAudio(samples: ShortArray) {
         if (!isSessionActive) return
 
@@ -132,9 +147,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             }
 
             val audioBytes = audioRecorder.shortArrayToByteArray(samples)
-            scope?.launch {
-                deepgramClient.sendAudio(audioBytes)
-            }
+            deepgramClient.sendAudio(audioBytes)
         } else {
             // Buffer audio while waiting for WebSocket connection
             synchronized(preConnectionBuffer) {
@@ -175,10 +188,13 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             DebugLog.i("DeepgramEngine: Flushing ${bufferedSamples.size} buffered samples")
 
             val audioBytes = audioRecorder.shortArrayToByteArray(bufferedSamples)
-            scope?.launch {
-                deepgramClient.sendAudio(audioBytes)
-            }
+            deepgramClient.sendAudio(audioBytes)
         }
+    }
+
+    @Synchronized
+    override fun sendKeepAlive() {
+        if (isSessionActive) deepgramClient.sendKeepAlive()
     }
 
     override fun endSession() {
@@ -193,8 +209,9 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
      *                 to allow Deepgram to return final transcripts.
      *                 If false, closes immediately (used during release).
      */
+    @Synchronized
     private fun endSessionInternal(graceful: Boolean) {
-        if (!isSessionActive) return
+        if (!isSessionActive && graceful) return
 
         Log.i(TAG, "DeepgramEngine ending session (graceful=$graceful)")
         DebugLog.i("DeepgramEngine: Ending session (graceful=$graceful)")
@@ -209,11 +226,13 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             // Callbacks remain active during this window so transcripts are delivered.
             closeJob = scope?.launch {
                 delay(800)
-                ensureActive() // Don't close if a new session cancelled this job
-                deepgramClient.close()
-                onTranscriptCallback = null
-                onErrorCallback = null
-                DebugLog.d("DeepgramEngine: Graceful close completed after 800ms")
+                synchronized(this@DeepgramEngine) {
+                    ensureActive()
+                    deepgramClient.close()
+                    onTranscriptCallback = null
+                    onErrorCallback = null
+                    DebugLog.d("DeepgramEngine: Graceful close completed after 800ms")
+                }
             }
         } else {
             closeJob?.cancel()
@@ -234,6 +253,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         return isSessionActive && deepgramClient.isConnected()
     }
 
+    @Synchronized
     override fun setLanguage(language: String) {
         if (currentLanguage == language) return
 
@@ -248,15 +268,21 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
                 deepgramClient.close()
                 scope?.launch {
                     kotlinx.coroutines.delay(100)
-                    deepgramClient.connect(
-                        apiKey = apiKey,
-                        onInterim = { text -> transcript(text, false) },
-                        onFinal = { text -> transcript(text, true) },
-                        onError = { err -> error(err) },
-                        language = currentLanguage,
-                        model = currentModel,
-                        terminalMode = terminalMode
-                    )
+                    synchronized(this@DeepgramEngine) {
+                        ensureActive()
+                        if (!isSessionActive || onTranscriptCallback !== transcript) {
+                            return@synchronized
+                        }
+                        deepgramClient.connect(
+                            apiKey = apiKey,
+                            onInterim = { text -> transcript(text, false) },
+                            onFinal = { text -> transcript(text, true) },
+                            onError = { err -> error(err) },
+                            language = currentLanguage,
+                            model = currentModel,
+                            terminalMode = terminalMode
+                        )
+                    }
                 }
             }
         }
@@ -283,10 +309,12 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         bufferFlushed = false
     }
 
+    @Synchronized
     override fun release() {
         closeJob?.cancel()
         closeJob = null
         endSessionInternal(graceful = false)
+        scope?.cancel()
         scope = null
     }
 }
