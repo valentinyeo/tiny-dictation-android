@@ -5,6 +5,7 @@ import android.util.Log
 import com.tinydictation.android.audio.AudioRecorder
 import com.tinydictation.android.transcription.DeepgramClient
 import com.tinydictation.android.transcription.TranscriptionEngine
+import com.tinydictation.android.transcription.TranscriptionError
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +45,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     var numerals: Boolean = false
     var dictation: Boolean = false
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
-    private var onErrorCallback: ((String) -> Unit)? = null
+    private var onErrorCallback: ((TranscriptionError) -> Unit)? = null
     private var isSessionActive = false
 
     // Audio buffer for samples received before WebSocket is connected
@@ -78,7 +79,7 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
 
     override fun startSession(
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
-        onError: (String) -> Unit
+        onError: (TranscriptionError) -> Unit
     ) {
         // Cancel any pending delayed close from a previous session
         closeJob?.cancel()

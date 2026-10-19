@@ -49,7 +49,7 @@ interface TranscriptionEngine {
      */
     fun startSession(
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
-        onError: (String) -> Unit
+        onError: (TranscriptionError) -> Unit
     )
 
     /**

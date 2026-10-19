@@ -12,6 +12,7 @@ import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * OkHttp WebSocket client for Deepgram's streaming speech-to-text API.
@@ -112,7 +113,7 @@ class DeepgramClient {
     // Callbacks
     private var onInterimCallback: ((String) -> Unit)? = null
     private var onFinalCallback: ((String) -> Unit)? = null
-    private var onErrorCallback: ((String) -> Unit)? = null
+    private var onErrorCallback: ((TranscriptionError) -> Unit)? = null
 
     /**
      * Connects to Deepgram's WebSocket API.
@@ -133,7 +134,7 @@ class DeepgramClient {
         apiKey: String,
         onInterim: (String) -> Unit,
         onFinal: (String) -> Unit,
-        onError: (String) -> Unit,
+        onError: (TranscriptionError) -> Unit,
         language: String = "en",
         model: String = "nova-2",
         terminalMode: Boolean = false,
@@ -154,7 +155,7 @@ class DeepgramClient {
         if (apiKey.isBlank()) {
             Log.e(TAG, "Cannot connect - API key is blank")
             DebugLog.e("DeepgramClient: Cannot connect - API key is blank")
-            onError("API key is required")
+            onError(TranscriptionError("API key is required"))
             return
         }
 
@@ -188,7 +189,7 @@ class DeepgramClient {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to create WebSocket connection", e)
             DebugLog.e("DeepgramClient: Failed to create WebSocket - ${e.message}")
-            onError("Failed to connect: ${e.message}")
+            onError(TranscriptionError("Failed to connect: ${e.message}"))
         }
     }
 
@@ -197,6 +198,14 @@ class DeepgramClient {
      */
     private fun createWebSocketListener(): WebSocketListener {
         return object : WebSocketListener() {
+            private val errorReported = AtomicBoolean(false)
+
+            private fun reportError(error: TranscriptionError?) {
+                if (error != null && errorReported.compareAndSet(false, true)) {
+                    onErrorCallback?.invoke(error)
+                }
+            }
+
             override fun onOpen(webSocket: WebSocket, response: Response) {
                 Log.i(TAG, "Deepgram WebSocket connection opened")
                 DebugLog.i("DeepgramClient: WebSocket connection opened")
@@ -225,20 +234,25 @@ class DeepgramClient {
                 DebugLog.d("DeepgramClient: WebSocket closing - code=$code")
                 webSocket.close(1000, null)
                 isConnected = false
+                reportError(mapDeepgramError(closeCode = code, causeMessage = reason))
             }
 
             override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
                 Log.i(TAG, "Deepgram WebSocket closed: code=$code, reason=$reason")
                 DebugLog.i("DeepgramClient: WebSocket closed")
                 isConnected = false
+                reportError(mapDeepgramError(closeCode = code, causeMessage = reason))
             }
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                Log.e(TAG, "Deepgram WebSocket failure", t)
-                DebugLog.e("DeepgramClient: WebSocket failure - ${t.message}")
+                val code = response?.code
+                val dgError = response?.header("dg-error")
+                val requestId = response?.header("dg-request-id")
+                val details = "code=$code, dg-error=$dgError, dg-request-id=$requestId"
+                Log.e(TAG, "Deepgram WebSocket failure: $details", t)
+                DebugLog.e("DeepgramClient: WebSocket failure - $details, ${t.message}")
                 isConnected = false
-                val errorMessage = t.message ?: "Unknown WebSocket error"
-                onErrorCallback?.invoke(errorMessage)
+                reportError(mapDeepgramError(code, dgError, causeMessage = t.message))
             }
         }
     }
@@ -260,7 +274,7 @@ class DeepgramClient {
                 val error = json.optString("error", "Unknown error")
                 Log.e(TAG, "Deepgram error: $error")
                 DebugLog.e("DeepgramClient: API error - $error")
-                onErrorCallback?.invoke(error)
+                onErrorCallback?.invoke(TranscriptionError(error))
                 return
             }
 
@@ -314,11 +328,11 @@ class DeepgramClient {
         } catch (e: org.json.JSONException) {
             val errorMessage = "Invalid JSON from Deepgram: ${e.message}"
             Log.e(TAG, errorMessage, e)
-            onErrorCallback?.invoke(errorMessage)
+            onErrorCallback?.invoke(TranscriptionError(errorMessage))
         } catch (e: Exception) {
             val errorMessage = "Failed to parse Deepgram response: ${e.message}"
             Log.e(TAG, errorMessage, e)
-            onErrorCallback?.invoke(errorMessage)
+            onErrorCallback?.invoke(TranscriptionError(errorMessage))
         }
     }
 
@@ -358,13 +372,13 @@ class DeepgramClient {
         } catch (e: IllegalStateException) {
             Log.e(TAG, "WebSocket in invalid state", e)
             DebugLog.e("DeepgramClient: WebSocket invalid state - ${e.message}")
-            onErrorCallback?.invoke("Connection error: ${e.message}")
+            onErrorCallback?.invoke(TranscriptionError("Connection error: ${e.message}"))
             isConnected = false
             false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send audio", e)
             DebugLog.e("DeepgramClient: Failed to send audio - ${e.message}")
-            onErrorCallback?.invoke("Failed to send audio: ${e.message}")
+            onErrorCallback?.invoke(TranscriptionError("Failed to send audio: ${e.message}"))
             false
         }
     }
