@@ -25,7 +25,7 @@ fun mapDeepgramError(
         httpCode != null -> TranscriptionError(
             "Deepgram error $httpCode: ${dgError ?: causeMessage ?: "Unknown error"}"
         )
-        closeCode == 1000 -> null
+        closeCode == 1000 || closeCode == 1005 -> null
         closeCode != null -> TranscriptionError(
             "Deepgram closed the connection ($closeCode: ${causeMessage ?: "Unknown reason"})",
             fatal = closeCode == 1008

@@ -35,6 +35,13 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.39.0:
+            • Sends audio to Deepgram only while you speak; pauses send a keep-alive instead of silence
+            • Closes the stream after 4 seconds of silence and never streams longer than 2 minutes in one go
+            • Stops listening at once when the keyboard hides or the screen turns off
+            • Fixed dictation stopping with a false connection error after a short pause
+            • Tags every Deepgram request tiny-dictation and logs streamed seconds per day
+
             v1.38.1:
             • Clear message when Deepgram rejects the API key, runs out of credit or the connection drops; stops retrying on a dead key.
 

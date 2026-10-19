@@ -339,6 +339,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("DictationKeyboardService: Cursor trackpad mode ACTIVATED")
     }
 
+    private var isScreenOffReceiverRegistered = false
+    private val screenOffReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                stopDictation()
+            }
+        }
+    }
+    private val dictationStartHandler = Handler(Looper.getMainLooper())
+
     // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
@@ -463,6 +473,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.i("DictationKeyboardService: Service created")
         instance = this
 
+        ContextCompat.registerReceiver(
+            this,
+            screenOffReceiver,
+            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+        isScreenOffReceiverRegistered = true
+
         // Register broadcast receiver for paste requests from HistoryActivity
         val filter = IntentFilter(ACTION_PASTE_TEXT)
         LocalBroadcastManager.getInstance(this).registerReceiver(pasteTextReceiver, filter)
@@ -574,8 +592,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 DebugLog.e("DictationKeyboardService: Transcription error - $error")
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(this, error, Toast.LENGTH_LONG).show()
-                    isRecording = false
-                    isProcessing = false
+                    val state = transcriptionManager?.getState()
+                    isRecording = transcriptionManager?.isListening() == true
+                    isProcessing = state == TranscriptionManager.TranscriptionState.TRANSCRIBING
+                    isStandby = state == TranscriptionManager.TranscriptionState.STANDBY
                     updateMicButton()
                 }
             },
@@ -640,8 +660,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.i("DictationKeyboardService: Service destroyed")
 
         // Stop transcription if running
-        transcriptionManager?.stopListening()
+        stopDictation()
         transcriptionManager = null
+
+        if (isScreenOffReceiverRegistered) {
+            unregisterReceiver(screenOffReceiver)
+            isScreenOffReceiverRegistered = false
+        }
 
         // Stop clipboard listening and unregister from updates
         clipboardHistoryManager?.removeOnHistoryChangedListener(this)
@@ -4661,7 +4686,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Skip auto-start if mute is locked or in PTT mode
         if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
             // Small delay to let UI settle before starting audio
-            Handler(Looper.getMainLooper()).postDelayed({
+            dictationStartHandler.postDelayed({
                 if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
                     Log.i(TAG, "Auto-starting dictation on keyboard open")
                     DebugLog.i("DictationKeyboardService: Auto-starting dictation")
@@ -4725,23 +4750,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
 
-        // Cleanup PTT recording if keyboard closes mid-hold
-        if (isPttRecording) {
-            pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
-            transcriptionManager?.stopBuffering(discard = true)
-            isPttRecording = false
-            pttStreamingStarted = false
-            DebugLog.i("DictationKeyboardService: PTT recording cancelled (keyboard hidden)")
-        }
+        stopDictation()
+    }
 
-        // Stop transcription when keyboard is hidden to save battery
-        if (isRecording || isProcessing) {
-            Log.i(TAG, "DictationKeyboardService: Stopping transcription - keyboard hidden")
-            DebugLog.i("DictationKeyboardService: Stopping transcription (keyboard hidden)")
-            transcriptionManager?.stopListening()
-            isRecording = false
-            isProcessing = false
+    private fun stopDictation() {
+        dictationStartHandler.removeCallbacksAndMessages(null)
+        doubleTapHandler?.removeCallbacksAndMessages(null)
+        pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
+        if (isPttRecording) {
+            transcriptionManager?.stopBuffering(discard = true)
         }
+        transcriptionManager?.stopListening()
+        isRecording = false
+        isProcessing = false
+        isStandby = false
+        isPttRecording = false
+        pttStreamingStarted = false
+        micTouchStartedInPttMode = null
+        lastMicTapTime = 0L
+        updateMicButton()
     }
 
     /**
