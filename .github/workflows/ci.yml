@@ -1,0 +1,33 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-test:
+    name: android-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: temurin
+      - uses: gradle/actions/setup-gradle@v3
+      - run: chmod +x gradlew
+      - run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-reports
+          path: app/build/reports/tests
