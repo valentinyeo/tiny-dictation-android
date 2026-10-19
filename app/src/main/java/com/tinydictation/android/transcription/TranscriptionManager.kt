@@ -377,7 +377,14 @@ class TranscriptionManager(
             onError = { error ->
                 currentScope.launch(Dispatchers.Main) {
                     if (isListening) {
-                        DebugLog.e("TranscriptionManager: Engine error - $error")
+                        DebugLog.e("TranscriptionManager: Engine error - ${error.message}")
+                        if (error.fatal) {
+                            isEngineConnected = false
+                            synchronized(audioBuffer) { audioBuffer.clear() }
+                            stopListening()
+                            onError?.invoke(error.message)
+                            return@launch
+                        }
 
                         // Connection failed (e.g., went offline) - reset state and return to standby
                         // This allows automatic reconnection when speech is detected again
@@ -394,7 +401,7 @@ class TranscriptionManager(
                         updateState(TranscriptionState.STANDBY)
                         DebugLog.i("TranscriptionManager: Returned to STANDBY after error (will auto-reconnect)")
 
-                        onError?.invoke(error)
+                        onError?.invoke(error.message)
                     }
                 }
             }
@@ -582,12 +589,19 @@ class TranscriptionManager(
             onError = { error ->
                 currentScope.launch(Dispatchers.Main) {
                     if (isListening) {
-                        DebugLog.e("TranscriptionManager: PTT engine error - $error")
+                        DebugLog.e("TranscriptionManager: PTT engine error - ${error.message}")
+                        if (error.fatal) {
+                            isEngineConnected = false
+                            synchronized(audioBuffer) { audioBuffer.clear() }
+                            stopListening()
+                            onError?.invoke(error.message)
+                            return@launch
+                        }
                         isEngineConnected = false
                         currentEngine?.endSession()
                         synchronized(audioBuffer) { audioBuffer.clear() }
                         updateState(TranscriptionState.STANDBY)
-                        onError?.invoke(error)
+                        onError?.invoke(error.message)
                     }
                 }
             }

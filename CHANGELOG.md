@@ -2,6 +2,11 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.38.1]
+
+### Fixed
+- Clear message when Deepgram rejects the API key, runs out of credit or the connection drops; stops retrying on a dead key.
+
 ## [1.14.0] - 2026-01-16
 
 ### Added

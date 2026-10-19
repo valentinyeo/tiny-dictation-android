@@ -35,6 +35,9 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.38.1:
+            • Clear message when Deepgram rejects the API key, runs out of credit or the connection drops; stops retrying on a dead key.
+
             v1.38.0:
             • German dictionary support (50,000 words with umlauts)
             • Language switch button now also switches autocorrect/predictions dictionary

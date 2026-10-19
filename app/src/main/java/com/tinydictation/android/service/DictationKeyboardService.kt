@@ -573,7 +573,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 Log.e(TAG, "Transcription error: $error")
                 DebugLog.e("DictationKeyboardService: Transcription error - $error")
                 Handler(Looper.getMainLooper()).post {
-                    Toast.makeText(this, error, Toast.LENGTH_SHORT).show()
+                    Toast.makeText(this, error, Toast.LENGTH_LONG).show()
                     isRecording = false
                     isProcessing = false
                     updateMicButton()

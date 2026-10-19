@@ -3,6 +3,7 @@ package com.tinydictation.android.transcription.engines
 import android.content.Context
 import android.util.Log
 import com.tinydictation.android.transcription.TranscriptionEngine
+import com.tinydictation.android.transcription.TranscriptionError
 import com.tinydictation.android.util.DebugLog
 import org.json.JSONObject
 import org.vosk.Model
@@ -65,7 +66,7 @@ class VoskEngine : TranscriptionEngine {
     private var recognizer: Recognizer? = null
     private var currentLanguage = "en"
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
-    private var onErrorCallback: ((String) -> Unit)? = null
+    private var onErrorCallback: ((TranscriptionError) -> Unit)? = null
     private var isSessionActive = false
     private var contextRef: Context? = null
 
@@ -100,7 +101,7 @@ class VoskEngine : TranscriptionEngine {
 
     override fun startSession(
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
-        onError: (String) -> Unit
+        onError: (TranscriptionError) -> Unit
     ) {
         if (isSessionActive) {
             Log.d(TAG, "VoskEngine session already active")
@@ -109,7 +110,7 @@ class VoskEngine : TranscriptionEngine {
 
         val currentModel = model
         if (currentModel == null) {
-            onError("Model not initialized")
+            onError(TranscriptionError("Model not initialized"))
             return
         }
 
@@ -125,7 +126,7 @@ class VoskEngine : TranscriptionEngine {
             Log.i(TAG, "VoskEngine: Recognizer created")
         } catch (e: Exception) {
             Log.e(TAG, "VoskEngine: Failed to create recognizer", e)
-            onError("Failed to create recognizer: ${e.message}")
+            onError(TranscriptionError("Failed to create recognizer: ${e.message}"))
             isSessionActive = false
         }
     }
@@ -210,10 +211,10 @@ class VoskEngine : TranscriptionEngine {
                         startSession(transcript, error)
                     }
                 } else {
-                    error?.invoke("Model not downloaded for language: $language")
+                    error?.invoke(TranscriptionError("Model not downloaded for language: $language"))
                 }
             } catch (e: Exception) {
-                error?.invoke("Failed to switch language: ${e.message}")
+                error?.invoke(TranscriptionError("Failed to switch language: ${e.message}"))
             }
         }
     }

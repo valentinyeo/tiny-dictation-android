@@ -8,6 +8,7 @@ import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 import com.k2fsa.sherpa.onnx.getFeatureConfig
 import com.tinydictation.android.transcription.TranscriptionEngine
+import com.tinydictation.android.transcription.TranscriptionError
 import com.tinydictation.android.util.DebugLog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -82,7 +83,7 @@ class SherpaOnnxEngine : TranscriptionEngine {
     private var currentLanguage = "en"
     private var currentModelVariant = "whisper-tiny"
     private var onTranscriptCallback: ((String, Boolean) -> Unit)? = null
-    private var onErrorCallback: ((String) -> Unit)? = null
+    private var onErrorCallback: ((TranscriptionError) -> Unit)? = null
     private var isSessionActive = false
     private var contextRef: Context? = null
 
@@ -226,7 +227,7 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
     override fun startSession(
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
-        onError: (String) -> Unit
+        onError: (TranscriptionError) -> Unit
     ) {
         if (isSessionActive) {
             Log.d(TAG, "SherpaOnnxEngine session already active")
@@ -235,7 +236,9 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
         if (recognizer == null) {
             Log.e(TAG, "SherpaOnnxEngine: Recognizer not initialized")
-            onError("Whisper engine not initialized. Please download the model first.")
+            onError(TranscriptionError(
+                "Whisper engine not initialized. Please download the model first."
+            ))
             return
         }
 
@@ -384,7 +387,7 @@ class SherpaOnnxEngine : TranscriptionEngine {
         } catch (e: Exception) {
             Log.e(TAG, "SherpaOnnxEngine: Error processing audio", e)
             DebugLog.e("SherpaOnnxEngine: Processing error - ${e.message}")
-            onErrorCallback?.invoke("Transcription error: ${e.message}")
+            onErrorCallback?.invoke(TranscriptionError("Transcription error: ${e.message}"))
         }
     }
 
@@ -442,7 +445,9 @@ class SherpaOnnxEngine : TranscriptionEngine {
                 if (result.isFailure) {
                     Log.e(TAG, "SherpaOnnxEngine: Failed to reinitialize for $language")
                     DebugLog.e("SherpaOnnxEngine: Reinit failed - ${result.exceptionOrNull()?.message}")
-                    onErrorCallback?.invoke("Failed to switch language: ${result.exceptionOrNull()?.message}")
+                    onErrorCallback?.invoke(TranscriptionError(
+                        "Failed to switch language: ${result.exceptionOrNull()?.message}"
+                    ))
                 } else {
                     Log.i(TAG, "SherpaOnnxEngine: Reinitialized for $language")
                     DebugLog.i("SherpaOnnxEngine: Language switched to $language")
