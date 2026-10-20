@@ -1,8 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
-
-    <!-- Permissions -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -11,6 +9,8 @@
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 
     <application
         android:name=".TinyDictationApp"
@@ -21,8 +21,6 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TinyDictation"
         tools:targetApi="34">
-
-        <!-- Main Activity (Settings - consolidated single screen) -->
         <activity
             android:name=".SettingsActivity"
             android:exported="true"
@@ -32,22 +30,16 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-        <!-- Legacy MainActivity (kept for backward compatibility) -->
         <activity
             android:name=".MainActivity"
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />
-
-        <!-- History Activity -->
         <activity
             android:name=".HistoryActivity"
             android:exported="false"
             android:noHistory="true"
             android:excludeFromRecents="true"
             android:taskAffinity="" />
-
-        <!-- Settings Sub-screens -->
         <activity
             android:name=".settings.TranscriptionSettingsActivity"
             android:exported="false"
@@ -84,6 +76,14 @@
             android:theme="@style/Theme.TinyDictation" />
 
         <activity
+            android:name=".settings.UpdateActivity"
+            android:exported="false" />
+
+        <receiver
+            android:name=".update.UpdateInstallReceiver"
+            android:exported="false" />
+
+        <activity
             android:name=".settings.AboutActivity"
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />
@@ -92,8 +92,6 @@
             android:name=".settings.ApiKeysSettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.TinyDictation" />
-
-        <!-- Accessibility Service for Text Injection -->
         <service
             android:name=".service.DictationAccessibilityService"
             android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE"
@@ -105,8 +103,6 @@
                 android:name="android.accessibilityservice"
                 android:resource="@xml/accessibility_service_config" />
         </service>
-
-        <!-- Input Method Service (Keyboard) for Direct Text Input -->
         <service
             android:name=".service.DictationKeyboardService"
             android:theme="@style/Theme.TinyDictation.Keyboard"

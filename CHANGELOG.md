@@ -2,6 +2,12 @@
 
 All notable changes to Tiny Dictation will be documented in this file.
 
+## [1.43.0]
+
+- The app can now update itself
+- Checks for new versions and shows a notification
+- Settings has Download and update
+
 ## [1.42.0]
 
 - Brings back the v1.39.1 to v1.41.3 features together with clear Deepgram error messages and speech-only streaming

@@ -1,13 +1,18 @@
 package com.tinydictation.android
 
+import android.Manifest
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.tinydictation.android.settings.AboutActivity
@@ -18,17 +23,26 @@ import com.tinydictation.android.settings.DeepgramFeaturesSettingsActivity
 import com.tinydictation.android.settings.OfflineModelsActivity
 import com.tinydictation.android.settings.PermissionsActivity
 import com.tinydictation.android.settings.TranscriptionSettingsActivity
+import com.tinydictation.android.settings.UpdateActivity
 import com.tinydictation.android.settings.VoiceCommandsActivity
 
-/**
- * Main Settings screen displaying a list of settings categories.
- * Each category opens a dedicated sub-screen.
- */
 class SettingsActivity : AppCompatActivity() {
+
+    private val notificationPermission = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (granted) (application as TinyDictationApp).updateManager.check(force = true)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settings_main)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
 
         val recyclerView = findViewById<RecyclerView>(R.id.recyclerSettings)
         recyclerView.layoutManager = LinearLayoutManager(this)
@@ -36,7 +50,6 @@ class SettingsActivity : AppCompatActivity() {
             navigateToCategory(category)
         }
 
-        // Set version text
         val versionText = findViewById<TextView>(R.id.versionText)
         try {
             val versionName = packageManager.getPackageInfo(packageName, 0).versionName
@@ -103,6 +116,12 @@ class SettingsActivity : AppCompatActivity() {
                 subtitle = "View past transcriptions"
             ),
             SettingsCategory(
+                id = "update",
+                icon = R.drawable.ic_download,
+                title = "Download and update",
+                subtitle = "Check for new versions"
+            ),
+            SettingsCategory(
                 id = "about",
                 icon = R.drawable.ic_info,
                 title = "About",
@@ -122,6 +141,7 @@ class SettingsActivity : AppCompatActivity() {
             "deepgram_features" -> Intent(this, DeepgramFeaturesSettingsActivity::class.java)
             "permissions" -> Intent(this, PermissionsActivity::class.java)
             "history" -> Intent(this, HistoryActivity::class.java)
+            "update" -> Intent(this, UpdateActivity::class.java)
             "about" -> Intent(this, AboutActivity::class.java)
             else -> return
         }
