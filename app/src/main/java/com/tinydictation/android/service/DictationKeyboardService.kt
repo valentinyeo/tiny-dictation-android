@@ -10,8 +10,11 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.graphics.drawable.RippleDrawable
 import android.inputmethodservice.InputMethodService
+import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
 import android.util.Log
 import android.content.pm.PackageManager
 import android.os.Build
@@ -127,7 +130,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var tabSnippets: TextView? = null
     private var tabClipboard: TextView? = null
     private var tabHistory: TextView? = null
-    private var tabIndicator: View? = null
     private var qwertyPanel: View? = null
     private var cursorNumpadPanel: View? = null
     private var claudePanel: View? = null
@@ -161,6 +163,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var emojiButton: FrameLayout? = null
     private var emojiIcon: ImageView? = null
 
+    // QWERTY display helper (extracted from god-class)
+    private var qwertyDisplayHelper: QwertyDisplayHelper? = null
+
     // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
 
@@ -170,6 +175,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isProcessing = false
     private var isStandby = false  // True when in standby/hibernation mode
     private var isMuteLocked = false  // True when mic is locked muted via long press
+    private var wasAutoMutedByPlayback = false  // True when auto-muted due to phone audio playback
+    private var audioPlaybackCallback: AudioManager.AudioPlaybackCallback? = null
+
+    // Screen awake (keep screen on)
+    private var isScreenAwake = false
+    private var wakeLock: PowerManager.WakeLock? = null
+    private var screenAwakeButton: FrameLayout? = null
+    private var screenAwakeIcon: ImageView? = null
 
     // Push-to-talk mode
     private var isPushToTalkMode = false  // Persisted via PreferenceManager
@@ -205,6 +218,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     // Autocorrect
     private var autocorrectManager: AutocorrectManager? = null
     private var isUrlField = false  // Disable autocorrect in URL/URI input fields
+    private var isPredictionStripEnabled = true  // User setting
+    private var isAutocorrectEnabled = true      // User setting
+    private var isAiNextWordEnabled = true       // User setting
+    private var isAiWordCompletionEnabled = true // User setting
+    private var isAutoFixEnabled = true          // User setting
     private var predictionStrip: LinearLayout? = null
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
@@ -502,6 +520,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         // Initialize text improver (uses Anthropic API)
         textImprover = TextImprover(this)
 
+        // Register audio playback callback to detect when phone plays audio
+        // (e.g., WhatsApp voice messages, YouTube, music) and auto-pause transcription
+        registerAudioPlaybackCallback()
     }
 
     /**
@@ -673,8 +694,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
 
+        // Unregister audio playback callback
+        unregisterAudioPlaybackCallback()
+
         // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
+
+        // Release wake lock if held
+        wakeLock?.let { if (it.isHeld) it.release() }
+        wakeLock = null
+        isScreenAwake = false
 
         instance = null
         doubleTapHandler?.removeCallbacksAndMessages(null)
@@ -698,6 +727,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     override fun onCreateInputView(): View {
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
+
+        // Force IME window to black (prevents white bar in light mode)
+        window?.window?.let { w ->
+            w.navigationBarColor = Color.BLACK
+            w.decorView?.setBackgroundColor(Color.BLACK)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                w.isNavigationBarContrastEnforced = false
+            }
+        }
 
         return try {
             // Reset lazy-loaded panel state before creating new view
@@ -732,8 +770,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             tabSnippets = keyboardTabbedPanel?.findViewById(R.id.tabSnippets)
             tabClipboard = keyboardTabbedPanel?.findViewById(R.id.tabClipboard)
             tabHistory = keyboardTabbedPanel?.findViewById(R.id.tabHistory)
-            tabIndicator = keyboardTabbedPanel?.findViewById(R.id.tabIndicator)
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
+            qwertyDisplayHelper = qwertyPanel?.let { QwertyDisplayHelper(it) }
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
             // Claude, Shell, Snippets, Clipboard, History panels are lazy-loaded via ViewStub
 
@@ -754,6 +792,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             updateLanguageButton()
             setupVersionDisplay()
             scrollDictationBarToDefault()
+
+            // Force all parent views to black after attachment (fixes white bar in light mode)
+            keyboardView!!.post {
+                var parent = keyboardView?.parent
+                while (parent is View) {
+                    (parent as View).setBackgroundColor(Color.BLACK)
+                    parent = parent.getParent()
+                }
+            }
 
             keyboardView!!
         } catch (e: Exception) {
@@ -1022,13 +1069,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val standardButtons = listOf(
             R.id.btnSelectAll, R.id.btnEmoji, R.id.btnSpace, R.id.btnLanguage,
             R.id.btnBackspace, R.id.btnKeyboardMic, R.id.btnEnter,
-            R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove
+            R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove, R.id.btnScreenAwake
         )
 
         // Standard icons inside those buttons
         val standardIcons = listOf(
             R.id.ivSelectAll, R.id.ivEmoji, R.id.ivSpace, R.id.ivBackspace,
-            R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove
+            R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove,
+            R.id.ivScreenAwake
         )
 
         // Apply compact size to standard buttons
@@ -1175,6 +1223,39 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         improveButton?.setOnClickListener {
             improveText()
         }
+
+        // Screen awake button - toggle keep screen on
+        screenAwakeButton = keyboardView?.findViewById(R.id.btnScreenAwake)
+        screenAwakeIcon = keyboardView?.findViewById(R.id.ivScreenAwake)
+        screenAwakeButton?.setOnClickListener {
+            toggleScreenAwake()
+        }
+        updateScreenAwakeButton()
+    }
+
+    private fun toggleScreenAwake() {
+        isScreenAwake = !isScreenAwake
+        if (isScreenAwake) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            wakeLock = pm.newWakeLock(
+                PowerManager.SCREEN_BRIGHT_WAKE_LOCK or PowerManager.ACQUIRE_CAUSES_WAKEUP,
+                "TinyDictation::ScreenAwake"
+            )
+            wakeLock?.acquire()
+            DebugLog.i("DictationKeyboardService: Screen awake ON")
+        } else {
+            wakeLock?.let {
+                if (it.isHeld) it.release()
+            }
+            wakeLock = null
+            DebugLog.i("DictationKeyboardService: Screen awake OFF")
+        }
+        updateScreenAwakeButton()
+    }
+
+    private fun updateScreenAwakeButton() {
+        val color = if (isScreenAwake) Color.parseColor("#FFD700") else Color.WHITE  // Gold when active
+        screenAwakeIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
     /**
@@ -1294,6 +1375,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Unified mute toggle for normal mode. Replaces old toggleDictation + toggleMuteLock.
      */
     private fun toggleMute() {
+        wasAutoMutedByPlayback = false
         isMuteLocked = !isMuteLocked
 
         if (isMuteLocked) {
@@ -1328,7 +1410,62 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateMicButton()
     }
 
+    /**
+     * Registers AudioPlaybackCallback to detect when the phone plays audio
+     * (WhatsApp voice messages, YouTube, music, etc.) and auto-pause transcription.
+     */
+    private fun registerAudioPlaybackCallback() {
+        val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
+        audioPlaybackCallback = object : AudioManager.AudioPlaybackCallback() {
+            override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>) {
+                val hasActivePlayback = configs.isNotEmpty()
+                Handler(Looper.getMainLooper()).post {
+                    if (hasActivePlayback && !isMuteLocked && !isPushToTalkMode &&
+                        (isRecording || isProcessing || isStandby)) {
+                        // Phone is playing audio — auto-mute to prevent transcribing it
+                        wasAutoMutedByPlayback = true
+                        isMuteLocked = true
+                        transcriptionManager?.stopListening()
+                        isRecording = false
+                        isProcessing = false
+                        isStandby = false
+                        updateMicButton()
+                        DebugLog.i("DictationKeyboardService: Auto-muted — phone playing audio")
+                    } else if (!hasActivePlayback && wasAutoMutedByPlayback && isMuteLocked) {
+                        // Audio stopped — auto-unmute
+                        wasAutoMutedByPlayback = false
+                        isMuteLocked = false
+                        if (transcriptionManager == null) {
+                            initializeTranscriptionManager()
+                        }
+                        transcriptionManager?.let { manager ->
+                            try {
+                                manager.startListening()
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error restarting after audio playback ended", e)
+                            }
+                        }
+                        updateMicButton()
+                        DebugLog.i("DictationKeyboardService: Auto-unmuted — phone audio stopped")
+                    }
+                }
+            }
+        }
+        audioManager.registerAudioPlaybackCallback(audioPlaybackCallback!!, Handler(Looper.getMainLooper()))
+        DebugLog.d("DictationKeyboardService: Audio playback callback registered")
+    }
+
+    private fun unregisterAudioPlaybackCallback() {
+        audioPlaybackCallback?.let { callback ->
+            val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager
+            audioManager?.unregisterAudioPlaybackCallback(callback)
+            DebugLog.d("DictationKeyboardService: Audio playback callback unregistered")
+        }
+        audioPlaybackCallback = null
+    }
+
     private fun enterPushToTalkMode() {
+        wasAutoMutedByPlayback = false
         isPushToTalkMode = true
         PreferenceManager(this).setPushToTalkEnabled(true)
 
@@ -1715,8 +1852,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         isKeyboardPanelVisible = !isKeyboardPanelVisible
+        if (isKeyboardPanelVisible) wasAutoMutedByPlayback = false
         keyboardTabbedPanel?.visibility = if (isKeyboardPanelVisible) View.VISIBLE else View.GONE
         updateKeyboardButtonState()
+
+        // Auto-mute mic when opening keyboard panel for typing (user must manually unmute)
+        if (isKeyboardPanelVisible && !isMuteLocked && !isPushToTalkMode) {
+            isMuteLocked = true
+            if (isRecording || isProcessing || isStandby) {
+                transcriptionManager?.stopListening()
+                isRecording = false
+                isProcessing = false
+                isStandby = false
+            }
+            updateMicButton()
+            DebugLog.i("DictationKeyboardService: Auto-muted mic for typing")
+        }
 
         // Reset to letters mode when closing the keyboard
         if (!isKeyboardPanelVisible && isNumbersMode) {
@@ -1771,10 +1922,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         tabClipboard?.visibility = if (prefs.getPanelClipboardEnabled()) View.VISIBLE else View.GONE
         tabHistory?.visibility = if (prefs.getPanelHistoryEnabled()) View.VISIBLE else View.GONE
 
-        // Pass all touch events through to the target panel (no swipe gestures)
+        // Swipe overlay: detect swipe-down to close panel, pass other touches through
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
+        var overlayDownY = 0f
+        var overlayDownX = 0f
+        var overlaySwipeHandled = false
         swipeOverlay?.setOnTouchListener { _, event ->
-            // Get the target panel for passing through events (7 tabs)
             val targetPanel = when (currentKeyboardTab) {
                 0 -> qwertyPanel
                 1 -> cursorNumpadPanel
@@ -1785,7 +1938,69 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 6 -> historyTabPanel
                 else -> null
             }
-            targetPanel?.dispatchTouchEvent(event)
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    overlayDownY = event.rawY
+                    overlayDownX = event.rawX
+                    overlaySwipeHandled = false
+                    targetPanel?.dispatchTouchEvent(event)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = event.rawY - overlayDownY
+                    val dx = Math.abs(event.rawX - overlayDownX)
+                    if (!overlaySwipeHandled && dy > 80 && dy > dx) {
+                        // Swipe down detected — close keyboard panel
+                        overlaySwipeHandled = true
+                        // Send cancel to target so it doesn't act on the partial gesture
+                        val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
+                        targetPanel?.dispatchTouchEvent(cancel)
+                        cancel.recycle()
+                        if (isKeyboardPanelVisible) toggleKeyboardPanel()
+                    } else if (!overlaySwipeHandled) {
+                        targetPanel?.dispatchTouchEvent(event)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!overlaySwipeHandled) {
+                        targetPanel?.dispatchTouchEvent(event)
+                    }
+                }
+                else -> targetPanel?.dispatchTouchEvent(event)
+            }
+            true
+        }
+
+        // Swipe up on dictation bar to open keyboard panel
+        val dictationBar = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
+        var barDownY = 0f
+        var barDownX = 0f
+        var barSwipeHandled = false
+        dictationBar?.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    barDownY = event.rawY
+                    barDownX = event.rawX
+                    barSwipeHandled = false
+                    // Let the ScrollView handle horizontal scrolling
+                    v.onTouchEvent(event)
+                }
+                MotionEvent.ACTION_MOVE -> {
+                    val dy = barDownY - event.rawY  // positive = swipe up
+                    val dx = Math.abs(event.rawX - barDownX)
+                    if (!barSwipeHandled && dy > 80 && dy > dx) {
+                        barSwipeHandled = true
+                        if (!isKeyboardPanelVisible) toggleKeyboardPanel()
+                    } else {
+                        v.onTouchEvent(event)
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!barSwipeHandled) {
+                        v.onTouchEvent(event)
+                    }
+                }
+                else -> v.onTouchEvent(event)
+            }
             true
         }
 
@@ -1927,23 +2142,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Updates the tab indicator position and colors for 7 tabs.
      */
     private fun updateTabIndicator() {
-        val primaryColor = androidx.core.content.ContextCompat.getColor(this, R.color.primary)
-        val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.on_surface_variant)
+        val activeColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_active)
+        val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_inactive)
 
-        // Update tab colors - active tab gets primary color
+        // Update tab colors - active tab gets light purple, inactive gets light gray (high contrast on black)
         val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabSnippets, tabClipboard, tabHistory)
         tabs.forEachIndexed { index, tab ->
-            tab?.setTextColor(if (index == currentKeyboardTab) primaryColor else inactiveColor)
-        }
-
-        // Update indicator position (1/7 width, positioned under selected tab)
-        tabIndicator?.post {
-            val parentWidth = (tabIndicator?.parent as? View)?.width ?: 0
-            val indicatorWidth = parentWidth / 7
-            tabIndicator?.layoutParams = tabIndicator?.layoutParams?.apply {
-                width = indicatorWidth
-            }
-            tabIndicator?.translationX = (currentKeyboardTab * indicatorWidth).toFloat()
+            tab?.setTextColor(if (index == currentKeyboardTab) activeColor else inactiveColor)
         }
     }
 
@@ -1999,9 +2204,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 // Feed letter to autocorrect (only for actual letters, not numbers/symbols, not URL fields)
                 if (!isNumbersMode && !isTerminalApp && !isUrlField && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
-                    autocorrectManager?.onLetterTyped(textToCommit[0])
-                    requestAiCompletion()
-
+                    if (isAutocorrectEnabled || isPredictionStripEnabled) {
+                        autocorrectManager?.onLetterTyped(textToCommit[0])
+                    }
+                    if (isPredictionStripEnabled) {
+                        requestAiCompletion()
+                    }
                 }
 
                 // Turn off shift after one character (unless caps lock, and only in letters mode)
@@ -2085,20 +2293,105 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             toggleNumbersMode()
         }
 
+        // Fat finger correction: intercept touches on QWERTY rows and route to nearest key
+        setupProximityTouchOnRows()
+
         // Autocorrect and prediction strip
         setupAutocorrect()
+    }
+
+    /**
+     * Fat finger correction: intercepts touches on each QWERTY letter row
+     * and routes them to the nearest key by center distance.
+     * This means taps in the gap between keys (the 4dp margins) still register
+     * on the closest key, and edge taps on the wrong key get corrected.
+     */
+    private fun setupProximityTouchOnRows() {
+        val panel = qwertyPanel as? LinearLayout ?: return
+        // Letter rows are children 2,3,4 (index: 0=prediction, 1=number row, 2=QWERTY row1, 3=row2, 4=row3)
+        // But if prediction/number row are GONE, indices shift. Find rows by their letter key content.
+        // Safer approach: iterate children and find LinearLayouts that contain letter keys
+        val letterRowIds = listOf(
+            listOf(R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
+                   R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p),
+            listOf(R.id.key_a, R.id.key_s, R.id.key_d, R.id.key_f, R.id.key_g,
+                   R.id.key_h, R.id.key_j, R.id.key_k, R.id.key_l),
+            listOf(R.id.key_z, R.id.key_x, R.id.key_c, R.id.key_v,
+                   R.id.key_b, R.id.key_n, R.id.key_m)
+        )
+
+        for (i in 0 until panel.childCount) {
+            val row = panel.getChildAt(i) as? LinearLayout ?: continue
+            // Check if this row contains any of our letter key IDs
+            val rowKeyIds = letterRowIds.firstOrNull { ids ->
+                ids.any { row.findViewById<View>(it) != null }
+            } ?: continue
+
+            // Collect the actual key views in this row (FrameLayouts or TextViews with letter IDs)
+            val keyViews = mutableListOf<View>()
+            for (id in rowKeyIds) {
+                // Keys are either direct TextViews or inside FrameLayouts
+                val view = row.findViewById<View>(id)
+                // Use the parent FrameLayout if it's a KeyboardKeyFrame, otherwise the view itself
+                val target = if (view?.parent is FrameLayout && view.parent != row) {
+                    view.parent as View
+                } else {
+                    view
+                }
+                if (target != null) keyViews.add(target)
+            }
+
+            row.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_DOWN) {
+                    // Find the nearest key by center distance
+                    var nearestKey: View? = null
+                    var minDist = Float.MAX_VALUE
+                    val touchX = event.x
+                    val touchY = event.y
+
+                    for (key in keyViews) {
+                        val centerX = key.left + key.width / 2f
+                        val centerY = key.top + key.height / 2f
+                        val dx = touchX - centerX
+                        val dy = touchY - centerY
+                        val dist = dx * dx + dy * dy
+                        if (dist < minDist) {
+                            minDist = dist
+                            nearestKey = key
+                        }
+                    }
+
+                    nearestKey?.let {
+                        it.performClick()
+                        it.isPressed = true
+                        it.postDelayed({ it.isPressed = false }, 100)
+                    }
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 
     /**
      * Sets up the autocorrect manager and wires up the prediction strip.
      */
     private fun setupAutocorrect() {
+        // Read user settings
+        val prefs = PreferenceManager(this)
+        isPredictionStripEnabled = prefs.getPredictionStripEnabled()
+        isAutocorrectEnabled = prefs.getAutocorrectEnabled()
+        isAiNextWordEnabled = prefs.getAiNextWordEnabled()
+        isAiWordCompletionEnabled = prefs.getAiWordCompletionEnabled()
+        isAutoFixEnabled = prefs.getAutoFixEnabled()
+
         // Initialize autocorrect manager (loads dictionary)
         if (autocorrectManager == null) {
             autocorrectManager = AutocorrectManager(this)
         }
         // Sync autocorrect language with current transcription language
-        val currentLang = PreferenceManager(this).getLanguage()
+        val currentLang = prefs.getLanguage()
         autocorrectManager?.setLanguage(currentLang)
 
         // Find prediction strip views
@@ -2107,13 +2400,24 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        // Sentence prediction bar
+        // Hide prediction strip AND shrink container so key sizes stay identical
+        if (!isPredictionStripEnabled) {
+            predictionStrip?.visibility = View.GONE
+            // Reduce container height by 50dp (43dp strip + 7dp margin) to keep keys same size
+            val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
+            container?.let {
+                val reducePx = (50 * resources.displayMetrics.density).toInt()
+                it.layoutParams = it.layoutParams.apply { height -= reducePx }
+            }
+        }
 
-        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, p1=${prediction1 != null}, p2=${prediction2 != null}, p3=${prediction3 != null}")
+        DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, predictions=$isPredictionStripEnabled, autocorrect=$isAutocorrectEnabled")
 
-        // Set up suggestion callback
+        // Set up suggestion callback (only updates strip if predictions enabled)
         autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
-            updatePredictionStrip(typed, suggestions)
+            if (isPredictionStripEnabled) {
+                updatePredictionStrip(typed, suggestions)
+            }
         }
 
         // Set up prediction strip tap handlers
@@ -2943,193 +3247,31 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Updates all keyboard keys based on current mode (letters vs numbers/symbols).
      */
     private fun updateKeyboardMode() {
-        // Numbers/symbols mapping for each key position
-        // Row 1: 1 2 3 4 5 6 7 8 9 0
-        // Row 2: @ # $ % & - + ( )
-        // Row 3: ! " ' : ; / ? Backspace
-        val numbersRow1 = mapOf(
-            R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
-            R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
-            R.id.key_o to "9", R.id.key_p to "0"
-        )
-        val numbersRow2 = mapOf(
-            R.id.key_a to "@", R.id.key_s to "#", R.id.key_d to "$", R.id.key_f to "%",
-            R.id.key_g to "&", R.id.key_h to "-", R.id.key_j to "+", R.id.key_k to "(",
-            R.id.key_l to ")"
-        )
-        val numbersRow3 = mapOf(
-            R.id.key_z to "!", R.id.key_x to "\"", R.id.key_c to "'", R.id.key_v to ":",
-            R.id.key_b to ";", R.id.key_n to "/", R.id.key_m to "?"
-        )
-
-        val lettersRow1 = mapOf(
-            R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
-            R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
-            R.id.key_o to "o", R.id.key_p to "p"
-        )
-        val lettersRow2 = mapOf(
-            R.id.key_a to "a", R.id.key_s to "s", R.id.key_d to "d", R.id.key_f to "f",
-            R.id.key_g to "g", R.id.key_h to "h", R.id.key_j to "j", R.id.key_k to "k",
-            R.id.key_l to "l"
-        )
-        val lettersRow3 = mapOf(
-            R.id.key_z to "z", R.id.key_x to "x", R.id.key_c to "c", R.id.key_v to "v",
-            R.id.key_b to "b", R.id.key_n to "n", R.id.key_m to "m"
-        )
-
-        if (isNumbersMode) {
-            // Update to numbers/symbols
-            for ((id, char) in numbersRow1 + numbersRow2 + numbersRow3) {
-                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
-            }
-            // Update mode switch button to "ABC"
-            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.text = "ABC"
-            // Hide shift key text (not applicable in numbers mode)
-            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "#+="
-        } else {
-            // Update to letters
-            val useUppercase = isShiftActive || isCapsLock
-            for ((id, char) in lettersRow1 + lettersRow2 + lettersRow3) {
-                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text =
-                    if (useUppercase) char.uppercase() else char
-            }
-            // Update mode switch button to "123"
-            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.text = "123"
-            // Restore shift key
-            updateShiftKeyDisplay()
-        }
-        // Update long-press hint visibility (umlauts hidden in numbers mode)
+        qwertyDisplayHelper?.updateKeyboardMode(isNumbersMode, isShiftActive, isCapsLock, isGermanMode)
         updateLongPressHints()
     }
 
-    /**
-     * Updates symbols display for secondary symbols (when shift is pressed in numbers mode).
-     */
     private fun updateSymbolsDisplay() {
-        // Primary symbols (no shift): 1-0, @ # $ % & - + ( ), ! " ' : ; / ?
-        // Secondary symbols (shift): ~ ` | • √ π ÷ × ¶ ∆, € £ ¥ ^ ° = { } \ © ® ™ ✓
-        val primaryRow1 = mapOf(
-            R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
-            R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
-            R.id.key_o to "9", R.id.key_p to "0"
-        )
-        val primaryRow2 = mapOf(
-            R.id.key_a to "@", R.id.key_s to "#", R.id.key_d to "$", R.id.key_f to "%",
-            R.id.key_g to "&", R.id.key_h to "-", R.id.key_j to "+", R.id.key_k to "(",
-            R.id.key_l to ")"
-        )
-        val primaryRow3 = mapOf(
-            R.id.key_z to "!", R.id.key_x to "\"", R.id.key_c to "'", R.id.key_v to ":",
-            R.id.key_b to ";", R.id.key_n to "/", R.id.key_m to "?"
-        )
-
-        val secondaryRow1 = mapOf(
-            R.id.key_q to "~", R.id.key_w to "`", R.id.key_e to "|", R.id.key_r to "•",
-            R.id.key_t to "√", R.id.key_y to "π", R.id.key_u to "÷", R.id.key_i to "×",
-            R.id.key_o to "§", R.id.key_p to "∆"
-        )
-        val secondaryRow2 = mapOf(
-            R.id.key_a to "€", R.id.key_s to "£", R.id.key_d to "¥", R.id.key_f to "^",
-            R.id.key_g to "°", R.id.key_h to "=", R.id.key_j to "{", R.id.key_k to "}",
-            R.id.key_l to "\\"
-        )
-        val secondaryRow3 = mapOf(
-            R.id.key_z to "©", R.id.key_x to "®", R.id.key_c to "™", R.id.key_v to "✓",
-            R.id.key_b to "[", R.id.key_n to "]", R.id.key_m to "_"
-        )
-
-        if (isShiftActive) {
-            for ((id, char) in secondaryRow1 + secondaryRow2 + secondaryRow3) {
-                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
-            }
-            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "123"
-        } else {
-            for ((id, char) in primaryRow1 + primaryRow2 + primaryRow3) {
-                qwertyPanel?.findViewById<android.widget.TextView>(id)?.text = char
-            }
-            qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)?.text = "#+="
-        }
+        qwertyDisplayHelper?.updateSymbolsDisplay(isShiftActive)
     }
 
-    /**
-     * Updates the shift key display based on current state.
-     * Shows German mode indicator (DE) when active.
-     */
     private fun updateShiftKeyDisplay() {
-        val shiftButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
-        shiftButton?.text = when {
-            isGermanMode && isCapsLock -> "DE⇪"  // German mode + caps lock
-            isGermanMode && isShiftActive -> "DE⇧"  // German mode + shift active
-            isGermanMode -> "DE"  // German mode indicator
-            isCapsLock -> "⇪"  // Caps lock indicator
-            isShiftActive -> "⇧"  // Shift active (filled)
-            else -> "⇧"  // Normal shift
-        }
-
-        // Update letter key displays to show uppercase when shift/caps active
-        updateLetterKeyDisplays()
+        qwertyDisplayHelper?.updateShiftKeyDisplay(isGermanMode, isCapsLock, isShiftActive)
     }
 
-    /**
-     * Updates number row visibility and number hints on top row keys.
-     * Called on keyboard open to apply latest settings.
-     */
     private fun updateNumberRowVisibility() {
         val prefs = PreferenceManager(this)
         val showNumberRow = prefs.getShowNumberRow()
-
-        DebugLog.d("DictationKeyboardService: updateNumberRowVisibility - showNumberRow=$showNumberRow, qwertyPanel=${qwertyPanel != null}")
-
-        // Update number row visibility
-        val numberRow = qwertyPanel?.findViewById<LinearLayout>(R.id.numberRow)
-        DebugLog.d("DictationKeyboardService: numberRow found=${numberRow != null}")
-        numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE
-
-        // Update number hints visibility (show hints when number row is hidden)
-        val hintVisibility = if (showNumberRow) View.GONE else View.VISIBLE
-        val hintIds = listOf(
-            R.id.hint_q, R.id.hint_w, R.id.hint_e, R.id.hint_r, R.id.hint_t,
-            R.id.hint_y, R.id.hint_u, R.id.hint_i, R.id.hint_o, R.id.hint_p
-        )
-        for (id in hintIds) {
-            qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
-        }
+        DebugLog.d("DictationKeyboardService: updateNumberRowVisibility - showNumberRow=$showNumberRow")
+        qwertyDisplayHelper?.updateNumberRowVisibility(showNumberRow)
     }
 
-    /**
-     * Updates long-press hint visibility on keys with umlaut long-press actions.
-     * Hints are shown in letters mode and hidden in numbers/symbols mode.
-     */
     private fun updateLongPressHints() {
-        val hintVisibility = if (isNumbersMode) View.GONE else View.VISIBLE
-        val umlauthintIds = listOf(R.id.hint_a, R.id.hint_o_umlaut, R.id.hint_u_umlaut)
-        for (id in umlauthintIds) {
-            qwertyPanel?.findViewById<android.widget.TextView>(id)?.visibility = hintVisibility
-        }
-        // A key hint: show "@" in English, "ä" in German
-        val aHint = qwertyPanel?.findViewById<android.widget.TextView>(R.id.hint_a)
-        aHint?.text = if (isGermanMode) "ä" else "@"
+        qwertyDisplayHelper?.updateLongPressHints(isNumbersMode, isGermanMode)
     }
 
-    /**
-     * Updates all letter keys to show uppercase or lowercase.
-     */
     private fun updateLetterKeyDisplays() {
-        val letterKeys = mapOf(
-            R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
-            R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
-            R.id.key_o to "o", R.id.key_p to "p", R.id.key_a to "a", R.id.key_s to "s",
-            R.id.key_d to "d", R.id.key_f to "f", R.id.key_g to "g", R.id.key_h to "h",
-            R.id.key_j to "j", R.id.key_k to "k", R.id.key_l to "l", R.id.key_z to "z",
-            R.id.key_x to "x", R.id.key_c to "c", R.id.key_v to "v", R.id.key_b to "b",
-            R.id.key_n to "n", R.id.key_m to "m"
-        )
-
-        val useUppercase = isShiftActive || isCapsLock
-        for ((id, char) in letterKeys) {
-            qwertyPanel?.findViewById<android.widget.TextView>(id)?.text =
-                if (useUppercase) char.uppercase() else char
-        }
+        qwertyDisplayHelper?.updateLetterKeyDisplays(isShiftActive, isCapsLock)
     }
 
     /**
@@ -3695,8 +3837,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     // cleared on DOWN to prevent fast-typing race conditions)
                     val typed = spaceDownWord
 
-                    if (isTerminalApp || isUrlField) {
-                        // Terminal apps / URL fields: no autocorrect, no predictions, just space
+                    if (isTerminalApp || isUrlField || !isAutocorrectEnabled) {
+                        // Terminal apps / URL fields / autocorrect disabled: no autocorrect, just space
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")
                     } else {
@@ -4108,7 +4250,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Shows progress in prediction strip and offers undo after completion.
      */
     private fun triggerAutoFix() {
-        if (isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
+        if (!isAutoFixEnabled || isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
         if (textImprover == null) {
             textImprover = TextImprover(this)
         }
@@ -4286,7 +4428,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Cancelled if user starts typing before response arrives.
      */
     private fun requestNextWordPrediction() {
-        if (isAutoFixRunning || isTerminalApp) return
+        if (!isAiNextWordEnabled || isAutoFixRunning || isTerminalApp) return
 
         // Clear auto-fix undo if still showing - next-word prediction takes priority
         if (autoFixUndoAvailable) {
@@ -4379,7 +4521,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
      * Debounced: waits 400ms after last keystroke before firing API call.
      */
     private fun requestAiCompletion() {
-        if (isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
+        if (!isAiWordCompletionEnabled || isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
 
         if (nextWordPredictor == null) {
             nextWordPredictor = NextWordPredictor(this)
@@ -4754,6 +4896,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun stopDictation() {
+        if (wasAutoMutedByPlayback) {
+            wasAutoMutedByPlayback = false
+            isMuteLocked = false
+        }
         dictationStartHandler.removeCallbacksAndMessages(null)
         doubleTapHandler?.removeCallbacksAndMessages(null)
         pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }

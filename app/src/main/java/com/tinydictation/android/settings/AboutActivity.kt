@@ -35,15 +35,75 @@ class AboutActivity : AppCompatActivity() {
     companion object {
         // Changelog
         private val CHANGELOG = """
+            v1.42.0:
+            • Brings back the v1.39.1 to v1.41.3 features together with clear Deepgram error messages and speech-only streaming
+            • Restores unified correction toggles, playback auto-pause/resume, swipe gestures, prediction-strip sizing, fat-finger correction and screen-awake button
+            • Restores keyboard/navigation-bar fixes, larger high-contrast tabs, headset mic routing and codebase health improvements
+            • Version code 368 is above all earlier releases, so this update installs over v1.41.x
+
+            v1.41.3:
+            • Tab labels bumped up again: 13sp -> 16sp for easier reading
+
+            v1.41.2:
+            • Tab labels (ABC/123/Agent/Shell/Snip/Clip/Hist): bigger (13sp) and higher contrast
+            • Active tab: light purple; inactive tabs: light gray (readable on black)
+            • Removed the thin selected-tab underline bar
+
+            v1.41.1:
+            • Fix headset mic: use DEFAULT audio source instead of VOICE_RECOGNITION when headset selected
+            • VOICE_RECOGNITION ignores setPreferredDevice() on many Android devices, routing to built-in mic
+
+            v1.41.0:
+            • Codebase health: extract QwertyDisplayHelper (130 lines out of god-class)
+            • Add 37 unit tests for VoiceCommandProcessor
+            • Add .editorconfig, Gradle dependency locking
+            • Add .claude/settings.json for AI agent permissions
+
+            v1.40.3:
+            • Fix white bar: fitsSystemWindows + disable nav bar contrast enforcement
+
+            v1.40.0:
+            • Fat finger correction: taps between keys now register on nearest key
+            • Screen awake button: keep screen on while keyboard is open (sun icon in dictation bar)
+
+            v1.39.5:
+            • Fix white bar below keyboard in light/day mode
+
+            v1.39.4:
+            • Fix: hide prediction strip AND shrink container so key sizes stay identical
+            • Keyboard is now 50dp shorter when predictions are off
+
+            v1.39.3:
+            • Swipe up on dictation bar to open keyboard panel
+            • Swipe down on keyboard panel to close it
+
+            v1.39.2:
+            • Auto-pause transcription when phone plays audio (WhatsApp voice messages, YouTube, music)
+            • Auto-resume when audio stops — no manual unmute needed
+            • Prevents mic from transcribing phone speaker output
+
+            v1.39.1:
+            • Unified "Corrections" settings page — all correction features in one place
+            • Three sections: During Dictation (Deepgram), After Dictation (AI), While Typing
+            • Every correction layer is now independently toggleable
+            • Moved correction toggles out of Appearance into dedicated Corrections page
+
             v1.39.0:
             • Sends audio to Deepgram only while you speak; pauses send a keep-alive instead of silence
             • Closes the stream after 4 seconds of silence and never streams longer than 2 minutes in one go
             • Stops listening at once when the keyboard hides or the screen turns off
             • Fixed dictation stopping with a false connection error after a short pause
             • Tags every Deepgram request tiny-dictation and logs streamed seconds per day
+            • Toggle every feature on/off: Smart Format, Auto Punctuation, Numerals, Dictation (Deepgram Features)
+            • Toggle AI features: Next-Word Prediction, Word Completion, Auto-Fix Sentences (Appearance)
+            • Disabling features reduces latency — fewer API calls = faster keyboard
+            • Smart Format and Auto Punctuation now respect user settings (were previously hardcoded on)
 
             v1.38.1:
             • Clear message when Deepgram rejects the API key, runs out of credit or the connection drops; stops retrying on a dead key.
+            • Settings to disable word predictions and autocorrect (Appearance → toggles)
+            • Auto-mute mic when opening QWERTY keyboard panel for typing (grey mic)
+            • Manual unmute required to resume dictation after typing
 
             v1.38.0:
             • German dictionary support (50,000 words with umlauts)
@@ -296,6 +356,11 @@ class AboutActivity : AppCompatActivity() {
             • Claude panel: Added /resume and /mcp to Quick Actions
             • Claude panel: Launch section simplified to 2 options (claude -d and claude -d -c)
 
+            v1.27.5:
+            • NEW: Claude Opus 4.5 for sentence-level AI correction
+            • Claude Haiku also available (uses Anthropic API directly)
+            • Requires Anthropic API key (Settings → API Keys)
+
             v1.27.4:
             • A key long-press: German mode → popup with ä and @
             • A key long-press: English mode → inserts @ directly
@@ -313,11 +378,6 @@ class AboutActivity : AppCompatActivity() {
             • NEW: Always-visible language indicator (EN/DE) at bottom-left
             • Tap the indicator to toggle language without scrolling
             • NEW: /coordinator command added to Agent Modes panel
-
-            v1.27.5:
-            • NEW: Claude Opus 4.5 for sentence-level AI correction
-            • Claude Haiku also available (uses Anthropic API directly)
-            • Requires Anthropic API key (Settings → API Keys)
 
             v1.27.1:
             • FIX: Shell panel buttons now work (@ | ~ ` $ # % ^ & * \ /)

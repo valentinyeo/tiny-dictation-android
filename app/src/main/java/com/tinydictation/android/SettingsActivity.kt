@@ -87,8 +87,8 @@ class SettingsActivity : AppCompatActivity() {
             SettingsCategory(
                 id = "deepgram_features",
                 icon = R.drawable.ic_mic,
-                title = "Deepgram Features",
-                subtitle = "Keywords, replacements, numerals"
+                title = "Corrections",
+                subtitle = "Dictation, typing, and AI corrections"
             ),
             SettingsCategory(
                 id = "permissions",
