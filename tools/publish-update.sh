@@ -124,11 +124,11 @@ CLOUDFLARE_API_TOKEN=$(yeo-key "Tiny Dictation Updates R2" "$label")
 CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID=7865043d9ae730882b77f3d5d670c158 \
     npx --yes wrangler@3 r2 object put "tinydictation-updates/android-latest/$apk_name" \
-    --file "$work/release.apk" --content-type application/vnd.android.package-archive --remote
+    --file "$work/release.apk" --content-type application/vnd.android.package-archive
 CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID=7865043d9ae730882b77f3d5d670c158 \
     npx --yes wrangler@3 r2 object put "tinydictation-updates/android-latest/$manifest_name" \
-    --file "$work/$manifest_name" --content-type application/json --cache-control no-cache --remote
+    --file "$work/$manifest_name" --content-type application/json --cache-control no-cache
 unset CLOUDFLARE_API_TOKEN
 
 status=$(curl --silent --show-error --location --header 'Cache-Control: no-cache' \
