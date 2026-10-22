@@ -25,7 +25,12 @@ jobs:
           distribution: temurin
       - uses: gradle/actions/setup-gradle@v3
       - run: chmod +x gradlew
-      - run: ./gradlew testDebugUnitTest assembleDebug --no-daemon
+      - run: ./gradlew testDebugUnitTest assembleDebug assembleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-apk-arm64
+          path: app/build/outputs/apk/release/app-arm64-v8a-release.apk
+          retention-days: 30
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
