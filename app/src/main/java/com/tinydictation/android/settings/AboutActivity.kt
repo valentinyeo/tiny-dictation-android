@@ -27,14 +27,15 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-/**
- * Activity displaying app information, changelog, debug tools, and app actions.
- */
 class AboutActivity : AppCompatActivity() {
 
     companion object {
-        // Changelog
         private val CHANGELOG = """
+            v1.43.0:
+            • The app can now update itself
+            • Checks for new versions and shows a notification
+            • Settings has Download and update
+
             v1.42.0:
             • Brings back the v1.39.1 to v1.41.3 features together with clear Deepgram error messages and speech-only streaming
             • Restores unified correction toggles, playback auto-pause/resume, swipe gestures, prediction-strip sizing, fat-finger correction and screen-awake button

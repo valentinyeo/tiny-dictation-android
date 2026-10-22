@@ -20,7 +20,7 @@
 3. Update changelog in settings/AboutActivity.kt
 4. Build: nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvmargs="-Xmx512m"
 5. Copy APK: cp app/build/outputs/apk/debug/app-arm64-v8a-debug.apk /tmp/TinyDictation-v{VERSION}-arm64.apk
-6. Send to Telegram (see command below)
+6. Publish release APK with tools/publish-update.sh (Telegram is optional)
 7. COMMIT IMMEDIATELY: git add -A && git commit -m "v{VERSION}: {description}"
 8. PUSH IMMEDIATELY: git push origin master
 ```
@@ -197,9 +197,14 @@ nice -n 19 ./gradlew assembleDebug --no-daemon --max-workers=2 -Dorg.gradle.jvma
 - `app/build/outputs/apk/debug/app-arm64-v8a-debug.apk` (~46MB)
 - `app/build/outputs/apk/debug/app-armeabi-v7a-debug.apk` (~37MB)
 
+### Release channel
+
+After building a signed release APK, run `tools/publish-update.sh app/build/outputs/apk/release/app-arm64-v8a-release.apk` so phones update themselves. The publisher verifies the APK, requires a higher versionCode, and publishes the APK before its update manifest.
+Use `--dry-run <out-dir>` to generate local release files without credentials or uploads.
+
 ### Sending APKs to Telegram
 
-**CRITICAL: Every build MUST be sent to Telegram immediately after building.** The user cannot test APKs locally - they must be sent to Telegram to install on their phone. Do not ask "do you want me to send it?" - just send it automatically after every build.
+Telegram is optional; use it for a direct APK install when needed.
 
 **APK naming convention**: Copy and rename with version before sending:
 ```bash

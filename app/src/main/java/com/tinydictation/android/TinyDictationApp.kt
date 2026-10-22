@@ -4,22 +4,20 @@ import android.app.Application
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.os.Build
+import com.tinydictation.android.update.UpdateManager
+import com.tinydictation.android.update.UpdateNotifier
 
-/**
- * Application class for Tiny Dictation.
- * Handles app-level initialization including notification channel creation.
- */
 class TinyDictationApp : Application() {
+
+    val updateManager by lazy { UpdateManager(this) }
 
     override fun onCreate() {
         super.onCreate()
         createNotificationChannel()
+        UpdateNotifier.initialize(this)
+        updateManager.check()
     }
 
-    /**
-     * Creates the notification channel required for the foreground service.
-     * This must be done before starting the foreground service on Android O+.
-     */
     private fun createNotificationChannel() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
