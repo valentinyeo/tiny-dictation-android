@@ -20,16 +20,11 @@ import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 import java.util.zip.ZipInputStream
 
-/**
- * Manages downloading and storing offline transcription models.
- */
 class ModelManager(private val context: Context) {
 
     companion object {
         private const val TAG = "TinyDictation"
 
-        // Sherpa-ONNX Whisper model options
-        // Users can choose based on speed vs accuracy preference
         val SHERPA_MODEL_INFO = mapOf(
             "whisper-tiny" to ModelInfo(
                 name = "Whisper Tiny (Fast)",
@@ -62,9 +57,6 @@ class ModelManager(private val context: Context) {
 
     private val downloadProgress = mutableMapOf<String, MutableStateFlow<Float?>>()
 
-    /**
-     * Check if a model is downloaded for the given engine and language.
-     */
     fun isModelAvailable(engineId: String, language: String): Boolean {
         return when (engineId) {
             "vosk" -> VoskEngine.isModelDownloaded(context, language)
@@ -73,17 +65,11 @@ class ModelManager(private val context: Context) {
         }
     }
 
-    /**
-     * Get download progress flow for a model (0.0 - 1.0, null if not downloading).
-     */
     fun getDownloadProgress(engineId: String, language: String): Flow<Float?> {
         val key = "$engineId-$language"
         return downloadProgress.getOrPut(key) { MutableStateFlow(null) }
     }
 
-    /**
-     * Download a model for the specified engine and language.
-     */
     suspend fun downloadModel(engineId: String, language: String): Result<Unit> {
         return when (engineId) {
             "vosk" -> downloadVoskModel(language)
@@ -92,9 +78,6 @@ class ModelManager(private val context: Context) {
         }
     }
 
-    /**
-     * Delete a downloaded model.
-     */
     suspend fun deleteModel(engineId: String, language: String): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
@@ -116,9 +99,6 @@ class ModelManager(private val context: Context) {
         }
     }
 
-    /**
-     * Get model info for display.
-     */
     fun getModelInfo(engineId: String, language: String): ModelInfo? {
         return when (engineId) {
             "vosk" -> VoskEngine.MODEL_INFO[language]?.let {
@@ -165,11 +145,9 @@ class ModelManager(private val context: Context) {
             DebugLog.i("ModelManager: Downloading model from $url")
             progressFlow.value = 0f
 
-            // Create target directory
             targetDir.parentFile?.mkdirs()
             val tempFile = File(context.cacheDir, "model_download_$progressKey.tar.bz2")
 
-            // Download
             val request = Request.Builder().url(url).build()
             val response = httpClient.newCall(request).execute()
 
@@ -198,11 +176,9 @@ class ModelManager(private val context: Context) {
             Log.i(TAG, "ModelManager: Download complete, extracting tar.bz2...")
             progressFlow.value = 0.8f
 
-            // Extract tar.bz2
             extractTarBz2(tempFile, targetDir)
             progressFlow.value = 1f
 
-            // Cleanup
             tempFile.delete()
 
             Log.i(TAG, "ModelManager: Model ready at ${targetDir.absolutePath}")
@@ -227,7 +203,6 @@ class ModelManager(private val context: Context) {
                     TarArchiveInputStream(bzis).use { tais ->
                         var entry: TarArchiveEntry? = tais.nextTarEntry
                         while (entry != null) {
-                            // Handle nested folder (e.g., sherpa-onnx-whisper-tiny/...)
                             val relativePath = if (entry.name.contains("/")) {
                                 entry.name.substringAfter("/")
                             } else {
@@ -266,11 +241,9 @@ class ModelManager(private val context: Context) {
             DebugLog.i("ModelManager: Downloading model from $url")
             progressFlow.value = 0f
 
-            // Create target directory
             targetDir.parentFile?.mkdirs()
             val tempZip = File(context.cacheDir, "model_download_$progressKey.zip")
 
-            // Download
             val request = Request.Builder().url(url).build()
             val response = httpClient.newCall(request).execute()
 
@@ -299,11 +272,9 @@ class ModelManager(private val context: Context) {
             Log.i(TAG, "ModelManager: Download complete, extracting...")
             progressFlow.value = 0.8f
 
-            // Extract zip
             extractZip(tempZip, targetDir)
             progressFlow.value = 1f
 
-            // Cleanup
             tempZip.delete()
 
             Log.i(TAG, "ModelManager: Model ready at ${targetDir.absolutePath}")
@@ -327,8 +298,6 @@ class ModelManager(private val context: Context) {
             while (entry != null) {
                 val file = File(targetDir, entry.name)
 
-                // Handle nested folder in zip (e.g., vosk-model-small-en-us-0.15/...)
-                // We want to extract contents directly to targetDir
                 val relativePath = if (entry.name.contains("/")) {
                     entry.name.substringAfter("/")
                 } else {
@@ -357,7 +326,6 @@ class ModelManager(private val context: Context) {
 
     private fun isSherpaModelDownloaded(language: String): Boolean {
         val modelDir = getSherpaModelDir(language)
-        // Check for encoder/decoder files
         return modelDir.exists() &&
                (File(modelDir, "encoder.onnx").exists() ||
                 File(modelDir, "model.onnx").exists() ||

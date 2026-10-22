@@ -14,10 +14,6 @@ import com.tinydictation.android.R
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
-/**
- * Activity for configuring Deepgram-specific features:
- * keywords, find & replace rules, numerals, and dictation mode.
- */
 class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
 
     companion object {
@@ -26,7 +22,6 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
 
-    // UI Elements
     private lateinit var tvKeywordsHeader: TextView
     private lateinit var tvReplacementsHeader: TextView
     private lateinit var etKeyword: TextInputEditText
@@ -46,7 +41,6 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
     private lateinit var switchAiNextWord: MaterialSwitch
     private lateinit var switchAiWordCompletion: MaterialSwitch
 
-    // Data
     private val keywords = mutableListOf<String>()
     private val replacements = mutableListOf<Pair<String, String>>()
 
@@ -92,17 +86,14 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         tvKeywordsHeader.text = "Keywords ($languageLabel)"
         tvReplacementsHeader.text = "Find & Replace ($languageLabel)"
 
-        // Load keywords
         keywords.clear()
         keywords.addAll(preferenceManager.getDeepgramKeywords(language))
         refreshKeywordsList()
 
-        // Load replacements
         replacements.clear()
         replacements.addAll(preferenceManager.getDeepgramReplacements(language))
         refreshReplacementsList()
 
-        // Load toggles
         switchSmartFormat.isChecked = preferenceManager.getSmartFormat()
         switchPunctuate.isChecked = preferenceManager.getAutoPunctuation()
         switchNumerals.isChecked = preferenceManager.getDeepgramNumerals()

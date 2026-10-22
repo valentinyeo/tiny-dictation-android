@@ -26,12 +26,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 
-/**
- * Orchestrates audio recording and transcription with multiple engine support.
- *
- * Supports cloud-based (Deepgram) and offline (Vosk, Sherpa-ONNX) transcription.
- * Can auto-fallback to offline when no internet is available.
- */
 class TranscriptionManager(
     private val apiKey: String,
     private val onTranscript: (text: String, isFinal: Boolean) -> Unit,
@@ -45,19 +39,11 @@ class TranscriptionManager(
         private const val TAG = "TinyDictation"
     }
 
-    /**
-     * Current state of the transcription manager.
-     *
-     * IDLE = Mic off, not listening
-     * STANDBY = Mic on, listening locally with VAD, NOT streaming (no cost)
-     * TRANSCRIBING = Speech detected, actively streaming to cloud (incurs cost)
-     * ERROR = Something went wrong
-     */
     enum class TranscriptionState {
         IDLE,
-        STANDBY,      // Listening locally, waiting for speech (gray mic)
-        LISTENING,    // Legacy - kept for compatibility
-        TRANSCRIBING, // Actively streaming to cloud (red mic)
+        STANDBY,
+        LISTENING,
+        TRANSCRIBING,
         ERROR
     }
 
@@ -71,47 +57,35 @@ class TranscriptionManager(
     private var currentLanguage = "en"
     private var audioChunkCount = 0
 
-    // Silence auto-stop: timer that triggers when no audio chunks received for configured duration
     private var silenceTimeoutJob: Job? = null
 
-    // Smart VAD for standby mode - only stream when speech detected
     private var isEngineConnected = false
     private val audioBuffer = mutableListOf<ShortArray>()
-    private val AUDIO_BUFFER_MAX_CHUNKS = 25  // ~500ms of audio at 20ms chunks
+    private val AUDIO_BUFFER_MAX_CHUNKS = 25
     private val streamGate = StreamGate()
     private var directStreamingStartedAt: Long? = null
 
-    // Available engines
     private val engines = mutableMapOf<String, TranscriptionEngine>()
 
     init {
-        // Initialize available engines
         engines[PreferenceManager.ENGINE_DEEPGRAM] = DeepgramEngine(apiKey)
         engines[PreferenceManager.ENGINE_VOSK] = VoskEngine()
         engines[PreferenceManager.ENGINE_SHERPA_ONNX] = SherpaOnnxEngine()
 
-        // Initialize language from user preferences (fixes bug where language reset to "en" after sleep)
         currentLanguage = preferenceManager?.getLanguage() ?: "en"
     }
 
-    /**
-     * Starts or resets the silence auto-stop timeout.
-     * When this timer expires without being reset, recording stops automatically.
-     */
     private fun resetSilenceTimeout() {
         val timeoutMs = preferenceManager?.getSilenceAutoStopMs() ?: 0
-        if (timeoutMs <= 0) return  // Auto-stop disabled
+        if (timeoutMs <= 0) return
 
         val currentScope = scope ?: return
 
-        // Cancel any existing timeout
         silenceTimeoutJob?.cancel()
 
-        // Start new timeout
         silenceTimeoutJob = currentScope.launch(Dispatchers.Main) {
             delay(timeoutMs.toLong())
 
-            // Timer expired - trigger auto-stop
             if (isListening) {
                 Log.i(TAG, "Silence auto-stop triggered after ${timeoutMs}ms of silence")
                 DebugLog.i("TranscriptionManager: Auto-stopping after ${timeoutMs}ms of silence")
@@ -120,19 +94,11 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Cancels the silence timeout (called when stopping listening).
-     */
     private fun cancelSilenceTimeout() {
         silenceTimeoutJob?.cancel()
         silenceTimeoutJob = null
     }
 
-    /**
-     * Starts listening for speech and transcribing.
-     * Begins in STANDBY mode - recording locally with VAD but NOT streaming to cloud.
-     * Only connects to cloud when speech is detected (saves API costs).
-     */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startListening() {
         if (isListening) {
@@ -140,7 +106,6 @@ class TranscriptionManager(
             return
         }
 
-        // Runtime permission check
         if (context != null) {
             if (ContextCompat.checkSelfPermission(
                     context,
@@ -154,7 +119,6 @@ class TranscriptionManager(
             }
         }
 
-        // Refresh language from preferences before starting (in case it changed)
         currentLanguage = preferenceManager?.getLanguage() ?: "en"
 
         Log.i(TAG, "TranscriptionManager starting in STANDBY mode (language: $currentLanguage)")
@@ -166,7 +130,6 @@ class TranscriptionManager(
         directStreamingStartedAt = null
         audioBuffer.clear()
 
-        // Request audio focus to pause other media apps (if enabled)
         if (preferenceManager?.getPauseMediaDuringDictation() == true) {
             val musicWasActive = audioFocusManager?.isMusicActive() == true
             if (musicWasActive) {
@@ -190,7 +153,6 @@ class TranscriptionManager(
             return
         }
 
-        // Pre-select engine (but don't connect yet - that happens when speech detected)
         currentScope.launch(Dispatchers.IO) {
             val engine = selectEngine()
             if (engine == null) {
@@ -205,7 +167,6 @@ class TranscriptionManager(
             Log.i(TAG, "Selected engine: ${engine.displayName} (will connect when speech detected)")
             DebugLog.i("TranscriptionManager: Using ${engine.displayName} (standby)")
 
-            // Initialize engine (but don't start session yet)
             val initResult = engine.initialize(context!!, currentLanguage)
             if (initResult.isFailure) {
                 currentScope.launch(Dispatchers.Main) {
@@ -215,12 +176,10 @@ class TranscriptionManager(
                 return@launch
             }
 
-            // Enter STANDBY state - listening locally but not streaming
             currentScope.launch(Dispatchers.Main) {
                 updateState(TranscriptionState.STANDBY)
             }
 
-            // Start audio recording
             currentScope.launch(Dispatchers.Main) {
                 try {
                     val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
@@ -238,9 +197,6 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Stops listening and closes all connections.
-     */
     @Synchronized
     fun stopListening() {
         if (!isListening) {
@@ -252,7 +208,6 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Stopping listening")
         isListening = false
 
-        // Cancel silence auto-stop timer
         cancelSilenceTimeout()
 
         streamGate.stop()
@@ -261,7 +216,6 @@ class TranscriptionManager(
         audioRecorder.stopRecording()
         currentEngine?.endSession()
 
-        // Abandon audio focus to allow other media apps to resume
         audioFocusManager?.abandonAudioFocus()
 
         scope?.cancel()
@@ -270,12 +224,6 @@ class TranscriptionManager(
         updateState(TranscriptionState.IDLE)
     }
 
-    /**
-     * Processes an audio chunk with smart VAD.
-     *
-     * In STANDBY mode: buffers audio, runs VAD, connects to engine when speech detected
-     * In TRANSCRIBING mode: streams to engine, runs VAD, disconnects when silence detected
-     */
     @Synchronized
     private fun processAudioChunk(samples: ShortArray) {
         if (!isListening) return
@@ -283,7 +231,6 @@ class TranscriptionManager(
         audioChunkCount++
         val rms = calculateRMS(samples)
 
-        // Always buffer audio (for sending when speech starts)
         synchronized(audioBuffer) {
             audioBuffer.add(samples.copyOf())
             while (audioBuffer.size > AUDIO_BUFFER_MAX_CHUNKS) {
@@ -310,16 +257,12 @@ class TranscriptionManager(
         }
         if (isEngineConnected) resetSilenceTimeout()
 
-        // Log periodically
         if (audioChunkCount % 100 == 0) {
             val state = if (isEngineConnected) "STREAMING" else "STANDBY"
             DebugLog.d("TranscriptionManager: chunks=$audioChunkCount, RMS=$rms, state=$state")
         }
     }
 
-    /**
-     * Calculates RMS (root mean square) of audio samples for VAD.
-     */
     private fun calculateRMS(samples: ShortArray): Int {
         if (samples.isEmpty()) return 0
         var sum = 0L
@@ -329,10 +272,6 @@ class TranscriptionManager(
         return kotlin.math.sqrt(sum.toDouble() / samples.size).toInt()
     }
 
-    /**
-     * Connects to the transcription engine and starts streaming.
-     * Called when speech is detected in STANDBY mode.
-     */
     private fun connectAndStartStreaming() {
         val engine = currentEngine ?: return
         val currentScope = scope ?: return
@@ -340,7 +279,6 @@ class TranscriptionManager(
         isEngineConnected = true
         updateState(TranscriptionState.TRANSCRIBING)
 
-        // Clear any stale audio and start session
         engine.clearAudioBuffer()
 
         engine.startSession(
@@ -368,13 +306,10 @@ class TranscriptionManager(
                             return@launch
                         }
 
-                        // Connection failed (e.g., went offline) - reset state and return to standby
-                        // This allows automatic reconnection when speech is detected again
                         isEngineConnected = false
                         streamGate.start()
                         currentEngine?.endSession()
 
-                        // Clear audio buffer to avoid sending stale data on reconnect
                         synchronized(audioBuffer) {
                             audioBuffer.clear()
                         }
@@ -388,7 +323,6 @@ class TranscriptionManager(
             }
         )
 
-        // Send buffered audio (so we don't miss the start of speech)
         synchronized(audioBuffer) {
             DebugLog.d("TranscriptionManager: Sending ${audioBuffer.size} buffered chunks")
             for (chunk in audioBuffer) {
@@ -398,10 +332,6 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Disconnects from the transcription engine and returns to STANDBY.
-     * Called when silence is detected in TRANSCRIBING mode.
-     */
     private fun disconnectAndStandby() {
         isEngineConnected = false
         cancelSilenceTimeout()
@@ -412,13 +342,7 @@ class TranscriptionManager(
         DebugLog.i("TranscriptionManager: Returned to STANDBY mode")
     }
 
-    // ========== Push-to-Talk Methods ==========
 
-    /**
-     * Starts audio recording into buffer only (no VAD, no engine connection).
-     * Pre-selects and initializes engine so streaming can start quickly.
-     * Used for PTT mode touch-down.
-     */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startBufferingOnly() {
         if (isListening) {
@@ -426,7 +350,6 @@ class TranscriptionManager(
             return
         }
 
-        // Runtime permission check
         if (context != null) {
             if (ContextCompat.checkSelfPermission(
                     context,
@@ -451,7 +374,6 @@ class TranscriptionManager(
         audioChunkCount = 0
         audioBuffer.clear()
 
-        // Request audio focus
         if (preferenceManager?.getPauseMediaDuringDictation() == true) {
             audioFocusManager?.requestAudioFocus(duck = false)
         }
@@ -464,7 +386,6 @@ class TranscriptionManager(
             return
         }
 
-        // Pre-select and initialize engine in background
         currentScope.launch(Dispatchers.IO) {
             val engine = selectEngine()
             if (engine == null) {
@@ -487,12 +408,10 @@ class TranscriptionManager(
                 return@launch
             }
 
-            // Enter STANDBY state (buffering, not streaming)
             currentScope.launch(Dispatchers.Main) {
                 updateState(TranscriptionState.STANDBY)
             }
 
-            // Start audio recording - chunks go to buffer via processAudioChunkPTT
             currentScope.launch(Dispatchers.Main) {
                 try {
                     val useHeadphoneMic = preferenceManager?.getUseHeadphoneMic() ?: false
@@ -509,10 +428,6 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Simplified audio chunk handler for PTT mode.
-     * Just buffers or streams directly - no VAD thresholds.
-     */
     @Synchronized
     private fun processAudioChunkPTT(samples: ShortArray) {
         if (!isListening) return
@@ -525,16 +440,13 @@ class TranscriptionManager(
         }
 
         if (!isEngineConnected) {
-            // Buffering mode - store audio for later
             synchronized(audioBuffer) {
                 audioBuffer.add(samples.copyOf())
-                // Keep more buffer in PTT mode (up to ~10 seconds at 50 chunks/sec)
                 while (audioBuffer.size > 500) {
                     audioBuffer.removeAt(0)
                 }
             }
         } else {
-            // Streaming mode - send directly to engine
             currentEngine?.processAudio(samples)
         }
 
@@ -544,10 +456,6 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Connects to engine, flushes buffered audio, starts live streaming.
-     * Called when PTT hold exceeds 500ms threshold.
-     */
     @Synchronized
     fun startDirectStreaming() {
         val engine = currentEngine ?: run {
@@ -598,7 +506,6 @@ class TranscriptionManager(
             }
         )
 
-        // Flush buffered audio
         synchronized(audioBuffer) {
             DebugLog.d("TranscriptionManager: PTT flushing ${audioBuffer.size} buffered chunks")
             for (chunk in audioBuffer) {
@@ -608,10 +515,6 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Stops PTT recording. If streaming was active, ends the session.
-     * If only buffering, discards the buffer.
-     */
     @Synchronized
     fun stopBuffering(discard: Boolean = false) {
         if (!isListening) return
@@ -629,10 +532,8 @@ class TranscriptionManager(
         audioRecorder.stopRecording()
 
         if (wasStreaming && !discard) {
-            // End session gracefully to get final transcription
             currentEngine?.endSession()
         } else {
-            // Just discard everything
             currentEngine?.endSession()
             synchronized(audioBuffer) { audioBuffer.clear() }
         }
@@ -645,9 +546,6 @@ class TranscriptionManager(
         updateState(TranscriptionState.IDLE)
     }
 
-    /**
-     * Selects the appropriate transcription engine based on preferences and availability.
-     */
     private suspend fun selectEngine(): TranscriptionEngine? {
         val ctx = context ?: return engines[PreferenceManager.ENGINE_DEEPGRAM]
 
@@ -658,22 +556,18 @@ class TranscriptionManager(
 
         Log.d(TAG, "Preferred engine: $preferredEngineId, autoFallback: $autoFallback, whisperModel: $whisperModel")
 
-        // Handle cloud providers (Deepgram is the engine ID for all cloud providers)
         if (preferredEngineId == PreferenceManager.ENGINE_DEEPGRAM) {
             val autoDetect = preferenceManager.getAutoDetectLanguage()
 
-            // If auto-fallback is enabled, check connectivity
             if (autoFallback && !isNetworkAvailable(ctx)) {
                 Log.i(TAG, "No network, attempting fallback to offline engine")
                 DebugLog.i("TranscriptionManager: No network, falling back to offline")
 
-                // Try Vosk first
                 val voskEngine = engines[PreferenceManager.ENGINE_VOSK]
                 if (voskEngine != null && voskEngine.isReady(ctx, currentLanguage)) {
                     return voskEngine
                 }
 
-                // Try Sherpa-ONNX with selected Whisper model
                 val sherpaEngine = engines[PreferenceManager.ENGINE_SHERPA_ONNX]
                 if (sherpaEngine != null && sherpaEngine.isReady(ctx, whisperModel)) {
                     (sherpaEngine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
@@ -684,7 +578,6 @@ class TranscriptionManager(
                 DebugLog.w("TranscriptionManager: No offline models available")
             }
 
-            // Deepgram is the only cloud provider
             if (apiKey.isBlank()) {
                 Log.e(TAG, "Deepgram selected but no API key")
                 return null
@@ -692,7 +585,6 @@ class TranscriptionManager(
             val engine = engines[PreferenceManager.ENGINE_DEEPGRAM] as? DeepgramEngine
             engine?.setModel(preferenceManager.getDeepgramModel())
             if (autoDetect) engine?.setAutoDetectLanguage(true)
-            // Set Deepgram-specific features
             engine?.smartFormat = preferenceManager.getSmartFormat()
             engine?.punctuate = preferenceManager.getAutoPunctuation()
             engine?.keywords = preferenceManager.getDeepgramKeywords(currentLanguage)
@@ -703,10 +595,8 @@ class TranscriptionManager(
             return engine
         }
 
-        // Use preferred offline engine
         val engine = engines[preferredEngineId]
 
-        // For Sherpa-ONNX (Whisper), set the selected model variant
         if (preferredEngineId == PreferenceManager.ENGINE_SHERPA_ONNX) {
             (engine as? SherpaOnnxEngine)?.setModelVariant(whisperModel)
             if (engine != null && !engine.isReady(ctx, whisperModel)) {
@@ -723,9 +613,6 @@ class TranscriptionManager(
         return engine
     }
 
-    /**
-     * Checks if network is available.
-     */
     private fun isNetworkAvailable(context: Context): Boolean {
         val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
         val network = connectivityManager.activeNetwork ?: return false
@@ -734,9 +621,6 @@ class TranscriptionManager(
                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
     }
 
-    /**
-     * Updates the current state and notifies the listener.
-     */
     private fun updateState(newState: TranscriptionState) {
         if (currentState != newState) {
             Log.d(TAG, "Transcription state changed: $currentState -> $newState")
@@ -749,9 +633,6 @@ class TranscriptionManager(
     fun isListening(): Boolean = isListening
     fun isTranscribing(): Boolean = currentState == TranscriptionState.TRANSCRIBING
 
-    /**
-     * Changes the transcription language.
-     */
     fun setLanguage(language: String) {
         if (currentLanguage == language) return
 
@@ -762,16 +643,8 @@ class TranscriptionManager(
         currentEngine?.setLanguage(language)
     }
 
-    /**
-     * Gets the currently active engine ID.
-     */
     fun getActiveEngineId(): String? = currentEngine?.engineId
 
-    /**
-     * Sets terminal mode on the Deepgram engine.
-     * In terminal mode, Deepgram disables smart_format, punctuate, and interim_results
-     * to provide raw transcription output suitable for terminal apps.
-     */
     fun setTerminalMode(enabled: Boolean) {
         val engine = currentEngine ?: engines.values.firstOrNull()
         if (engine is com.tinydictation.android.transcription.engines.DeepgramEngine) {
@@ -780,23 +653,10 @@ class TranscriptionManager(
         }
     }
 
-    /**
-     * Checks if there is pending audio still being processed.
-     *
-     * @return true if there is pending audio to be transcribed
-     */
     fun hasPendingAudio(): Boolean {
         return currentEngine?.hasPendingAudio() == true
     }
 
-    /**
-     * Flushes any pending audio and waits for processing to complete.
-     * This ensures all buffered audio is transcribed before returning.
-     * Use this before copying transcription to clipboard to ensure completeness.
-     *
-     * @param timeoutMs Maximum time to wait for processing
-     * @return true if flush completed successfully, false if timed out
-     */
     suspend fun flushPendingTranscription(timeoutMs: Long = 10000): Boolean {
         val engine = currentEngine ?: return true
         Log.i(TAG, "TranscriptionManager: Flushing pending transcription")
@@ -804,19 +664,12 @@ class TranscriptionManager(
         return engine.flushPendingAudio(timeoutMs)
     }
 
-    /**
-     * Clears any buffered audio in the current engine.
-     * Call this when starting a fresh dictation session.
-     */
     fun clearEngineAudioBuffer() {
         Log.d(TAG, "TranscriptionManager: Clearing engine audio buffer")
         DebugLog.d("TranscriptionManager: Clearing engine audio buffer")
         currentEngine?.clearAudioBuffer()
     }
 
-    /**
-     * Releases all resources.
-     */
     fun release() {
         stopListening()
         engines.values.forEach { it.release() }

@@ -7,10 +7,6 @@ import androidx.appcompat.app.AppCompatActivity
 import com.google.android.material.appbar.MaterialToolbar
 import com.tinydictation.android.R
 
-/**
- * Activity displaying all available voice commands organized by category.
- * Users can see what commands they can speak while dictating.
- */
 class VoiceCommandsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,17 +20,14 @@ class VoiceCommandsActivity : AppCompatActivity() {
     }
 
     private fun setupCommands() {
-        // Deletion commands
         setCommand(R.id.cmdScratchThat, "\"scratch that\"", "Clear all text")
         setCommand(R.id.cmdUndoThat, "\"undo that\"", "Delete last word")
         setCommand(R.id.cmdDelete, "\"delete\"", "Delete one character")
 
-        // Navigation commands
         setCommand(R.id.cmdTab, "\"tab\"", "Insert tab character")
         setCommand(R.id.cmdSpace, "\"space\"", "Insert space")
         setCommand(R.id.cmdSelectAll, "\"select all\"", "Select all text")
 
-        // Symbol commands
         setCommand(R.id.cmdSemicolon, "\"semicolon\"", "Insert ;")
         setCommand(R.id.cmdHyphen, "\"hyphen\" / \"dash\"", "Insert -")
         setCommand(R.id.cmdUnderscore, "\"underscore\"", "Insert _")
@@ -43,7 +36,6 @@ class VoiceCommandsActivity : AppCompatActivity() {
         setCommand(R.id.cmdAmpersand, "\"ampersand\"", "Insert &")
         setCommand(R.id.cmdAsterisk, "\"asterisk\" / \"star\"", "Insert *")
 
-        // Quotes & brackets
         setCommand(R.id.cmdOpenQuote, "\"open quote\"", "Insert \"")
         setCommand(R.id.cmdCloseQuote, "\"close quote\"", "Insert \"")
         setCommand(R.id.cmdSingleQuote, "\"single quote\"", "Insert '")

@@ -21,28 +21,19 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/**
- * Wrapper around Android's AudioRecord API for capturing audio.
- * Configured for Deepgram's requirements: 16kHz, mono, PCM 16-bit.
- */
 class AudioRecorder {
 
     companion object {
         private const val TAG = "TinyDictation"
 
-        /** Sample rate required by Deepgram */
         const val SAMPLE_RATE = 16000
 
-        /** Mono channel configuration */
         private const val CHANNEL_CONFIG = AudioFormat.CHANNEL_IN_MONO
 
-        /** PCM 16-bit audio format */
         private const val AUDIO_FORMAT = AudioFormat.ENCODING_PCM_16BIT
 
-        /** 20ms chunks at 16kHz = 320 samples */
         const val SAMPLES_PER_CHUNK = 320
 
-        /** 320 samples * 2 bytes per sample = 640 bytes */
         const val BYTES_PER_CHUNK = SAMPLES_PER_CHUNK * 2
     }
 
@@ -51,22 +42,14 @@ class AudioRecorder {
     private var isRecording = false
     private var chunksDelivered = 0
 
-    // Audio effects to filter out speaker audio
     private var echoCanceler: AcousticEchoCanceler? = null
     private var noiseSuppressor: NoiseSuppressor? = null
 
-    // Bluetooth SCO state
     private var audioManager: AudioManager? = null
     private var bluetoothScoStarted = false
     private var previousAudioMode = AudioManager.MODE_NORMAL
 
-    /**
-     * Enables audio effects to improve voice recording quality.
-     * - AcousticEchoCanceler: Filters out audio playing from the speaker (e.g., WhatsApp voice messages)
-     * - NoiseSuppressor: Reduces background noise
-     */
     private fun enableAudioEffects(audioSessionId: Int) {
-        // Enable Acoustic Echo Cancellation
         if (AcousticEchoCanceler.isAvailable()) {
             try {
                 echoCanceler = AcousticEchoCanceler.create(audioSessionId)?.also { aec ->
@@ -83,7 +66,6 @@ class AudioRecorder {
             DebugLog.i("AudioRecorder: AEC not available")
         }
 
-        // Enable Noise Suppression
         if (NoiseSuppressor.isAvailable()) {
             try {
                 noiseSuppressor = NoiseSuppressor.create(audioSessionId)?.also { ns ->
@@ -100,9 +82,6 @@ class AudioRecorder {
         }
     }
 
-    /**
-     * Releases audio effects resources.
-     */
     private fun releaseAudioEffects() {
         echoCanceler?.let {
             try {
@@ -123,20 +102,12 @@ class AudioRecorder {
         noiseSuppressor = null
     }
 
-    /**
-     * Checks if the given audio device is a Bluetooth device that requires SCO.
-     */
     private fun isBluetoothDevice(device: AudioDeviceInfo?): Boolean {
         if (device == null) return false
         return device.type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO ||
                device.type == AudioDeviceInfo.TYPE_BLE_HEADSET
     }
 
-    /**
-     * Starts Bluetooth SCO (Synchronous Connection-Oriented) mode.
-     * This is required for recording audio from Bluetooth headsets.
-     * Without SCO, Bluetooth headsets only work for audio output.
-     */
     @Suppress("DEPRECATION")
     private suspend fun startBluetoothSco(context: Context): Boolean {
         val am = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -148,20 +119,16 @@ class AudioRecorder {
             return true
         }
 
-        // Save current audio mode to restore later
         previousAudioMode = am.mode
 
         try {
-            // Start Bluetooth SCO
             Log.i(TAG, "AudioRecorder: Starting Bluetooth SCO...")
             DebugLog.i("AudioRecorder: Starting Bluetooth SCO for headset mic")
             am.startBluetoothSco()
             bluetoothScoStarted = true
 
-            // Set audio mode to communication for SCO
             am.mode = AudioManager.MODE_IN_COMMUNICATION
 
-            // Wait for SCO to connect (up to 2 seconds)
             var attempts = 0
             while (!am.isBluetoothScoOn && attempts < 20) {
                 delay(100)
@@ -186,9 +153,6 @@ class AudioRecorder {
         }
     }
 
-    /**
-     * Stops Bluetooth SCO mode and restores previous audio state.
-     */
     @Suppress("DEPRECATION")
     private fun stopBluetoothSco() {
         if (!bluetoothScoStarted) return
@@ -200,7 +164,6 @@ class AudioRecorder {
                     Log.i(TAG, "AudioRecorder: Bluetooth SCO stopped")
                     DebugLog.i("AudioRecorder: Bluetooth SCO stopped")
                 }
-                // Restore previous audio mode
                 am.mode = previousAudioMode
             }
         } catch (e: Exception) {
@@ -211,31 +174,15 @@ class AudioRecorder {
         audioManager = null
     }
 
-    /**
-     * Calculates the minimum buffer size required for AudioRecord.
-     * Returns the larger of the minimum required size or our chunk size.
-     */
     private fun getMinBufferSize(): Int {
         val minSize = AudioRecord.getMinBufferSize(
             SAMPLE_RATE,
             CHANNEL_CONFIG,
             AUDIO_FORMAT
         )
-        // Use at least 4x our chunk size for the internal buffer to prevent overflow
         return maxOf(minSize, BYTES_PER_CHUNK * 4)
     }
 
-    /**
-     * Starts audio recording and delivers audio chunks via the callback.
-     *
-     * @param scope CoroutineScope to run the recording loop in
-     * @param context Android context for accessing AudioManager
-     * @param useHeadphoneMic If true, explicitly routes audio to headset mic if connected.
-     *                        If false, uses VOICE_RECOGNITION which prefers phone's built-in mic.
-     * @param onAudioChunk Callback invoked with each audio chunk (320 samples / 20ms)
-     * @throws SecurityException if RECORD_AUDIO permission is not granted
-     * @throws IllegalStateException if AudioRecord fails to initialize
-     */
     @RequiresPermission(Manifest.permission.RECORD_AUDIO)
     fun startRecording(
         scope: CoroutineScope,
@@ -253,7 +200,6 @@ class AudioRecorder {
         val bufferSize = getMinBufferSize()
         Log.d(TAG, "Audio buffer size: $bufferSize bytes")
 
-        // Find headset mic if user wants to use it
         val headsetMic = if (useHeadphoneMic) findHeadsetMic(context) else null
         val needsBluetoothSco = useHeadphoneMic && isBluetoothDevice(headsetMic)
 
@@ -261,7 +207,6 @@ class AudioRecorder {
         chunksDelivered = 0
 
         recordingJob = scope.launch {
-            // Start Bluetooth SCO if needed (must be done in coroutine for delay)
             if (needsBluetoothSco) {
                 val scoStarted = startBluetoothSco(context)
                 if (!scoStarted) {
@@ -270,9 +215,6 @@ class AudioRecorder {
                 }
             }
 
-            // Choose audio source:
-            // - DEFAULT when headset mic requested (VOICE_RECOGNITION ignores setPreferredDevice on many devices)
-            // - VOICE_RECOGNITION for built-in mic (better noise cancellation, echo suppression)
             val audioSource = if (useHeadphoneMic && headsetMic != null) {
                 MediaRecorder.AudioSource.DEFAULT
             } else {
@@ -293,7 +235,6 @@ class AudioRecorder {
                         throw IllegalStateException("Failed to initialize AudioRecord - microphone may be in use by another app")
                     }
 
-                    // Explicitly set the preferred input device if headset mic is requested and available
                     if (useHeadphoneMic && headsetMic != null) {
                         val success = record.setPreferredDevice(headsetMic)
                         val deviceName = headsetMic.productName?.toString() ?: getDeviceTypeName(headsetMic.type)
@@ -312,8 +253,6 @@ class AudioRecorder {
                         DebugLog.i("AudioRecorder: Using built-in microphone")
                     }
 
-                    // Enable Acoustic Echo Cancellation to filter out speaker audio
-                    // This prevents transcribing audio playing from WhatsApp voice messages, etc.
                     enableAudioEffects(record.audioSessionId)
                 }
             } catch (e: SecurityException) {
@@ -357,30 +296,24 @@ class AudioRecorder {
                         when {
                             readResult == AudioRecord.ERROR_INVALID_OPERATION -> {
                                 Log.e(TAG, "AudioRecord read error: INVALID_OPERATION")
-                                // AudioRecord is not properly initialized
                                 break
                             }
                             readResult == AudioRecord.ERROR_BAD_VALUE -> {
                                 Log.e(TAG, "AudioRecord read error: BAD_VALUE")
-                                // Invalid parameters
                                 break
                             }
                             readResult == AudioRecord.ERROR_DEAD_OBJECT -> {
                                 Log.e(TAG, "AudioRecord read error: DEAD_OBJECT")
-                                // AudioRecord has become invalid
                                 break
                             }
                             readResult > 0 -> {
-                                // Successfully read audio data
                                 chunksDelivered++
 
-                                // Log first chunk to confirm audio is flowing
                                 if (chunksDelivered == 1) {
                                     Log.i(TAG, "AudioRecorder: First audio chunk delivered ($readResult samples)")
                                     DebugLog.i("AudioRecorder: First audio chunk delivered")
                                 }
 
-                                // Log periodically to confirm audio is flowing
                                 if (chunksDelivered % 100 == 0) {
                                     Log.d(TAG, "AudioRecorder: Delivered $chunksDelivered audio chunks")
                                     DebugLog.d("AudioRecorder: Delivered $chunksDelivered chunks")
@@ -389,7 +322,6 @@ class AudioRecorder {
                                 if (readResult == SAMPLES_PER_CHUNK) {
                                     onAudioChunk(buffer.copyOf())
                                 } else {
-                                    // Partial read - still deliver what we got
                                     Log.d(TAG, "Partial audio read: $readResult samples")
                                     onAudioChunk(buffer.copyOf(readResult))
                                 }
@@ -406,9 +338,6 @@ class AudioRecorder {
         }
     }
 
-    /**
-     * Stops audio recording and releases resources.
-     */
     fun stopRecording() {
         if (!isRecording) {
             Log.d(TAG, "AudioRecorder not recording, ignoring stop request")
@@ -421,7 +350,6 @@ class AudioRecorder {
         recordingJob?.cancel()
         recordingJob = null
 
-        // Release audio effects first
         releaseAudioEffects()
 
         audioRecord?.let { record ->
@@ -432,25 +360,16 @@ class AudioRecorder {
                 }
             } catch (e: IllegalStateException) {
                 Log.e(TAG, "Error stopping AudioRecord", e)
-                // Already stopped, ignore
             }
             record.release()
         }
         audioRecord = null
 
-        // Stop Bluetooth SCO if it was started
         stopBluetoothSco()
     }
 
-    /**
-     * Returns whether the recorder is currently recording.
-     */
     fun isRecording(): Boolean = isRecording
 
-    /**
-     * Converts a ShortArray of audio samples to a ByteArray in little-endian format.
-     * This is the format expected by Deepgram.
-     */
     fun shortArrayToByteArray(samples: ShortArray): ByteArray {
         val bytes = ByteArray(samples.size * 2)
         for (i in samples.indices) {
@@ -461,16 +380,10 @@ class AudioRecorder {
         return bytes
     }
 
-    /**
-     * Finds a connected headset microphone.
-     * Checks for wired, USB, and Bluetooth headsets with microphones.
-     * @return AudioDeviceInfo for the headset mic, or null if none connected
-     */
     private fun findHeadsetMic(context: Context): AudioDeviceInfo? {
         val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
         val devices = audioManager.getDevices(AudioManager.GET_DEVICES_INPUTS)
 
-        // Priority order: wired > USB > Bluetooth
         val headsetTypes = listOf(
             AudioDeviceInfo.TYPE_WIRED_HEADSET,
             AudioDeviceInfo.TYPE_USB_HEADSET,
@@ -488,7 +401,6 @@ class AudioRecorder {
             }
         }
 
-        // Log all available input devices for debugging
         Log.d(TAG, "No headset mic found. Available input devices:")
         for (device in devices) {
             val name = device.productName?.toString() ?: "Unknown"
@@ -498,9 +410,6 @@ class AudioRecorder {
         return null
     }
 
-    /**
-     * Returns a human-readable name for an audio device type.
-     */
     private fun getDeviceTypeName(type: Int): String {
         return when (type) {
             AudioDeviceInfo.TYPE_BUILTIN_MIC -> "Built-in mic"

@@ -1,7 +1,5 @@
 #!/bin/bash
 
-# Script to generate a release keystore for Android app signing
-# This creates a new keystore and provides the base64 encoding needed for GitHub secrets
 
 set -e
 
@@ -10,13 +8,11 @@ echo "Android Keystore Generator"
 echo "=========================================="
 echo ""
 
-# Get keystore details from user
 read -p "Enter keystore password (minimum 6 characters): " STORE_PASSWORD
 read -p "Enter key alias (e.g., tinydictation-key): " KEY_ALIAS
 read -p "Enter key password (minimum 6 characters): " KEY_PASSWORD
 echo ""
 
-# Get certificate information
 echo "Certificate Information:"
 read -p "Your name (CN): " CN
 read -p "Organizational unit (OU, optional): " OU
@@ -26,7 +22,6 @@ read -p "State (ST, optional): " ST
 read -p "Country code (C, e.g., US): " C
 echo ""
 
-# Build the dname string
 DNAME="CN=${CN}"
 [ -n "$OU" ] && DNAME="${DNAME}, OU=${OU}"
 [ -n "$O" ] && DNAME="${DNAME}, O=${O}"
@@ -34,7 +29,6 @@ DNAME="CN=${CN}"
 [ -n "$ST" ] && DNAME="${DNAME}, ST=${ST}"
 [ -n "$C" ] && DNAME="${DNAME}, C=${C}"
 
-# Generate keystore
 KEYSTORE_FILE="release.keystore"
 
 echo "Generating keystore..."
@@ -56,7 +50,6 @@ echo ""
 echo "File: ${KEYSTORE_FILE}"
 echo ""
 
-# Generate base64 encoding
 echo "Generating base64 encoding for GitHub secrets..."
 KEYSTORE_BASE64=$(base64 -w 0 "${KEYSTORE_FILE}")
 

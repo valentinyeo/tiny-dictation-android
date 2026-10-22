@@ -35,7 +35,6 @@ class HistoryActivity : AppCompatActivity() {
     private lateinit var historyManager: TranscriptionHistoryManager
     private lateinit var adapter: HistoryAdapter
 
-    // Selection mode state
     private var isSelectionMode = false
     private val selectedItems = mutableSetOf<Long>()
 
@@ -67,14 +66,12 @@ class HistoryActivity : AppCompatActivity() {
             isInSelectionMode = { isSelectionMode }
         )
 
-        // Use GridLayoutManager with 2 columns for tile layout
         val gridLayoutManager = GridLayoutManager(this, 2)
         recyclerView.layoutManager = gridLayoutManager
         recyclerView.adapter = adapter
     }
 
     private fun setupFabs() {
-        // Back FAB - always visible, in thumb zone
         fabBack.setOnClickListener {
             if (isSelectionMode) {
                 exitSelectionMode()
@@ -83,7 +80,6 @@ class HistoryActivity : AppCompatActivity() {
             }
         }
 
-        // Copy FAB - shown when items selected
         fabCopy.setOnClickListener {
             copySelectedToClipboard()
         }
@@ -107,7 +103,6 @@ class HistoryActivity : AppCompatActivity() {
         if (isSelectionMode) {
             toggleSelection(entry.id)
         } else {
-            // Single tap copies and closes - thumb-zone friendly
             copyToClipboardAndClose(entry)
         }
     }
@@ -139,7 +134,6 @@ class HistoryActivity : AppCompatActivity() {
             selectedItems.add(id)
         }
 
-        // Exit selection mode if no items selected
         if (selectedItems.isEmpty()) {
             exitSelectionMode()
         } else {
@@ -160,34 +154,28 @@ class HistoryActivity : AppCompatActivity() {
         val entries = historyManager.getAll()
         val selectedTexts = entries
             .filter { selectedItems.contains(it.id) }
-            .sortedBy { it.timestamp } // Oldest first for multi-select copy
+            .sortedBy { it.timestamp }
             .map { it.text }
 
         if (selectedTexts.isNotEmpty()) {
-            // Join with spaces between items
             val combinedText = selectedTexts.joinToString(" ")
 
-            // Copy to clipboard
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("Transcriptions", combinedText)
             clipboard.setPrimaryClip(clip)
 
-            // Send text to keyboard service to paste into current text field
             pasteViaKeyboard(combinedText)
 
-            // Close after pasting selected items
             finish()
         }
     }
 
     private fun loadHistory() {
         val entries = historyManager.getAll()
-        // Reverse order: oldest at top, newest at bottom (for thumb-zone access)
         val reversedEntries = entries.sortedBy { it.timestamp }
         adapter.submitList(reversedEntries)
         updateEmptyState(entries.isEmpty())
 
-        // Scroll to bottom to show newest items (in thumb zone)
         if (reversedEntries.isNotEmpty()) {
             recyclerView.post {
                 recyclerView.scrollToPosition(reversedEntries.size - 1)
@@ -203,21 +191,15 @@ class HistoryActivity : AppCompatActivity() {
     private fun copyToClipboardAndClose(entry: TranscriptionEntry) {
         val text = entry.text
 
-        // Copy to clipboard
         val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         val clip = ClipData.newPlainText("Transcription", text)
         clipboard.setPrimaryClip(clip)
 
-        // Send text to keyboard service to paste into current text field
         pasteViaKeyboard(text)
 
-        // Close immediately after copying for quick workflow
         finish()
     }
 
-    /**
-     * Sends text to DictationKeyboardService to paste into the current text field.
-     */
     private fun pasteViaKeyboard(text: String) {
         val intent = Intent(DictationKeyboardService.ACTION_PASTE_TEXT).apply {
             putExtra(DictationKeyboardService.EXTRA_TEXT, text)
@@ -225,9 +207,6 @@ class HistoryActivity : AppCompatActivity() {
         LocalBroadcastManager.getInstance(this).sendBroadcast(intent)
     }
 
-    /**
-     * RecyclerView adapter for history tiles.
-     */
     private inner class HistoryAdapter(
         private val onItemClick: (TranscriptionEntry) -> Unit,
         private val onItemLongClick: (TranscriptionEntry) -> Unit,
@@ -265,7 +244,6 @@ class HistoryActivity : AppCompatActivity() {
                 tvLanguage.text = entry.language.uppercase()
                 tvText.text = entry.text
 
-                // Update card checked state for selection mode
                 val selected = isItemSelected(entry.id)
                 card.isChecked = selected
 
@@ -282,26 +260,22 @@ class HistoryActivity : AppCompatActivity() {
                 val then = Calendar.getInstance().apply { time = date }
 
                 return when {
-                    // Today - just show time
                     now.get(Calendar.DATE) == then.get(Calendar.DATE) &&
                     now.get(Calendar.MONTH) == then.get(Calendar.MONTH) &&
                     now.get(Calendar.YEAR) == then.get(Calendar.YEAR) -> {
                         val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
                         timeFormat.format(date)
                     }
-                    // Yesterday
                     now.get(Calendar.DATE) - then.get(Calendar.DATE) == 1 &&
                     now.get(Calendar.MONTH) == then.get(Calendar.MONTH) &&
                     now.get(Calendar.YEAR) == then.get(Calendar.YEAR) -> {
                         val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
                         "Yest ${timeFormat.format(date)}"
                     }
-                    // Same year - short date
                     now.get(Calendar.YEAR) == then.get(Calendar.YEAR) -> {
                         val format = SimpleDateFormat("M/d h:mm a", Locale.getDefault())
                         format.format(date)
                     }
-                    // Different year
                     else -> {
                         val format = SimpleDateFormat("M/d/yy", Locale.getDefault())
                         format.format(date)

@@ -6,21 +6,6 @@ import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.util.Log
 
-/**
- * Manages audio focus for dictation sessions.
- *
- * When enabled, this class requests audio focus when dictation starts,
- * which causes other audio apps (music players, YouTube, etc.) to pause or duck.
- * When dictation stops, audio focus is abandoned, allowing other apps to resume.
- *
- * Key behaviors:
- * - AUDIOFOCUS_GAIN_TRANSIENT: Pauses other audio apps temporarily
- * - AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK: Asks other apps to lower volume (ducking)
- * - isMusicActive(): Can detect if media is currently playing
- *
- * Note: Not all apps respect audio focus requests. Well-behaved apps will pause
- * or duck, but some may continue playing.
- */
 class AudioFocusManager(private val context: Context) {
 
     companion object {
@@ -31,10 +16,6 @@ class AudioFocusManager(private val context: Context) {
     private var audioFocusRequest: AudioFocusRequest? = null
     private var hasAudioFocus = false
 
-    /**
-     * Listener for audio focus changes.
-     * Called when audio focus is gained, lost, or when other apps request focus.
-     */
     interface AudioFocusListener {
         fun onAudioFocusGained()
         fun onAudioFocusLost()
@@ -43,35 +24,14 @@ class AudioFocusManager(private val context: Context) {
 
     private var listener: AudioFocusListener? = null
 
-    /**
-     * Sets the listener for audio focus changes.
-     */
     fun setAudioFocusListener(listener: AudioFocusListener?) {
         this.listener = listener
     }
 
-    /**
-     * Checks if any music or media is currently playing on the device.
-     * This can be used to detect if the user is playing YouTube, Spotify, etc.
-     *
-     * @return true if music is active, false otherwise
-     */
     fun isMusicActive(): Boolean {
         return audioManager.isMusicActive
     }
 
-    /**
-     * Requests audio focus for dictation.
-     * This will cause well-behaved audio apps to pause their playback.
-     *
-     * Uses AUDIOFOCUS_GAIN_TRANSIENT which indicates we want to pause other audio
-     * temporarily (as opposed to AUDIOFOCUS_GAIN which would be for permanent takeover).
-     *
-     * @param duck If true, requests AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK which asks
-     *             other apps to lower their volume instead of pausing. If false,
-     *             requests AUDIOFOCUS_GAIN_TRANSIENT which asks them to pause.
-     * @return true if audio focus was granted, false otherwise
-     */
     fun requestAudioFocus(duck: Boolean = false): Boolean {
         if (hasAudioFocus) {
             Log.d(TAG, "AudioFocusManager: Already have audio focus")
@@ -125,10 +85,6 @@ class AudioFocusManager(private val context: Context) {
         }
     }
 
-    /**
-     * Abandons audio focus, allowing other audio apps to resume playback.
-     * Call this when dictation stops.
-     */
     fun abandonAudioFocus() {
         if (!hasAudioFocus) {
             Log.d(TAG, "AudioFocusManager: No audio focus to abandon")
@@ -149,18 +105,8 @@ class AudioFocusManager(private val context: Context) {
         hasAudioFocus = false
     }
 
-    /**
-     * Returns whether we currently hold audio focus.
-     */
     fun hasAudioFocus(): Boolean = hasAudioFocus
 
-    /**
-     * Listener for audio focus changes from the system.
-     * This is called when:
-     * - Another app requests audio focus (we might lose it)
-     * - Our delayed request is granted
-     * - The system takes focus away
-     */
     private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
         when (focusChange) {
             AudioManager.AUDIOFOCUS_GAIN -> {
@@ -182,16 +128,11 @@ class AudioFocusManager(private val context: Context) {
                 listener?.onAudioFocusLostTransient()
             }
             AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                // Another app wants us to duck - we can continue but should lower volume
-                // For dictation, we don't have output volume, so we can ignore this
                 Log.d(TAG, "AudioFocusManager: Asked to duck (ignoring for dictation)")
             }
         }
     }
 
-    /**
-     * Releases resources. Call when the manager is no longer needed.
-     */
     fun release() {
         abandonAudioFocus()
         listener = null

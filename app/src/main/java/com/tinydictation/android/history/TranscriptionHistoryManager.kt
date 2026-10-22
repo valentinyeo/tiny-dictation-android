@@ -6,17 +6,13 @@ import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import com.tinydictation.android.util.DebugLog
 
-/**
- * Manages the storage and retrieval of transcription history.
- * Uses SharedPreferences with JSON serialization for simplicity.
- */
 class TranscriptionHistoryManager(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "transcription_history"
         private const val KEY_HISTORY = "history_entries"
-        private const val MAX_ENTRIES = 100 // Keep last 100 entries
-        private const val MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000L // 2 days in milliseconds
+        private const val MAX_ENTRIES = 100
+        private const val MAX_AGE_MS = 2 * 24 * 60 * 60 * 1000L
 
         @Volatile
         private var instance: TranscriptionHistoryManager? = null
@@ -33,12 +29,6 @@ class TranscriptionHistoryManager(context: Context) {
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
     private val gson = Gson()
 
-    /**
-     * Saves a new transcription to the history.
-     *
-     * @param text The transcribed text
-     * @param language The language code used for transcription
-     */
     fun save(text: String, language: String) {
         if (text.isBlank()) {
             DebugLog.d("TranscriptionHistoryManager: Skipping empty text")
@@ -47,7 +37,6 @@ class TranscriptionHistoryManager(context: Context) {
 
         val entries = getAllMutable()
 
-        // Clean up old entries first (older than 2 days)
         val cutoffTime = System.currentTimeMillis() - MAX_AGE_MS
         val sizeBefore = entries.size
         entries.removeAll { it.timestamp < cutoffTime }
@@ -63,9 +52,8 @@ class TranscriptionHistoryManager(context: Context) {
             language = language
         )
 
-        entries.add(0, newEntry) // Add to beginning (most recent first)
+        entries.add(0, newEntry)
 
-        // Trim to max entries
         while (entries.size > MAX_ENTRIES) {
             entries.removeAt(entries.size - 1)
         }
@@ -74,31 +62,14 @@ class TranscriptionHistoryManager(context: Context) {
         DebugLog.i("TranscriptionHistoryManager: Saved entry, total: ${entries.size}")
     }
 
-    /**
-     * Gets all transcription entries, most recent first.
-     *
-     * @return List of transcription entries
-     */
     fun getAll(): List<TranscriptionEntry> {
         return getAllMutable().toList()
     }
 
-    /**
-     * Gets a specific entry by ID.
-     *
-     * @param id The entry ID
-     * @return The entry, or null if not found
-     */
     fun getById(id: Long): TranscriptionEntry? {
         return getAll().find { it.id == id }
     }
 
-    /**
-     * Deletes a specific entry by ID.
-     *
-     * @param id The entry ID to delete
-     * @return true if the entry was deleted, false if not found
-     */
     fun delete(id: Long): Boolean {
         val entries = getAllMutable()
         val removed = entries.removeAll { it.id == id }
@@ -109,29 +80,15 @@ class TranscriptionHistoryManager(context: Context) {
         return removed
     }
 
-    /**
-     * Clears all transcription history.
-     */
     fun clear() {
         prefs.edit().remove(KEY_HISTORY).apply()
         DebugLog.i("TranscriptionHistoryManager: Cleared all history")
     }
 
-    /**
-     * Gets the total number of entries.
-     *
-     * @return The count of entries
-     */
     fun getCount(): Int {
         return getAll().size
     }
 
-    /**
-     * Searches entries by text content.
-     *
-     * @param query The search query
-     * @return List of matching entries
-     */
     fun search(query: String): List<TranscriptionEntry> {
         if (query.isBlank()) return getAll()
         val lowerQuery = query.lowercase()

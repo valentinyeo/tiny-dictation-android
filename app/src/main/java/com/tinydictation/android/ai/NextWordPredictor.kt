@@ -13,17 +13,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/**
- * AI-powered next-word prediction using Anthropic's Claude Haiku.
- *
- * After the user finishes a word (space press), predicts the 3 most likely
- * next words based on context. Results shown in the prediction strip.
- */
 class NextWordPredictor(private val context: Context) {
 
     companion object {
         private const val TAG = "NextWordPredictor"
-        private const val CONTEXT_CHARS = 100  // chars of context to send
+        private const val CONTEXT_CHARS = 100
     }
 
     private val prefs = PreferenceManager(context)
@@ -36,12 +30,6 @@ class NextWordPredictor(private val context: Context) {
             .build()
     }
 
-    /**
-     * Predict the 3 most likely next words given the text context.
-     *
-     * @param contextText The text before the cursor (last ~100 chars)
-     * @return List of 1-3 predicted next words, or empty on error
-     */
     suspend fun predict(contextText: String): List<String> = withContext(Dispatchers.IO) {
         if (contextText.isBlank()) return@withContext emptyList()
 
@@ -108,13 +96,6 @@ class NextWordPredictor(private val context: Context) {
         }
     }
 
-    /**
-     * Complete the word the user is currently typing, using context for accuracy.
-     *
-     * @param contextText Text before the partial word (for context)
-     * @param partialWord The partial word being typed (e.g. "exper")
-     * @return The completed word (e.g. "experience"), or null if no completion
-     */
     suspend fun completeWord(contextText: String, partialWord: String): String? = withContext(Dispatchers.IO) {
         if (partialWord.isEmpty()) return@withContext null
 
@@ -167,11 +148,10 @@ class NextWordPredictor(private val context: Context) {
                 .lowercase()
                 .replace(".", "")
                 .replace("\"", "")
-                .split(" ").first()  // Take only first word if multiple returned
+                .split(" ").first()
 
             if (word.isBlank() || word.length > 30 || !word.startsWith(partialWord.lowercase())
                 || word == partialWord.lowercase()) {
-                // Don't return the same word user already typed - that's useless
                 return@withContext null
             }
 

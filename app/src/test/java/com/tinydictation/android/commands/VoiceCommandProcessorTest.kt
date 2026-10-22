@@ -17,7 +17,6 @@ import org.junit.jupiter.api.DisplayName
 @DisplayName("VoiceCommandProcessor")
 class VoiceCommandProcessorTest {
 
-    // Simple fake InputConnection that records calls and holds text state
     private lateinit var fakeIc: FakeInputConnection
     private val keyEventsSent = mutableListOf<Int>()
 
@@ -27,7 +26,6 @@ class VoiceCommandProcessorTest {
         keyEventsSent.clear()
     }
 
-    // --- NotACommand cases ---
 
     @Test
     @DisplayName("plain text returns NotACommand with original text")
@@ -58,7 +56,6 @@ class VoiceCommandProcessorTest {
         assertThat(result).isInstanceOf(VoiceCommandProcessor.CommandResult.Failed::class.java)
     }
 
-    // --- Deletion commands ---
 
     @Test
     @DisplayName("'scratch that' returns Executed")
@@ -81,7 +78,6 @@ class VoiceCommandProcessorTest {
         assertThat(result).isEqualTo(VoiceCommandProcessor.CommandResult.Executed)
     }
 
-    // --- Punctuation commands ---
 
     @Test
     @DisplayName("'semicolon' inserts semicolon character")
@@ -153,7 +149,6 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo("*")
     }
 
-    // --- Quote commands ---
 
     @Test
     @DisplayName("'open quote' inserts double-quote character")
@@ -183,7 +178,6 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo("'")
     }
 
-    // --- Bracket commands ---
 
     @Test
     @DisplayName("'open paren' inserts (")
@@ -227,7 +221,6 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo("}")
     }
 
-    // --- Navigation ---
 
     @Test
     @DisplayName("'tab' inserts tab character")
@@ -243,7 +236,6 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo(" ")
     }
 
-    // --- Case insensitivity ---
 
     @Test
     @DisplayName("commands are case-insensitive (UPPERCASE)")
@@ -268,7 +260,6 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo("\"")
     }
 
-    // --- Trailing punctuation stripping ---
 
     @Test
     @DisplayName("commands with trailing period are recognized")
@@ -284,7 +275,6 @@ class VoiceCommandProcessorTest {
         assertThat(result).isEqualTo(VoiceCommandProcessor.CommandResult.Executed)
     }
 
-    // --- Leading/trailing whitespace ---
 
     @Test
     @DisplayName("commands with surrounding whitespace are recognized")
@@ -294,36 +284,25 @@ class VoiceCommandProcessorTest {
         assertThat(fakeIc.committedText).isEqualTo(";")
     }
 
-    // --- Command as suffix (Deepgram sometimes prepends words) ---
 
     @Test
     @DisplayName("command appearing as suffix of longer text is recognized")
     fun commandAsSuffixIsRecognized() {
-        // The processor checks endsWith(" command") so "okay semicolon" should match
         val result = process("okay semicolon")
         assertThat(result).isEqualTo(VoiceCommandProcessor.CommandResult.Executed)
         assertThat(fakeIc.committedText).isEqualTo(";")
     }
 
-    // --- Helper ---
 
     private fun process(text: String): VoiceCommandProcessor.CommandResult =
         VoiceCommandProcessor.process(text, fakeIc) { keyEventsSent.add(it) }
 }
 
-/**
- * Minimal fake InputConnection that records commitText calls and supports
- * getTextBeforeCursor / deleteSurroundingText for the deleteLastWord tests.
- *
- * All other methods are no-ops returning safe defaults.
- */
 private class FakeInputConnection : InputConnection {
 
-    /** Accumulates all text committed via commitText (excluding empty-string deletions). */
     val committedText: String get() = _committed.toString()
     private val _committed = StringBuilder()
 
-    /** Simulated text buffer before the cursor, for deleteLastWord tests. */
     var textBeforeCursor: String = ""
 
     private var selectionStart = 0
@@ -355,7 +334,6 @@ private class FakeInputConnection : InputConnection {
     override fun commitCompletion(text: CompletionInfo?): Boolean = true
     override fun commitCorrection(correctionInfo: CorrectionInfo?): Boolean = true
 
-    // --- Remaining InputConnection methods — safe no-op stubs ---
 
     override fun getSelectedText(flags: Int): CharSequence? = null
     override fun getCursorCapsMode(reqModes: Int): Int = 0

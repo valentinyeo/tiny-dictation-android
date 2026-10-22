@@ -19,25 +19,18 @@ import com.tinydictation.android.transcription.models.ModelManager
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
-/**
- * Activity for configuring transcription settings including provider, model,
- * API keys, language detection, and offline fallback.
- */
 class TranscriptionSettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
     private lateinit var modelManager: ModelManager
 
-    // Provider/model views
     private lateinit var providerDropdown: AutoCompleteTextView
     private lateinit var modelDropdown: AutoCompleteTextView
     private lateinit var tilModel: TextInputLayout
 
-    // Language views
     private lateinit var layoutAutoDetect: View
     private lateinit var autoDetectSwitch: MaterialSwitch
 
-    // Fallback views
     private lateinit var cardFallback: MaterialCardView
     private lateinit var autoFallbackSwitch: MaterialSwitch
     private lateinit var layoutFallbackModel: View
@@ -81,10 +74,8 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
     }
 
     private fun loadSettings() {
-        // Load auto-detect
         autoDetectSwitch.isChecked = preferenceManager.getAutoDetectLanguage()
 
-        // Load auto-fallback
         autoFallbackSwitch.isChecked = preferenceManager.getAutoFallback()
     }
 
@@ -111,7 +102,6 @@ class TranscriptionSettingsActivity : AppCompatActivity() {
         val adapter = ArrayAdapter(this, android.R.layout.simple_dropdown_item_1line, displayNames)
         providerDropdown.setAdapter(adapter)
 
-        // Set current selection
         val currentProvider = preferenceManager.getUnifiedProvider()
         val currentIndex = providers.indexOfFirst { it.second == currentProvider }
         if (currentIndex >= 0) {

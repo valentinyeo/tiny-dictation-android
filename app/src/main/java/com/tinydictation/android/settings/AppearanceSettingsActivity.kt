@@ -11,9 +11,6 @@ import com.tinydictation.android.service.DictationKeyboardService
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
-/**
- * Activity for configuring appearance settings including keyboard theme and GIF settings.
- */
 class AppearanceSettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
@@ -27,7 +24,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     private lateinit var panelClipboardSwitch: MaterialSwitch
     private lateinit var panelHistorySwitch: MaterialSwitch
 
-    // Dictation bar button switches
     private lateinit var btnSwitchBackSwitch: MaterialSwitch
     private lateinit var btnSelectAllSwitch: MaterialSwitch
     private lateinit var btnEmojiSwitch: MaterialSwitch
@@ -63,7 +59,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         panelClipboardSwitch = findViewById(R.id.switchPanelClipboard)
         panelHistorySwitch = findViewById(R.id.switchPanelHistory)
 
-        // Dictation bar button switches
         btnSwitchBackSwitch = findViewById(R.id.switchBtnSwitchBack)
         btnSelectAllSwitch = findViewById(R.id.switchBtnSelectAll)
         btnEmojiSwitch = findViewById(R.id.switchBtnEmoji)
@@ -87,7 +82,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
         panelClipboardSwitch.isChecked = preferenceManager.getPanelClipboardEnabled()
         panelHistorySwitch.isChecked = preferenceManager.getPanelHistoryEnabled()
 
-        // Dictation bar buttons
         btnSwitchBackSwitch.isChecked = preferenceManager.getBtnSwitchBackEnabled()
         btnSelectAllSwitch.isChecked = preferenceManager.getBtnSelectAllEnabled()
         btnEmojiSwitch.isChecked = preferenceManager.getBtnEmojiEnabled()
@@ -101,21 +95,16 @@ class AppearanceSettingsActivity : AppCompatActivity() {
     }
 
     private fun setupClickListeners() {
-        // Number row toggle
         numberRowSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setShowNumberRow(isChecked)
             DebugLog.i("Number row setting changed to: $isChecked")
-            // Note: Keyboard needs to be reopened to see the change
         }
 
-        // Compact dictation bar toggle
         compactBarSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setCompactDictationBar(isChecked)
             DebugLog.i("Compact dictation bar setting changed to: $isChecked")
-            // Note: Keyboard needs to be reopened to see the change
         }
 
-        // Panel visibility toggles
         panelClaudeSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setPanelClaudeEnabled(isChecked)
             DebugLog.i("Agent panel setting changed to: $isChecked")
@@ -137,7 +126,6 @@ class AppearanceSettingsActivity : AppCompatActivity() {
             DebugLog.i("History panel setting changed to: $isChecked")
         }
 
-        // Dictation bar button toggles
         btnSwitchBackSwitch.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setBtnSwitchBackEnabled(isChecked)
         }
