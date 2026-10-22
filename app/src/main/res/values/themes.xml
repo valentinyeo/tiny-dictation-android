@@ -19,6 +19,11 @@
         <item name="cornerSize">0dp</item>
     </style>
 
+    <!-- Keyboard-specific theme: always dark window background so no white bar shows in light mode -->
+    <style name="Theme.TinyDictation.Keyboard" parent="Theme.TinyDictation">
+        <item name="android:windowBackground">@android:color/black</item>
+    </style>
+
     <style name="Theme.TinyDictation" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Override default button style to be square -->
         <item name="materialButtonStyle">@style/SquareButton</item>

@@ -109,6 +109,7 @@
         <!-- Input Method Service (Keyboard) for Direct Text Input -->
         <service
             android:name=".service.DictationKeyboardService"
+            android:theme="@style/Theme.TinyDictation.Keyboard"
             android:permission="android.permission.BIND_INPUT_METHOD"
             android:exported="true">
             <intent-filter>

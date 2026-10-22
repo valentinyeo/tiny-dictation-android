@@ -1,0 +1,38 @@
+[
+  {
+    "date": "2026-04-05T00:51:23.136Z",
+    "overall": 37,
+    "dimensions": {
+      "token_efficiency": 27,
+      "ai_friendliness": 47,
+      "tdd_readiness": 25,
+      "readability": 73,
+      "dev_speed": 15,
+      "stability": 50
+    }
+  },
+  {
+    "date": "2026-04-05T00:51:32.877Z",
+    "overall": 37,
+    "dimensions": {
+      "token_efficiency": 27,
+      "ai_friendliness": 47,
+      "tdd_readiness": 25,
+      "readability": 73,
+      "dev_speed": 15,
+      "stability": 50
+    }
+  },
+  {
+    "date": "2026-04-05T00:51:48.779Z",
+    "overall": 37,
+    "dimensions": {
+      "token_efficiency": 27,
+      "ai_friendliness": 47,
+      "tdd_readiness": 25,
+      "readability": 73,
+      "dev_speed": 15,
+      "stability": 50
+    }
+  }
+]

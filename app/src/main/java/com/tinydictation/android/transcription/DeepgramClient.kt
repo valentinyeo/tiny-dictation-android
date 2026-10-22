@@ -24,6 +24,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
             language: String = "en",
             model: String = "nova-2",
             terminalMode: Boolean = false,
+            smartFormat: Boolean = true,
+            punctuate: Boolean = true,
             keywords: List<String> = emptyList(),
             replacements: List<Pair<String, String>> = emptyList(),
             numerals: Boolean = false,
@@ -38,8 +40,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
                 params.append("&interim_results=false")
                 params.append("&endpointing=150")
             } else {
-                params.append("&smart_format=true")
-                params.append("&punctuate=true")
+                params.append("&smart_format=$smartFormat")
+                params.append("&punctuate=$punctuate")
                 params.append("&interim_results=true")
                 params.append("&endpointing=150")
             }
@@ -90,6 +92,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
         language: String = "en",
         model: String = "nova-2",
         terminalMode: Boolean = false,
+        smartFormat: Boolean = true,
+        punctuate: Boolean = true,
         keywords: List<String> = emptyList(),
         replacements: List<Pair<String, String>> = emptyList(),
         numerals: Boolean = false,
@@ -111,7 +115,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
                 .build()
             okHttpClient = client
             val params = buildParams(
-                language, model, terminalMode, keywords, replacements, numerals, dictation
+                language, model, terminalMode, smartFormat, punctuate,
+                keywords, replacements, numerals, dictation
             )
             val request = Request.Builder()
                 .url("$BASE_URL?$params")

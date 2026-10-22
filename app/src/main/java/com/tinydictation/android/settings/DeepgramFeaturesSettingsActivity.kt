@@ -36,8 +36,15 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
     private lateinit var etReplacementReplace: TextInputEditText
     private lateinit var btnAddReplacement: MaterialButton
     private lateinit var layoutReplacementsList: LinearLayout
+    private lateinit var switchSmartFormat: MaterialSwitch
+    private lateinit var switchPunctuate: MaterialSwitch
     private lateinit var switchNumerals: MaterialSwitch
     private lateinit var switchDictation: MaterialSwitch
+    private lateinit var switchAutoFix: MaterialSwitch
+    private lateinit var switchAutocorrect: MaterialSwitch
+    private lateinit var switchPredictionStrip: MaterialSwitch
+    private lateinit var switchAiNextWord: MaterialSwitch
+    private lateinit var switchAiWordCompletion: MaterialSwitch
 
     // Data
     private val keywords = mutableListOf<String>()
@@ -67,8 +74,15 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         etReplacementReplace = findViewById(R.id.etReplacementReplace)
         btnAddReplacement = findViewById(R.id.btnAddReplacement)
         layoutReplacementsList = findViewById(R.id.layoutReplacementsList)
+        switchSmartFormat = findViewById(R.id.switchSmartFormat)
+        switchPunctuate = findViewById(R.id.switchPunctuate)
         switchNumerals = findViewById(R.id.switchNumerals)
         switchDictation = findViewById(R.id.switchDictation)
+        switchAutoFix = findViewById(R.id.switchAutoFix)
+        switchAutocorrect = findViewById(R.id.switchAutocorrect)
+        switchPredictionStrip = findViewById(R.id.switchPredictionStrip)
+        switchAiNextWord = findViewById(R.id.switchAiNextWord)
+        switchAiWordCompletion = findViewById(R.id.switchAiWordCompletion)
     }
 
     private fun loadSettings() {
@@ -89,8 +103,15 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         refreshReplacementsList()
 
         // Load toggles
+        switchSmartFormat.isChecked = preferenceManager.getSmartFormat()
+        switchPunctuate.isChecked = preferenceManager.getAutoPunctuation()
         switchNumerals.isChecked = preferenceManager.getDeepgramNumerals()
         switchDictation.isChecked = preferenceManager.getDeepgramDictation()
+        switchAutoFix.isChecked = preferenceManager.getAutoFixEnabled()
+        switchAutocorrect.isChecked = preferenceManager.getAutocorrectEnabled()
+        switchPredictionStrip.isChecked = preferenceManager.getPredictionStripEnabled()
+        switchAiNextWord.isChecked = preferenceManager.getAiNextWordEnabled()
+        switchAiWordCompletion.isChecked = preferenceManager.getAiWordCompletionEnabled()
     }
 
     private fun setupClickListeners() {
@@ -139,6 +160,16 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
             DebugLog.i("$TAG: Added replacement: $find → $replace")
         }
 
+        switchSmartFormat.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setSmartFormat(isChecked)
+            DebugLog.i("$TAG: Smart format changed to: $isChecked")
+        }
+
+        switchPunctuate.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoPunctuation(isChecked)
+            DebugLog.i("$TAG: Auto punctuation changed to: $isChecked")
+        }
+
         switchNumerals.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setDeepgramNumerals(isChecked)
             DebugLog.i("$TAG: Numerals changed to: $isChecked")
@@ -147,6 +178,31 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
         switchDictation.setOnCheckedChangeListener { _, isChecked ->
             preferenceManager.setDeepgramDictation(isChecked)
             DebugLog.i("$TAG: Dictation changed to: $isChecked")
+        }
+
+        switchAutoFix.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutoFixEnabled(isChecked)
+            DebugLog.i("$TAG: Auto-fix changed to: $isChecked")
+        }
+
+        switchAutocorrect.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAutocorrectEnabled(isChecked)
+            DebugLog.i("$TAG: Autocorrect changed to: $isChecked")
+        }
+
+        switchPredictionStrip.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setPredictionStripEnabled(isChecked)
+            DebugLog.i("$TAG: Prediction strip changed to: $isChecked")
+        }
+
+        switchAiNextWord.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAiNextWordEnabled(isChecked)
+            DebugLog.i("$TAG: AI next-word changed to: $isChecked")
+        }
+
+        switchAiWordCompletion.setOnCheckedChangeListener { _, isChecked ->
+            preferenceManager.setAiWordCompletionEnabled(isChecked)
+            DebugLog.i("$TAG: AI word completion changed to: $isChecked")
         }
     }
 

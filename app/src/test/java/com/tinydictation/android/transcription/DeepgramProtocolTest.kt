@@ -41,4 +41,32 @@ class DeepgramProtocolTest {
         assertTrue(params.contains("&replace=old+word:new+word"))
         assertTrue(params.contains("&numerals=true&dictation=true"))
     }
+    @Test
+    fun formattingTogglesRemainIndependentWithSpeechOnlyStreaming() {
+        for (smartFormat in listOf(false, true)) {
+            for (punctuate in listOf(false, true)) {
+                val params = DeepgramClient.buildParams(
+                    smartFormat = smartFormat,
+                    punctuate = punctuate
+                )
+                assertTrue(params.contains("&smart_format=$smartFormat"))
+                assertTrue(params.contains("&punctuate=$punctuate"))
+                assertTrue(params.contains("&interim_results=true"))
+                assertTrue(params.contains("&tag=tiny-dictation"))
+            }
+        }
+    }
+
+    @Test
+    fun terminalModeOverridesEnabledFormattingToggles() {
+        val params = DeepgramClient.buildParams(
+            terminalMode = true,
+            smartFormat = true,
+            punctuate = true
+        )
+        assertTrue(params.contains("&smart_format=false"))
+        assertTrue(params.contains("&punctuate=false"))
+        assertFalse(params.contains("&smart_format=true"))
+        assertFalse(params.contains("&punctuate=true"))
+    }
 }

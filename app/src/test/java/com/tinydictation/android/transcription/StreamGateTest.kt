@@ -169,4 +169,16 @@ class StreamGateTest {
         clock.chunks(201, 0)
         clock.open()
     }
+    @Test
+    fun playbackPauseDisablesGateUntilRestartAndRequiresFreshSpeech() {
+        val clock = Clock()
+        clock.open()
+        clock.chunks(100, 0)
+        assertEquals(Action.CLOSE, clock.gate.stop())
+        assertTrue(clock.chunks(500, 2000).all { it == Action.NONE })
+        clock.gate.start()
+        assertTrue(clock.chunks(100, 0).all { it == Action.NONE })
+        clock.open()
+        assertEquals(Action.SEND, clock.chunk(2000))
+    }
 }

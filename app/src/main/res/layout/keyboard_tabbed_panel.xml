@@ -22,9 +22,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="ABC"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/primary"
+            android:textColor="@color/tab_active"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -34,9 +34,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="123"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -46,9 +46,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Agent"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -58,9 +58,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Shell"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -70,9 +70,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Snip"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -82,9 +82,9 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Clip"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
         <TextView
@@ -94,27 +94,12 @@
             android:layout_weight="1"
             android:gravity="center"
             android:text="Hist"
-            android:textSize="10sp"
+            android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@color/on_surface_variant"
+            android:textColor="@color/tab_inactive"
             android:background="@android:color/transparent" />
 
     </LinearLayout>
-
-    <!-- Tab indicator line -->
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:background="@color/surface">
-
-        <View
-            android:id="@+id/tabIndicator"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_gravity="start"
-            android:background="@color/primary" />
-
-    </FrameLayout>
 
     <!-- Swipeable container for keyboard panels - reduced height for Samsung style -->
     <FrameLayout

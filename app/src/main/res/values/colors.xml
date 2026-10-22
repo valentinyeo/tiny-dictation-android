@@ -44,4 +44,8 @@
 
     <!-- Dictation bar button color (darker than QWERTY keys) -->
     <color name="dictation_bar_button">#1A1A1A</color>
+
+    <!-- Keyboard tab bar (ABC/123/Agent/...) - high contrast on black -->
+    <color name="tab_active">#D0BCFF</color>
+    <color name="tab_inactive">#B0B0B0</color>
 </resources>
