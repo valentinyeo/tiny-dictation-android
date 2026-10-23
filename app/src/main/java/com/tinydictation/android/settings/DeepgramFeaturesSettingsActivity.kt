@@ -114,7 +114,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (keywords.contains(keyword)) {
-                DebugLog.i("$TAG: Keyword '$keyword' already exists")
+                DebugLog.i("$TAG: Keyword", "'$keyword' already exists")
                 return@setOnClickListener
             }
 
@@ -122,7 +122,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
             saveKeywords()
             refreshKeywordsList()
             etKeyword.text?.clear()
-            DebugLog.i("$TAG: Added keyword: $keyword")
+            DebugLog.i("$TAG: Added keyword:", keyword)
         }
 
         etKeyword.setOnEditorActionListener { _, _, _ ->
@@ -139,7 +139,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             if (replacements.any { it.first == find }) {
-                DebugLog.i("$TAG: Replacement for '$find' already exists")
+                DebugLog.i("$TAG: Replacement for", "'$find' already exists")
                 return@setOnClickListener
             }
 
@@ -148,7 +148,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
             refreshReplacementsList()
             etReplacementFind.text?.clear()
             etReplacementReplace.text?.clear()
-            DebugLog.i("$TAG: Added replacement: $find → $replace")
+            DebugLog.i("$TAG: Added replacement:", "$find → $replace")
         }
 
         switchSmartFormat.setOnCheckedChangeListener { _, isChecked ->
@@ -244,7 +244,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
                 keywords.remove(keyword)
                 saveKeywords()
                 refreshKeywordsList()
-                DebugLog.i("$TAG: Removed keyword: $keyword")
+                DebugLog.i("$TAG: Removed keyword:", keyword)
             }
         }
 
@@ -274,7 +274,7 @@ class DeepgramFeaturesSettingsActivity : AppCompatActivity() {
                 replacements.removeAll { it.first == find }
                 saveReplacements()
                 refreshReplacementsList()
-                DebugLog.i("$TAG: Removed replacement: $find → $replace")
+                DebugLog.i("$TAG: Removed replacement:", "$find → $replace")
             }
         }
 

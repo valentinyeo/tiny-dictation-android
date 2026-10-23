@@ -50,7 +50,7 @@ class TextImprover(private val context: Context) {
             Result.success(improvedText)
         } catch (e: Exception) {
             val elapsedMs = System.currentTimeMillis() - startTime
-            DebugLog.e("$TAG: Failed after ${elapsedMs}ms - ${e.message}")
+            DebugLog.e("$TAG: Failed after ${elapsedMs}ms -", "${e.message}")
             Result.failure(e)
         }
     }

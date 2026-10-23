@@ -289,7 +289,7 @@ class TranscriptionManager(
                         if (filteredText != null) {
                             onTranscript(filteredText, isFinal)
                         } else {
-                            DebugLog.d("TranscriptionManager: Filtered out noise: ${text.take(50)}...")
+                            DebugLog.d("TranscriptionManager: Filtered out noise:", "${text.take(50)}...")
                         }
                     }
                 }

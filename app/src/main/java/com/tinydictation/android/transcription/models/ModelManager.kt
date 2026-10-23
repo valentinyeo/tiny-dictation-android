@@ -10,15 +10,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
-import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
-import java.io.BufferedInputStream
 import java.io.File
-import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
-import java.util.zip.ZipInputStream
 
 class ModelManager(private val context: Context) {
 
@@ -176,7 +170,7 @@ class ModelManager(private val context: Context) {
             Log.i(TAG, "ModelManager: Download complete, extracting tar.bz2...")
             progressFlow.value = 0.8f
 
-            extractTarBz2(tempFile, targetDir)
+            ArchiveExtractor.extractTarBz2(tempFile, targetDir)
             progressFlow.value = 1f
 
             tempFile.delete()
@@ -191,41 +185,6 @@ class ModelManager(private val context: Context) {
             DebugLog.e("ModelManager: Download failed - ${e.message}")
             progressFlow.value = null
             Result.failure(e)
-        }
-    }
-
-    private fun extractTarBz2(tarBz2File: File, targetDir: File) {
-        targetDir.mkdirs()
-
-        FileInputStream(tarBz2File).use { fis ->
-            BufferedInputStream(fis).use { bis ->
-                BZip2CompressorInputStream(bis).use { bzis ->
-                    TarArchiveInputStream(bzis).use { tais ->
-                        var entry: TarArchiveEntry? = tais.nextTarEntry
-                        while (entry != null) {
-                            val relativePath = if (entry.name.contains("/")) {
-                                entry.name.substringAfter("/")
-                            } else {
-                                entry.name
-                            }
-
-                            if (relativePath.isNotEmpty()) {
-                                val outputFile = File(targetDir, relativePath)
-
-                                if (entry.isDirectory) {
-                                    outputFile.mkdirs()
-                                } else {
-                                    outputFile.parentFile?.mkdirs()
-                                    FileOutputStream(outputFile).use { fos ->
-                                        tais.copyTo(fos)
-                                    }
-                                }
-                            }
-                            entry = tais.nextTarEntry
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -272,7 +231,7 @@ class ModelManager(private val context: Context) {
             Log.i(TAG, "ModelManager: Download complete, extracting...")
             progressFlow.value = 0.8f
 
-            extractZip(tempZip, targetDir)
+            ArchiveExtractor.extractZip(tempZip, targetDir)
             progressFlow.value = 1f
 
             tempZip.delete()
@@ -287,40 +246,6 @@ class ModelManager(private val context: Context) {
             DebugLog.e("ModelManager: Download failed - ${e.message}")
             progressFlow.value = null
             Result.failure(e)
-        }
-    }
-
-    private fun extractZip(zipFile: File, targetDir: File) {
-        targetDir.mkdirs()
-
-        ZipInputStream(zipFile.inputStream()).use { zis ->
-            var entry = zis.nextEntry
-            while (entry != null) {
-                val file = File(targetDir, entry.name)
-
-                val relativePath = if (entry.name.contains("/")) {
-                    entry.name.substringAfter("/")
-                } else {
-                    entry.name
-                }
-
-                if (relativePath.isEmpty()) {
-                    entry = zis.nextEntry
-                    continue
-                }
-
-                val outputFile = File(targetDir, relativePath)
-
-                if (entry.isDirectory) {
-                    outputFile.mkdirs()
-                } else {
-                    outputFile.parentFile?.mkdirs()
-                    FileOutputStream(outputFile).use { fos ->
-                        zis.copyTo(fos)
-                    }
-                }
-                entry = zis.nextEntry
-            }
         }
     }
 

@@ -124,7 +124,7 @@ object VoiceCommandProcessor {
 
         for (command in commands) {
             if (command.phrases.any { normalizedText == it || normalizedText.endsWith(" $it") }) {
-                DebugLog.i("VoiceCommandProcessor: Executing command for '$normalizedText'")
+                DebugLog.i("VoiceCommandProcessor: Executing command for", "'$normalizedText'")
 
                 val success = command.action(inputConnection) {
                     sendKeyEvents(KeyEvent.KEYCODE_A)

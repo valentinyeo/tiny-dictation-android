@@ -19,36 +19,38 @@ object DebugLog {
     data class LogEntry(
         val timestamp: Long,
         val level: Level,
-        val message: String
+        val message: String,
+        val text: String? = null
     ) {
         fun format(): String {
             val time = dateFormat.format(Date(timestamp))
             val levelStr = level.name.padEnd(5)
-            return "$time [$levelStr] $message"
+            return "$time [$levelStr] $message${text?.let { " $it" } ?: ""}"
         }
     }
 
-    fun d(message: String) {
-        addEntry(Level.DEBUG, message)
+    fun d(message: String, text: String? = null) {
+        addEntry(Level.DEBUG, message, text)
     }
 
-    fun i(message: String) {
-        addEntry(Level.INFO, message)
+    fun i(message: String, text: String? = null) {
+        addEntry(Level.INFO, message, text)
     }
 
-    fun w(message: String) {
-        addEntry(Level.WARN, message)
+    fun w(message: String, text: String? = null) {
+        addEntry(Level.WARN, message, text)
     }
 
-    fun e(message: String) {
-        addEntry(Level.ERROR, message)
+    fun e(message: String, text: String? = null) {
+        addEntry(Level.ERROR, message, text)
     }
 
-    private fun addEntry(level: Level, message: String) {
+    private fun addEntry(level: Level, message: String, text: String?) {
         val entry = LogEntry(
             timestamp = System.currentTimeMillis(),
             level = level,
-            message = message
+            message = message,
+            text = text
         )
 
         entries.add(entry)
@@ -69,7 +71,7 @@ object DebugLog {
         sb.appendLine()
 
         entries.forEach { entry ->
-            sb.appendLine(entry.format())
+            sb.appendLine(entry.copy(text = entry.text?.let { "(${it.length} chars)" }).format())
         }
 
         return sb.toString()

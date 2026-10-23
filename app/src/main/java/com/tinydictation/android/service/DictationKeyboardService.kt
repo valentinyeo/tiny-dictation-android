@@ -482,7 +482,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         if (isTerminalApp) {
                             val now = System.currentTimeMillis()
                             if (text == lastFinalText && now - lastFinalTime < 2000) {
-                                DebugLog.d("DictationKeyboardService: Skipping duplicate final in terminal: '$text'")
+                                DebugLog.d("DictationKeyboardService: Skipping duplicate final in terminal:", "'$text'")
                                 return@post
                             }
                             lastFinalText = text
@@ -501,10 +501,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                         when (commandResult) {
                             is VoiceCommandProcessor.CommandResult.Executed -> {
-                                DebugLog.i("DictationKeyboardService: Voice command executed for '$text'")
+                                DebugLog.i("DictationKeyboardService: Voice command executed for", "'$text'")
                             }
                             is VoiceCommandProcessor.CommandResult.Failed -> {
-                                DebugLog.w("DictationKeyboardService: Voice command failed - ${commandResult.reason}")
+                                DebugLog.w("DictationKeyboardService: Voice command failed -", commandResult.reason)
                             }
                             is VoiceCommandProcessor.CommandResult.NotACommand -> {
                                 commitTextInternal(text + " ")
@@ -520,7 +520,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             },
             onError = { error ->
                 Log.e(TAG, "Transcription error: $error")
-                DebugLog.e("DictationKeyboardService: Transcription error - $error")
+                DebugLog.e("DictationKeyboardService: Transcription error -", error)
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(this, error, Toast.LENGTH_LONG).show()
                     val state = transcriptionManager?.getState()
@@ -1900,7 +1900,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 currentInputConnection?.commitText(textToCommit, 1)
                 trackTypedText(textToCommit)
 
-                if (!isNumbersMode && !isTerminalApp && !isUrlField && textToCommit.length == 1 && textToCommit[0].isLetter()) {
+                if (!isNumbersMode && !isTerminalApp && !isUrlField && allowsCloudText() && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
                     if (isAutocorrectEnabled || isPredictionStripEnabled) {
                         autocorrectManager?.onLetterTyped(textToCommit[0])
@@ -2136,6 +2136,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun trackTypedText(text: String) {
+        if (!allowsCloudText()) return
         internalTextBuffer.append(text)
         if (internalTextBuffer.length > 100) {
             internalTextBuffer.delete(0, internalTextBuffer.length - 100)
@@ -2414,7 +2415,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         if (snippetManager.add(text)) {
                             refreshSnippetsPanel()
                             android.widget.Toast.makeText(this, R.string.snippet_saved, android.widget.Toast.LENGTH_SHORT).show()
-                            DebugLog.i("DictationKeyboardService: Snippet created manually: ${text.take(30)}...")
+                            DebugLog.i("DictationKeyboardService: Snippet created manually:", "${text.take(30)}...")
                         } else {
                             android.widget.Toast.makeText(this, R.string.snippet_already_exists, android.widget.Toast.LENGTH_SHORT).show()
                         }
@@ -3547,7 +3548,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 ic.deleteSurroundingText(undo.replacement.length + 1, 0)
                 ic.commitText(undo.original, 1)
                 ic.endBatchEdit()
-                DebugLog.d("DictationKeyboardService: Undid autocorrect '${undo.replacement}' → '${undo.original}'")
+                DebugLog.d("DictationKeyboardService: Undid autocorrect", "'${undo.replacement}' → '${undo.original}'")
                 return
             }
         }
@@ -3564,7 +3565,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
     }
 
+    private fun allowsCloudText(): Boolean {
+        val info = currentInputEditorInfo ?: return false
+        return EditorPrivacy.allowsCloudText(info.inputType, info.imeOptions)
+    }
+
     private fun triggerAutoFix() {
+        if (!allowsCloudText()) return
         if (!isAutoFixEnabled || isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
         if (textImprover == null) {
             textImprover = TextImprover(this)
@@ -3615,7 +3622,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 clearAutoFixUndo()
                             }, AUTO_FIX_UNDO_TIMEOUT)
 
-                            DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$capitalizedImproved'")
+                            DebugLog.i("DictationKeyboardService: Auto-fix applied:", "'$sentence' → '$capitalizedImproved'")
                         } else {
                             DebugLog.w("DictationKeyboardService: Auto-fix: original sentence not found, skipping")
                             clearAutoFixState()
@@ -3628,7 +3635,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     DebugLog.d("DictationKeyboardService: Auto-fix: no changes needed")
                 }
             } catch (e: Exception) {
-                DebugLog.e("DictationKeyboardService: Auto-fix failed: ${e.message}")
+                DebugLog.e("DictationKeyboardService: Auto-fix failed:", "${e.message}")
                 clearAutoFixState()
             }
             isAutoFixRunning = false
@@ -3713,6 +3720,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun requestNextWordPrediction() {
+        if (!allowsCloudText()) return
         if (!isAiNextWordEnabled || isAutoFixRunning || isTerminalApp) return
 
         if (autoFixUndoAvailable) {
@@ -3738,12 +3746,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2?.text = "···"
         prediction3?.text = ""
 
-        DebugLog.d("NextWordPredictor: Requesting prediction for: \"${contextText.takeLast(30)}\"")
+        DebugLog.d("NextWordPredictor: Requesting prediction for:", "\"${contextText.takeLast(30)}\"")
 
         activeNextWordJob = CoroutineScope(Dispatchers.Main).launch {
             val predictions = nextWordPredictor?.predict(contextText) ?: emptyList()
             if (predictions.isNotEmpty() && isNextWordPredictionActive) {
-                DebugLog.d("NextWordPredictor: Got predictions: $predictions")
+                DebugLog.d("NextWordPredictor: Got predictions:", predictions.toString())
                 prediction2?.text = predictions.getOrNull(0) ?: ""
                 prediction1?.text = predictions.getOrNull(1) ?: ""
                 prediction3?.text = predictions.getOrNull(2) ?: ""
@@ -3788,6 +3796,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun requestAiCompletion() {
+        if (!allowsCloudText()) return
         if (!isAiWordCompletionEnabled || isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
 
         if (nextWordPredictor == null) {
@@ -3800,6 +3809,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         aiCompletionHandler.removeCallbacksAndMessages(null)
         aiCompletionHandler.postDelayed({
+            if (!allowsCloudText()) return@postDelayed
             val currentWord = autocorrectManager?.getCurrentWord() ?: return@postDelayed
             if (currentWord.isEmpty()) return@postDelayed
 
@@ -3828,6 +3838,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun improveText() {
+        if (!allowsCloudText()) return
         DebugLog.i("DictationKeyboardService: Improve button pressed")
 
         if (isImproving) {
@@ -3848,7 +3859,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         var fullText = "$before$after"
         var useBuffer = false
 
-        DebugLog.d("DictationKeyboardService: Improve - before='${before.take(50)}' (${before.length}), after='${after.take(50)}' (${after.length})")
+        DebugLog.d("DictationKeyboardService: Improve -", "before='${before.take(50)}' (${before.length}), after='${after.take(50)}' (${after.length})")
 
         if (fullText.isBlank() && internalTextBuffer.isNotEmpty()) {
             fullText = internalTextBuffer.toString()
@@ -3918,11 +3929,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     }
                 } else {
                     val error = result?.exceptionOrNull()?.message ?: "Unknown error"
-                    DebugLog.e("DictationKeyboardService: Text improvement failed - $error")
+                    DebugLog.e("DictationKeyboardService: Text improvement failed -", error)
                     Toast.makeText(this@DictationKeyboardService, "Failed: $error", Toast.LENGTH_LONG).show()
                 }
             } catch (e: Exception) {
-                DebugLog.e("DictationKeyboardService: Text improvement exception - ${e.message}")
+                DebugLog.e("DictationKeyboardService: Text improvement exception -", "${e.message}")
                 Toast.makeText(this@DictationKeyboardService, "Error: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 isImproving = false
@@ -4086,6 +4097,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        if (!restarting) {
+            cancelNextWordPrediction()
+            cancelAiCompletion()
+            autocorrectManager?.onWordBoundary()
+            autocorrectManager?.clearUndoState()
+            clearAutoFixState()
+            internalTextBuffer.clear()
+        }
         Log.d(TAG, "DictationKeyboardService onStartInput - inputType: ${attribute?.inputType}")
     }
 
@@ -4109,6 +4128,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        cancelNextWordPrediction()
+        cancelAiCompletion()
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
 
