@@ -1,5 +1,4 @@
 package com.tinydictation.android
-// planted comment to prove the check fails
 
 import android.content.Intent
 import android.os.Bundle
