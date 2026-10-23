@@ -19,10 +19,6 @@ import com.tinydictation.android.R
 import com.tinydictation.android.util.DebugLog
 import com.tinydictation.android.util.PreferenceManager
 
-/**
- * Activity for configuring audio settings including microphone selection,
- * media playback, silence detection, and auto-punctuation.
- */
 class AudioSettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager
@@ -128,7 +124,7 @@ class AudioSettingsActivity : AppCompatActivity() {
             if (currentIndex >= 0) {
                 silenceDurationDropdown.setText(displayNames[currentIndex], false)
             } else {
-                silenceDurationDropdown.setText(displayNames[1], false) // Default to 3 seconds
+                silenceDurationDropdown.setText(displayNames[1], false)
             }
         }
 

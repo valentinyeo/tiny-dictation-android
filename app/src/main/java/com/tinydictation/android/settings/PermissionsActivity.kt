@@ -20,9 +20,6 @@ import com.google.android.material.button.MaterialButton
 import com.tinydictation.android.R
 import com.tinydictation.android.service.DictationAccessibilityService
 
-/**
- * Activity for managing app permissions including microphone, accessibility, and keyboard setup.
- */
 class PermissionsActivity : AppCompatActivity() {
 
     companion object {
@@ -89,14 +86,12 @@ class PermissionsActivity : AppCompatActivity() {
     }
 
     private fun updatePermissionStatus() {
-        // Microphone permission
         val hasMicrophone = ContextCompat.checkSelfPermission(
             this, Manifest.permission.RECORD_AUDIO
         ) == PackageManager.PERMISSION_GRANTED
         Log.d(TAG, "Permission status - Microphone: $hasMicrophone")
         updatePermissionCard(microphoneIcon, microphoneButton, hasMicrophone)
 
-        // Accessibility service
         val hasAccessibility = isAccessibilityServiceEnabled()
         Log.d(TAG, "Permission status - Accessibility: $hasAccessibility")
         updatePermissionCard(accessibilityIcon, accessibilityButton, hasAccessibility)

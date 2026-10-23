@@ -18,12 +18,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeoutOrNull
 import java.io.File
 
-/**
- * Offline transcription engine using Sherpa-ONNX with Whisper models.
- *
- * Provides high-quality transcription using Whisper models (tiny, base, small).
- * Whisper is a non-streaming model, so we buffer audio and process in chunks.
- */
 class SherpaOnnxEngine : TranscriptionEngine {
 
     companion object {
@@ -31,13 +25,9 @@ class SherpaOnnxEngine : TranscriptionEngine {
         private const val SAMPLE_RATE = 16000
         private const val MODELS_DIR = "sherpa_models"
 
-        // Buffer settings - Whisper needs more context for accuracy
-        // Process after ~5 seconds of audio for better quality
-        private const val BUFFER_THRESHOLD_SAMPLES = SAMPLE_RATE * 5 // 5 seconds minimum
-        private const val MAX_BUFFER_SAMPLES = SAMPLE_RATE * 30 // 30 seconds max
+        private const val BUFFER_THRESHOLD_SAMPLES = SAMPLE_RATE * 5
+        private const val MAX_BUFFER_SAMPLES = SAMPLE_RATE * 30
 
-        // Silence detection threshold (RMS value) - lower = more sensitive
-        // 0.005 is about -46dB, good for detecting speech vs background noise
         private const val SILENCE_THRESHOLD = 0.005f
 
         fun getModelDir(context: Context, modelVariant: String): File {
@@ -48,8 +38,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             val modelDir = getModelDir(context, modelVariant)
             if (!modelDir.exists() || !modelDir.isDirectory) return false
 
-            // Check for Whisper model files - various naming conventions
-            // Models can have prefixes: tiny-, base-, small-, or no prefix
             val encoderNames = listOf(
                 "encoder.onnx", "encoder.int8.onnx",
                 "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
@@ -87,17 +75,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
     private var isSessionActive = false
     private var contextRef: Context? = null
 
-    // Sherpa-ONNX recognizer
     private var recognizer: OfflineRecognizer? = null
 
-    // Audio buffer for batch processing (store as floats for Sherpa-ONNX)
     private val audioBuffer = mutableListOf<Float>()
     private var processingJob: Job? = null
     private val processingScope = CoroutineScope(Dispatchers.Default)
 
-    /**
-     * Sets the Whisper model variant to use (whisper-tiny, whisper-base, whisper-small).
-     */
     fun setModelVariant(modelVariant: String) {
         currentModelVariant = modelVariant
         displayName = when (modelVariant) {
@@ -109,9 +92,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         Log.i(TAG, "SherpaOnnxEngine: Model variant set to $modelVariant")
     }
 
-    /**
-     * Gets the current model variant.
-     */
     fun getModelVariant(): String = currentModelVariant
 
     override suspend fun isReady(context: Context, language: String): Boolean {
@@ -131,7 +111,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             Log.i(TAG, "SherpaOnnxEngine: Initializing from ${modelDir.absolutePath}")
             DebugLog.i("SherpaOnnxEngine: Initializing $currentModelVariant for language $language")
 
-            // Find model files - check all naming conventions
             val encoderFile = findFile(modelDir, listOf(
                 "encoder.onnx", "encoder.int8.onnx",
                 "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
@@ -150,7 +129,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             ))
 
             if (encoderFile == null || decoderFile == null || tokensFile == null) {
-                // Log available files for debugging
                 val files = modelDir.listFiles()?.map { it.name } ?: emptyList()
                 Log.e(TAG, "SherpaOnnxEngine: Missing model files in $modelDir")
                 Log.e(TAG, "SherpaOnnxEngine: Available files: $files")
@@ -161,7 +139,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
             Log.i(TAG, "SherpaOnnxEngine: Found encoder=${encoderFile.name}, decoder=${decoderFile.name}, tokens=${tokensFile.name}")
 
-            // Create Whisper model config
             val whisperConfig = OfflineWhisperModelConfig(
                 encoder = encoderFile.absolutePath,
                 decoder = decoderFile.absolutePath,
@@ -169,7 +146,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
                 task = "transcribe"
             )
 
-            // Create model config
             val modelConfig = OfflineModelConfig(
                 whisper = whisperConfig,
                 tokens = tokensFile.absolutePath,
@@ -177,14 +153,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
                 debug = false
             )
 
-            // Create recognizer config
             val config = OfflineRecognizerConfig(
                 featConfig = getFeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
                 modelConfig = modelConfig,
                 decodingMethod = "greedy_search"
             )
 
-            // Create the recognizer
             recognizer = OfflineRecognizer(config = config)
 
             Log.i(TAG, "SherpaOnnxEngine: Recognizer created successfully")
@@ -207,7 +181,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
     }
 
     private fun mapLanguageCode(language: String): String {
-        // Map our language codes to Whisper language codes
         return when (language) {
             "en" -> "en"
             "de" -> "de"
@@ -248,23 +221,17 @@ class SherpaOnnxEngine : TranscriptionEngine {
         onTranscriptCallback = onTranscript
         onErrorCallback = onError
         isSessionActive = true
-        // NOTE: Don't clear audioBuffer here! Early audio that arrives before the session
-        // is fully started should be preserved. The buffer is cleared by TranscriptionManager
-        // when starting a new dictation session (via clearBuffer()), not here.
-        // This fixes the issue where the first part of a sentence goes missing.
         consecutiveSilentChunks = 0
         hasDetectedSpeech = false
     }
 
-    // Track silence for smarter processing
     private var consecutiveSilentChunks = 0
     private var hasDetectedSpeech = false
-    private val SILENT_CHUNKS_THRESHOLD = 10 // ~200ms of silence triggers processing
+    private val SILENT_CHUNKS_THRESHOLD = 10
 
     override fun processAudio(samples: ShortArray) {
         if (!isSessionActive || recognizer == null) return
 
-        // Calculate RMS to detect speech vs silence
         var sumSquares = 0.0
         for (sample in samples) {
             val normalized = sample / 32768.0f
@@ -272,7 +239,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         }
         val rms = kotlin.math.sqrt(sumSquares / samples.size).toFloat()
 
-        // Track speech/silence
         val isSilent = rms < SILENCE_THRESHOLD
         if (isSilent) {
             consecutiveSilentChunks++
@@ -281,16 +247,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
             hasDetectedSpeech = true
         }
 
-        // Convert 16-bit PCM to float [-1, 1]
         synchronized(audioBuffer) {
             for (sample in samples) {
                 audioBuffer.add(sample / 32768.0f)
             }
         }
 
-        // Process when:
-        // 1. We have enough audio AND detected speech AND now have silence (end of utterance)
-        // 2. OR buffer is getting too large
         val shouldProcess = (audioBuffer.size >= BUFFER_THRESHOLD_SAMPLES &&
                 hasDetectedSpeech &&
                 consecutiveSilentChunks >= SILENT_CHUNKS_THRESHOLD &&
@@ -302,7 +264,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             consecutiveSilentChunks = 0
         }
 
-        // Prevent buffer from growing too large - force process
         if (audioBuffer.size > MAX_BUFFER_SAMPLES && processingJob?.isActive != true) {
             processBufferAsync()
             hasDetectedSpeech = false
@@ -316,19 +277,18 @@ class SherpaOnnxEngine : TranscriptionEngine {
         }
     }
 
-    // Common Whisper hallucinations to filter out
     private val HALLUCINATION_PATTERNS = listOf(
         "\\[Music\\]", "\\[Bell\\]", "\\[Applause\\]", "\\[Laughter\\]",
         "\\[MUSIC\\]", "\\[BELL\\]", "\\[APPLAUSE\\]", "\\[LAUGHTER\\]",
         "\\[music\\]", "\\[bell\\]", "\\[applause\\]", "\\[laughter\\]",
         "\\[Sound\\]", "\\[Noise\\]", "\\[Silence\\]", "\\[Background\\]",
         "\\[SOUND\\]", "\\[NOISE\\]", "\\[SILENCE\\]", "\\[BACKGROUND\\]",
-        "♪.*?♪", "♫.*?♫",  // Music symbols
+        "♪.*?♪", "♫.*?♫",
         "\\(.*?music.*?\\)", "\\(.*?inaudible.*?\\)",
-        "<.*?>",  // XML-like tags
+        "<.*?>",
         "Thank you for watching.*", "Thanks for watching.*",
         "Subscribe.*", "Like and subscribe.*",
-        "\\.\\.\\.", // Ellipsis often indicates silence
+        "\\.\\.\\.",
     ).map { it.toRegex(RegexOption.IGNORE_CASE) }
 
     private fun filterHallucinations(text: String): String {
@@ -336,7 +296,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         for (pattern in HALLUCINATION_PATTERNS) {
             filtered = filtered.replace(pattern, "")
         }
-        // Clean up extra spaces
         filtered = filtered.replace(Regex("\\s+"), " ").trim()
         return filtered
     }
@@ -344,7 +303,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
     private fun processBuffer() {
         val rec = recognizer ?: return
 
-        // Get samples to process
         val samples: FloatArray
         synchronized(audioBuffer) {
             if (audioBuffer.isEmpty()) return
@@ -352,7 +310,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             audioBuffer.clear()
         }
 
-        // Check if audio has enough energy (skip silent chunks)
         var sumSquares = 0.0
         for (sample in samples) {
             sumSquares += sample * sample
@@ -364,7 +321,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         }
 
         try {
-            // Create a stream and process
             val stream = rec.createStream()
             stream.acceptWaveform(samples, SAMPLE_RATE)
             rec.decode(stream)
@@ -374,14 +330,12 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
             var text = result.text.trim()
 
-            // Filter out hallucinations
             text = filterHallucinations(text)
 
             if (text.isNotEmpty()) {
                 Log.d(TAG, "SherpaOnnxEngine: Transcribed: $text")
                 DebugLog.d("SherpaOnnxEngine: Result: $text")
 
-                // Send the transcribed text to the callback handler
                 onTranscriptCallback?.invoke(text, true)
             }
         } catch (e: Exception) {
@@ -399,7 +353,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
         isSessionActive = false
 
-        // Process any remaining audio
         if (audioBuffer.isNotEmpty()) {
             processBuffer()
         }
@@ -417,30 +370,24 @@ class SherpaOnnxEngine : TranscriptionEngine {
         DebugLog.i("SherpaOnnxEngine: Changing language from $currentLanguage to $language")
         currentLanguage = language
 
-        // Reinitialize recognizer with new language setting
         val context = contextRef ?: run {
             Log.e(TAG, "SherpaOnnxEngine: Cannot reinitialize - no context")
             DebugLog.e("SherpaOnnxEngine: Language change failed - no context")
             return
         }
 
-        // Cancel any ongoing processing
         processingJob?.cancel()
         processingJob = null
 
-        // Clear audio buffer
         synchronized(audioBuffer) {
             audioBuffer.clear()
         }
 
-        // Reinitialize in background to avoid blocking UI
         processingScope.launch {
             try {
-                // Release old recognizer
                 recognizer?.release()
                 recognizer = null
 
-                // Reinitialize with new language
                 val result = reinitializeRecognizer(context, language)
                 if (result.isFailure) {
                     Log.e(TAG, "SherpaOnnxEngine: Failed to reinitialize for $language")
@@ -462,7 +409,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
     private fun reinitializeRecognizer(context: Context, language: String): Result<Unit> {
         val modelDir = getModelDir(context, currentModelVariant)
 
-        // Find model files
         val encoderFile = findFile(modelDir, listOf(
             "encoder.onnx", "encoder.int8.onnx",
             "tiny-encoder.onnx", "tiny-encoder.int8.onnx",
@@ -484,7 +430,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
             return Result.failure(IllegalStateException("Missing model files"))
         }
 
-        // Create new recognizer with updated language
         val whisperConfig = OfflineWhisperModelConfig(
             encoder = encoderFile.absolutePath,
             decoder = decoderFile.absolutePath,
@@ -510,14 +455,9 @@ class SherpaOnnxEngine : TranscriptionEngine {
     }
 
     override fun getSupportedLanguages(): List<String> {
-        // Whisper supports many languages
         return listOf("en", "de", "es", "fr", "it", "pt", "nl", "pl", "ru", "zh", "ja", "ko")
     }
 
-    /**
-     * Clear the audio buffer without processing it.
-     * Call this when starting a fresh dictation session.
-     */
     override fun clearAudioBuffer() {
         Log.d(TAG, "SherpaOnnxEngine: Clearing audio buffer")
         synchronized(audioBuffer) {
@@ -527,9 +467,6 @@ class SherpaOnnxEngine : TranscriptionEngine {
         hasDetectedSpeech = false
     }
 
-    /**
-     * Check if there is pending audio in the buffer or a processing job running.
-     */
     override fun hasPendingAudio(): Boolean {
         val hasBufferedAudio = synchronized(audioBuffer) { audioBuffer.isNotEmpty() }
         val isProcessing = processingJob?.isActive == true
@@ -537,15 +474,10 @@ class SherpaOnnxEngine : TranscriptionEngine {
         return hasBufferedAudio || isProcessing
     }
 
-    /**
-     * Flush any pending audio and wait for processing to complete.
-     * This ensures all buffered audio is transcribed before returning.
-     */
     override suspend fun flushPendingAudio(timeoutMs: Long): Boolean {
         Log.i(TAG, "SherpaOnnxEngine: Flushing pending audio (timeout=${timeoutMs}ms)")
         DebugLog.i("SherpaOnnxEngine: Flushing pending audio")
 
-        // First, wait for any currently running processing job
         processingJob?.let { job ->
             Log.d(TAG, "SherpaOnnxEngine: Waiting for current processing job")
             withTimeoutOrNull(timeoutMs / 2) {
@@ -553,17 +485,14 @@ class SherpaOnnxEngine : TranscriptionEngine {
             }
         }
 
-        // Process any remaining audio in the buffer
         val hasBufferedAudio = synchronized(audioBuffer) { audioBuffer.isNotEmpty() }
         if (hasBufferedAudio && recognizer != null) {
             Log.d(TAG, "SherpaOnnxEngine: Processing remaining buffer")
             DebugLog.d("SherpaOnnxEngine: Processing remaining ${audioBuffer.size} samples")
 
-            // Process buffer synchronously
             processBuffer()
         }
 
-        // Wait for that processing to complete if it started a new job
         processingJob?.let { job ->
             Log.d(TAG, "SherpaOnnxEngine: Waiting for final processing")
             val completed = withTimeoutOrNull(timeoutMs / 2) {

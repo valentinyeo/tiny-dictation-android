@@ -5,21 +5,8 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import com.tinydictation.android.R
 
-/**
- * Helper class for updating the QWERTY panel display state.
- *
- * Handles all view-only updates for the QWERTY keyboard panel:
- * key label updates for numbers/letters/symbols mode, shift/caps display,
- * number row and long-press hint visibility.
- *
- * This class has no side effects — it only reads state from parameters
- * and writes to views in the provided qwertyPanel.
- */
 internal class QwertyDisplayHelper(private val qwertyPanel: View) {
 
-    /**
-     * Updates all keyboard keys based on current mode (letters vs numbers/symbols).
-     */
     fun updateKeyboardMode(isNumbersMode: Boolean, isShiftActive: Boolean, isCapsLock: Boolean, isGermanMode: Boolean = false) {
         val numbersRow1 = mapOf(
             R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
@@ -68,10 +55,6 @@ internal class QwertyDisplayHelper(private val qwertyPanel: View) {
         }
     }
 
-    /**
-     * Updates the shift key display based on current state.
-     * Shows German mode indicator (DE) when active.
-     */
     fun updateShiftKeyDisplay(isGermanMode: Boolean, isCapsLock: Boolean, isShiftActive: Boolean) {
         val shiftButton = qwertyPanel.findViewById<TextView>(R.id.key_shift)
         shiftButton?.text = when {
@@ -85,9 +68,6 @@ internal class QwertyDisplayHelper(private val qwertyPanel: View) {
         updateLetterKeyDisplays(isShiftActive, isCapsLock)
     }
 
-    /**
-     * Updates all letter keys to show uppercase or lowercase.
-     */
     fun updateLetterKeyDisplays(isShiftActive: Boolean, isCapsLock: Boolean) {
         val letterKeys = mapOf(
             R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
@@ -105,9 +85,6 @@ internal class QwertyDisplayHelper(private val qwertyPanel: View) {
         }
     }
 
-    /**
-     * Updates symbols display for secondary symbols (when shift is pressed in numbers mode).
-     */
     fun updateSymbolsDisplay(isShiftActive: Boolean) {
         val primaryRow1 = mapOf(
             R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
@@ -152,10 +129,6 @@ internal class QwertyDisplayHelper(private val qwertyPanel: View) {
         }
     }
 
-    /**
-     * Updates long-press hint visibility on keys with umlaut long-press actions.
-     * Hints are shown in letters mode and hidden in numbers/symbols mode.
-     */
     fun updateLongPressHints(isNumbersMode: Boolean, isGermanMode: Boolean) {
         val hintVisibility = if (isNumbersMode) View.GONE else View.VISIBLE
         val umlauthintIds = listOf(R.id.hint_a, R.id.hint_o_umlaut, R.id.hint_u_umlaut)
@@ -166,9 +139,6 @@ internal class QwertyDisplayHelper(private val qwertyPanel: View) {
         aHint?.text = if (isGermanMode) "ä" else "@"
     }
 
-    /**
-     * Updates number row visibility and number hints on top row keys.
-     */
     fun updateNumberRowVisibility(showNumberRow: Boolean) {
         val numberRow = qwertyPanel.findViewById<LinearLayout>(R.id.numberRow)
         numberRow?.visibility = if (showNumberRow) View.VISIBLE else View.GONE

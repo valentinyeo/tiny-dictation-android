@@ -17,17 +17,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
-/**
- * Cloud-based transcription engine using Deepgram's API.
- *
- * Provides real-time streaming transcription with low latency.
- * Requires internet connectivity and a valid API key.
- */
 class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
 
     companion object {
         private const val TAG = "TinyDictation"
-        // Buffer up to 5 seconds of audio while waiting for connection (16kHz * 5 seconds)
         private const val MAX_BUFFER_SAMPLES = 16000 * 5
     }
 
@@ -57,23 +50,17 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
     private var onErrorCallback: ((TranscriptionError) -> Unit)? = null
     private var isSessionActive = false
 
-    // Audio buffer for samples received before WebSocket is connected
     private val preConnectionBuffer = mutableListOf<Short>()
     private var bufferFlushed = false
 
-    // Delayed close job for graceful shutdown (allows final transcripts to arrive)
     private var closeJob: Job? = null
 
-    /**
-     * Sets the Deepgram model to use.
-     */
     fun setModel(model: String) {
         currentModel = model
         Log.i(TAG, "DeepgramEngine: Model set to $model")
     }
 
     override suspend fun isReady(context: Context, language: String): Boolean {
-        // Deepgram is always ready if we have an API key
         return apiKey.isNotBlank()
     }
 
@@ -92,7 +79,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         onTranscript: (text: String, isFinal: Boolean) -> Unit,
         onError: (TranscriptionError) -> Unit
     ) {
-        // Cancel any pending delayed close from a previous session
         closeJob?.cancel()
         closeJob = null
 
@@ -145,7 +131,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         if (!isSessionActive) return
 
         if (deepgramClient.isConnected()) {
-            // First, flush any buffered audio from before connection was established
             if (!bufferFlushed) {
                 flushPreConnectionBuffer()
             }
@@ -153,19 +138,15 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             val audioBytes = audioRecorder.shortArrayToByteArray(samples)
             deepgramClient.sendAudio(audioBytes)
         } else {
-            // Buffer audio while waiting for WebSocket connection
             synchronized(preConnectionBuffer) {
-                // Add samples to buffer
                 preConnectionBuffer.addAll(samples.toList())
 
-                // Prevent buffer from growing too large (keep most recent audio)
                 if (preConnectionBuffer.size > MAX_BUFFER_SAMPLES) {
                     val excess = preConnectionBuffer.size - MAX_BUFFER_SAMPLES
                     repeat(excess) { preConnectionBuffer.removeAt(0) }
                     Log.d(TAG, "DeepgramEngine: Buffer exceeded max, trimmed $excess samples")
                 }
 
-                // Log first buffered chunk
                 if (preConnectionBuffer.size == samples.size) {
                     Log.i(TAG, "DeepgramEngine: Buffering audio while waiting for connection...")
                     DebugLog.i("DeepgramEngine: Buffering audio (WebSocket connecting)")
@@ -174,9 +155,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         }
     }
 
-    /**
-     * Flushes buffered audio that was recorded before WebSocket connected.
-     */
     private fun flushPreConnectionBuffer() {
         synchronized(preConnectionBuffer) {
             if (preConnectionBuffer.isEmpty()) {
@@ -205,14 +183,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         endSessionInternal(graceful = true)
     }
 
-    /**
-     * Ends the session, optionally with a graceful close that sends Finalize
-     * to Deepgram and waits briefly for final transcripts before closing.
-     *
-     * @param graceful If true, sends Finalize and delays close by 800ms
-     *                 to allow Deepgram to return final transcripts.
-     *                 If false, closes immediately (used during release).
-     */
     @Synchronized
     private fun endSessionInternal(graceful: Boolean) {
         if (!isSessionActive && graceful) return
@@ -223,11 +193,8 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         isSessionActive = false
 
         if (graceful && deepgramClient.isConnected()) {
-            // Send Finalize to flush Deepgram's internal buffer
             deepgramClient.sendFinalize()
 
-            // Delay the close to allow final transcripts to arrive.
-            // Callbacks remain active during this window so transcripts are delivered.
             closeJob = scope?.launch {
                 delay(800)
                 synchronized(this@DeepgramEngine) {
@@ -246,7 +213,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
             onErrorCallback = null
         }
 
-        // Reset buffer state for next session
         synchronized(preConnectionBuffer) {
             preConnectionBuffer.clear()
         }
@@ -264,7 +230,6 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         Log.i(TAG, "DeepgramEngine changing language to $language")
         currentLanguage = language
 
-        // If session is active, reconnect with new language
         if (isSessionActive) {
             val transcript = onTranscriptCallback
             val error = onErrorCallback
@@ -292,16 +257,12 @@ class DeepgramEngine(private val apiKey: String) : TranscriptionEngine {
         }
     }
 
-    /**
-     * Enable auto language detection (only supported by nova-3).
-     */
     fun setAutoDetectLanguage(enabled: Boolean) {
         currentLanguage = if (enabled && currentModel == PreferenceManager.DEEPGRAM_NOVA_3) "auto" else "en"
         Log.i(TAG, "DeepgramEngine: Auto-detect language = $enabled (actual: $currentLanguage)")
     }
 
     override fun getSupportedLanguages(): List<String> {
-        // Deepgram supports many languages, but we focus on EN and DE
         return listOf("en", "de", "es", "fr", "it", "pt", "nl", "ja", "ko", "zh")
     }
 

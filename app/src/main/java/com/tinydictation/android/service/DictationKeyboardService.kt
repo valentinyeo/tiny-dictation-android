@@ -52,27 +52,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
-/**
- * Input Method Service (IME) for Tiny Dictation.
- *
- * This provides a keyboard bar with action buttons for dictation and text manipulation.
- * Buttons: Chevron, Language, Mic, Enter, Backspace, History, Select All
- */
 class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.OnClipboardHistoryChangedListener {
 
     companion object {
         private const val TAG = "TinyDictation"
         private const val LONG_PRESS_THRESHOLD = 500L
-        private const val DOUBLE_TAP_TIMEOUT = 300L  // Max ms between taps for double-tap
+        private const val DOUBLE_TAP_TIMEOUT = 300L
 
-        // MIC button color constants
-        private const val COLOR_MIC_STREAMING = "#ED2939"    // Imperial red - actively transcribing/PTT streaming
-        private const val COLOR_MIC_BUFFERING = "#FF8C00"    // Orange - PTT buffering
-        private const val COLOR_MIC_PTT_IDLE = "#4169E1"     // Blue - PTT idle
-        private const val COLOR_MIC_MUTED = "#808080"        // Grey - muted
-        private const val COLOR_MIC_STANDBY = "#8B1C26"      // Darker imperial red - standby
+        private const val COLOR_MIC_STREAMING = "#ED2939"
+        private const val COLOR_MIC_BUFFERING = "#FF8C00"
+        private const val COLOR_MIC_PTT_IDLE = "#4169E1"
+        private const val COLOR_MIC_MUTED = "#808080"
+        private const val COLOR_MIC_STANDBY = "#8B1C26"
 
-        /** Broadcast action for pasting text from HistoryActivity */
         const val ACTION_PASTE_TEXT = "com.tinydictation.ACTION_PASTE_TEXT"
         const val EXTRA_TEXT = "text"
 
@@ -95,18 +87,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return instance?.currentInputConnection != null
         }
 
-        /**
-         * Pastes text into the current input field.
-         * Called from HistoryActivity via broadcast receiver.
-         */
         fun pasteText(text: String): Boolean {
             return instance?.commitTextInternal(text) ?: false
         }
 
-        /**
-         * Pending text to paste when keyboard regains focus.
-         * Used when paste is requested while keyboard is hidden (e.g., from HistoryActivity).
-         */
         @Volatile
         var pendingPasteText: String? = null
     }
@@ -121,7 +105,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var isEmojiPanelVisible = false
     private var isEmojiPanelInflated = false
 
-    // Tabbed keyboard panel (7 tabs: ABC, 123, Claude, Shell, Snip, Clipboard, History)
     private var keyboardTabbedPanel: View? = null
     private var tabABC: TextView? = null
     private var tabNumpad: TextView? = null
@@ -136,11 +119,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private var shellPanel: View? = null
     private var snippetsPanel: View? = null
     private var clipboardPanel: View? = null
-    private var historyTabPanel: View? = null  // Named differently to avoid conflict with historyPanel
+    private var historyTabPanel: View? = null
     private var isKeyboardPanelVisible = false
-    private var currentKeyboardTab = 0  // 0=ABC, 1=123, 2=Claude, 3=Shell, 4=Snip, 5=Clipboard, 6=History
+    private var currentKeyboardTab = 0
 
-    // Lazy loading flags for new panels
     private var isClaudePanelInflated = false
     private var isShellPanelInflated = false
     private var isSnippetsPanelInflated = false
@@ -149,114 +131,97 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     private var isShiftActive = false
     private var isCapsLock = false
-    private var isNumbersMode = false  // Numbers/symbols keyboard mode
-    private var isGermanMode = false  // German keyboard mode (umlauts on long-press)
+    private var isNumbersMode = false
+    private var isGermanMode = false
 
-    // Internal text buffer for apps that don't expose text (like terminal apps)
-    // We track what we've typed ourselves when getTextBeforeCursor() returns empty
     private val internalTextBuffer = StringBuilder()
-    private var useInternalBuffer = false  // True when app doesn't provide text context
+    private var useInternalBuffer = false
 
-    // Button references for expanded state indicators
     private var keyboardButton: FrameLayout? = null
     private var keyboardIcon: ImageView? = null
     private var emojiButton: FrameLayout? = null
     private var emojiIcon: ImageView? = null
 
-    // QWERTY display helper (extracted from god-class)
     private var qwertyDisplayHelper: QwertyDisplayHelper? = null
 
-    // Pulse animation for transcribing state
     private var pulseAnimator: ObjectAnimator? = null
 
-    // Transcription management - keyboard owns its own TranscriptionManager
     private var transcriptionManager: TranscriptionManager? = null
     private var isRecording = false
     private var isProcessing = false
-    private var isStandby = false  // True when in standby/hibernation mode
-    private var isMuteLocked = false  // True when mic is locked muted via long press
-    private var wasAutoMutedByPlayback = false  // True when auto-muted due to phone audio playback
+    private var isStandby = false
+    private var isMuteLocked = false
+    private var wasAutoMutedByPlayback = false
     private var audioPlaybackCallback: AudioManager.AudioPlaybackCallback? = null
 
-    // Screen awake (keep screen on)
     private var isScreenAwake = false
     private var wakeLock: PowerManager.WakeLock? = null
     private var screenAwakeButton: FrameLayout? = null
     private var screenAwakeIcon: ImageView? = null
 
-    // Push-to-talk mode
-    private var isPushToTalkMode = false  // Persisted via PreferenceManager
-    private var isPttRecording = false    // True while holding MIC in PTT mode
-    private var pttStreamingStarted = false  // True once 500ms hold threshold passed
+    private var isPushToTalkMode = false
+    private var isPttRecording = false
+    private var pttStreamingStarted = false
     private var pttStreamingHandler: Handler? = null
     private var pttStreamingRunnable: Runnable? = null
-    private var micTouchStartedInPttMode: Boolean? = null  // locks handler for touch sequence
+    private var micTouchStartedInPttMode: Boolean? = null
 
-    // Clipboard history management
     private var clipboardHistoryManager: ClipboardHistoryManager? = null
 
-    private var isTerminalApp = false  // True when keyboard is in a terminal app
-    private var lastFinalText = ""  // Last final transcript committed (for terminal dedup)
-    private var lastFinalTime = 0L  // Timestamp of last final commit (for terminal dedup)
+    private var isTerminalApp = false
+    private var lastFinalText = ""
+    private var lastFinalTime = 0L
 
-    // Known terminal app package names (match by prefix for variant packages)
     private val terminalPackages = setOf(
-        "com.server.auditor",           // Termius (legacy prefix)
-        "com.termius",                  // Termius (alternate prefix)
-        "org.connectbot",               // ConnectBot
-        "com.sonelli.juicessh",         // JuiceSSH
-        "com.termux",                   // Termux
-        "yarolegovich.materialterminal", // Material Terminal
-        "com.offsec.nethunter.kex"      // Kali NetHunter
+        "com.server.auditor",
+        "com.termius",
+        "org.connectbot",
+        "com.sonelli.juicessh",
+        "com.termux",
+        "yarolegovich.materialterminal",
+        "com.offsec.nethunter.kex"
     )
 
-    /** Check if package is a terminal app (supports prefix matching for variant packages) */
     private fun isTerminalPackage(packageName: String): Boolean {
         return terminalPackages.any { packageName.startsWith(it) }
     }
 
-    // Autocorrect
     private var autocorrectManager: AutocorrectManager? = null
-    private var isUrlField = false  // Disable autocorrect in URL/URI input fields
-    private var isPredictionStripEnabled = true  // User setting
-    private var isAutocorrectEnabled = true      // User setting
-    private var isAiNextWordEnabled = true       // User setting
-    private var isAiWordCompletionEnabled = true // User setting
-    private var isAutoFixEnabled = true          // User setting
+    private var isUrlField = false
+    private var isPredictionStripEnabled = true
+    private var isAutocorrectEnabled = true
+    private var isAiNextWordEnabled = true
+    private var isAiWordCompletionEnabled = true
+    private var isAutoFixEnabled = true
     private var predictionStrip: LinearLayout? = null
     private var prediction1: TextView? = null
     private var prediction2: TextView? = null
     private var prediction3: TextView? = null
 
-    // Auto AI fix (background sentence correction)
     private var isAutoFixRunning = false
-    private var autoFixOriginalText: String? = null  // For undo
+    private var autoFixOriginalText: String? = null
     private var autoFixReplacementText: String? = null
     private var autoFixUndoAvailable = false
     private val autoFixHandler = Handler(Looper.getMainLooper())
-    private val AUTO_FIX_UNDO_TIMEOUT = 10000L  // Undo expires after 10 seconds
-    private val AUTO_FIX_COLOR = Color.parseColor("#5B4FCF")  // Purple while fixing
-    private val AUTO_FIX_DONE_COLOR = Color.parseColor("#2E7D32")  // Green when done
+    private val AUTO_FIX_UNDO_TIMEOUT = 10000L
+    private val AUTO_FIX_COLOR = Color.parseColor("#5B4FCF")
+    private val AUTO_FIX_DONE_COLOR = Color.parseColor("#2E7D32")
 
-    // Next-word prediction (AI-powered via Haiku)
     private var nextWordPredictor: NextWordPredictor? = null
     private var activeNextWordJob: Job? = null
-    private var isNextWordPredictionActive = false  // true when strip shows AI predictions
+    private var isNextWordPredictionActive = false
 
-    // AI word completion (right slot of prediction strip, debounced)
     private var aiCompletionJob: Job? = null
     private val aiCompletionHandler = Handler(Looper.getMainLooper())
-    private var aiCompletionWord: String? = null  // current AI completion shown in right slot
-    private val AI_COMPLETION_DEBOUNCE = 200L  // ms after last keystroke before firing
+    private var aiCompletionWord: String? = null
+    private val AI_COMPLETION_DEBOUNCE = 200L
 
 
-    // Text improvement (AI-powered readability enhancement)
     private var textImprover: TextImprover? = null
-    private var isImproving = false  // Prevent multiple concurrent improvements
+    private var isImproving = false
     private var improveButton: FrameLayout? = null
     private var improveIcon: ImageView? = null
 
-    // Period key long-press punctuation popup
     private var punctuationPopup: View? = null
     private var isPunctuationPopupShowing = false
     private var periodButton: android.widget.TextView? = null
@@ -269,7 +234,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private val PUNCTUATION_MOVE_THRESHOLD_DP = 20f
     private val punctuationLongPressHandler = Handler(Looper.getMainLooper())
 
-    // 'A' key long-press: German mode → popup with ä and @, English mode → @
     private var aKeyButton: android.widget.TextView? = null
     private var isAKeyLongPressTriggered = false
     private val aKeyLongPressHandler = Handler(Looper.getMainLooper())
@@ -284,10 +248,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         isAKeyLongPressTriggered = true
         if (!isNumbersMode) {
             if (isGermanMode) {
-                // German: show popup with ä and @
                 showAKeyPopup()
             } else {
-                // English: directly insert @
                 currentInputConnection?.commitText("@", 1)
                 trackTypedText("@")
                 aKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
@@ -295,63 +257,55 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    // 'O' key long-press for ö (German umlaut)
     private var oKeyButton: android.widget.TextView? = null
     private var isOKeyLongPressTriggered = false
     private val oKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val oKeyLongPressRunnable = Runnable {
-        // Insert ö on long press (respects shift/caps for Ö), skip in numbers mode
         isOKeyLongPressTriggered = true
         if (!isNumbersMode) {
             val char = if (isShiftActive || isCapsLock) "Ö" else "ö"
             currentInputConnection?.commitText(char, 1)
-            trackTypedText(char)  // Track for terminal apps
+            trackTypedText(char)
             oKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         }
     }
 
-    // 'U' key long-press for ü (German umlaut)
     private var uKeyButton: android.widget.TextView? = null
     private var isUKeyLongPressTriggered = false
     private val uKeyLongPressHandler = Handler(Looper.getMainLooper())
     private val uKeyLongPressRunnable = Runnable {
-        // Insert ü on long press (respects shift/caps for Ü), skip in numbers mode
         isUKeyLongPressTriggered = true
         if (!isNumbersMode) {
             val char = if (isShiftActive || isCapsLock) "Ü" else "ü"
             currentInputConnection?.commitText(char, 1)
-            trackTypedText(char)  // Track for terminal apps
+            trackTypedText(char)
             uKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         }
     }
 
-    // Shift key long-press for German mode toggle
     private var shiftKeyButton: android.widget.TextView? = null
     private var isShiftLongPressTriggered = false
     private val shiftLongPressHandler = Handler(Looper.getMainLooper())
     private val shiftLongPressRunnable = Runnable {
-        // Toggle German mode on long press
         isShiftLongPressTriggered = true
         isGermanMode = !isGermanMode
         shiftKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         updateShiftKeyDisplay()
-        updateLongPressHints()  // Update A key hint (ä vs @)
+        updateLongPressHints()
         DebugLog.d("DictationKeyboardService: German mode ${if (isGermanMode) "ON" else "OFF"}")
     }
 
-    // Space bar cursor trackpad mode (long-press and drag to move cursor)
     private var spaceKeyButton: android.widget.TextView? = null
     private var isSpaceTrackpadMode = false
-    private var spaceDownWord = ""  // Word captured on space touch-down for autocorrect on touch-up
+    private var spaceDownWord = ""
     private var spaceTrackpadStartX = 0f
     private var spaceTrackpadLastX = 0f
     private var spaceTrackpadAccumulatedDelta = 0f
-    private var spaceTrackpadLastMoveTime = 0L  // For velocity-based acceleration
-    private val TRACKPAD_LONG_PRESS_THRESHOLD = 250L  // ms to enter trackpad mode
-    private val TRACKPAD_MOVE_THRESHOLD_DP = 20f  // dp per cursor move
+    private var spaceTrackpadLastMoveTime = 0L
+    private val TRACKPAD_LONG_PRESS_THRESHOLD = 250L
+    private val TRACKPAD_MOVE_THRESHOLD_DP = 20f
     private val spaceTrackpadHandler = Handler(Looper.getMainLooper())
     private val spaceTrackpadRunnable = Runnable {
-        // Enter trackpad mode
         isSpaceTrackpadMode = true
         spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
         DebugLog.d("DictationKeyboardService: Cursor trackpad mode ACTIVATED")
@@ -367,7 +321,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
     private val dictationStartHandler = Handler(Looper.getMainLooper())
 
-    // Broadcast receiver for paste requests from HistoryActivity
     private val pasteTextReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == ACTION_PASTE_TEXT) {
@@ -375,11 +328,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 if (!text.isNullOrEmpty()) {
                     Log.i(TAG, "Received paste request: ${text.take(50)}...")
                     DebugLog.i("DictationKeyboardService: Pasting ${text.length} chars from history")
-                    // Try to paste immediately if input connection is available
                     if (currentInputConnection != null) {
                         commitTextInternal(text)
                     } else {
-                        // Store for later - will paste when keyboard regains focus
                         Log.i(TAG, "No input connection, storing for pending paste")
                         DebugLog.i("DictationKeyboardService: Storing pending paste (keyboard hidden)")
                         pendingPasteText = text
@@ -389,36 +340,29 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    // Double-tap handling for mic button (enter/exit PTT)
-    private var lastMicTapTime = 0L  // Timestamp of last quick tap (for double-tap detection)
+    private var lastMicTapTime = 0L
     private var doubleTapHandler: Handler? = null
     private var doubleTapRunnable: Runnable? = null
 
-    // Backspace repeat handling - uses persistent handler and flag-based control
     private val backspaceHandler = Handler(Looper.getMainLooper())
-    @Volatile private var isBackspaceHeld = false    // Flag to track if button is held
-    private val BACKSPACE_INITIAL_DELAY = 400L       // Delay before repeat starts
-    private val BACKSPACE_REPEAT_DELAY_START = 100L  // Initial repeat delay (slower)
-    private val BACKSPACE_REPEAT_DELAY_MIN = 25L     // Minimum repeat delay (fastest)
-    private val BACKSPACE_ACCELERATION_TIME = 1500L  // Time to reach max speed (ms)
-    private val BACKSPACE_WORD_DELETE_TIME = 2000L   // Time before switching to word deletion (ms)
-    private val BACKSPACE_WORD_DELETE_DELAY = 80L    // Delay between word deletions
-    private var backspaceStartTime = 0L              // When backspace hold started
+    @Volatile private var isBackspaceHeld = false
+    private val BACKSPACE_INITIAL_DELAY = 400L
+    private val BACKSPACE_REPEAT_DELAY_START = 100L
+    private val BACKSPACE_REPEAT_DELAY_MIN = 25L
+    private val BACKSPACE_ACCELERATION_TIME = 1500L
+    private val BACKSPACE_WORD_DELETE_TIME = 2000L
+    private val BACKSPACE_WORD_DELETE_DELAY = 80L
+    private var backspaceStartTime = 0L
 
-    // Counter to track how many backspaces have been sent (for debugging)
     private var backspaceCount = 0
 
-    // Override detection: track when user is reverting an autocorrection
-    // If user backspaces immediately after a correction and retypes the original, we reject it
 
-    // Cursor key repeat handling - similar to backspace but without word deletion
     private val cursorHandler = Handler(Looper.getMainLooper())
     @Volatile private var isCursorKeyHeld = false
     private var cursorStartTime = 0L
-    private var cursorKeyCode = 0  // The key code of the currently held cursor key
+    private var cursorKeyCode = 0
     private var cursorKeyCount = 0
 
-    // Single runnable for cursor key repeat
     private val cursorRepeatRunnable = object : Runnable {
         override fun run() {
             if (!isCursorKeyHeld) {
@@ -428,16 +372,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
             val holdDuration = System.currentTimeMillis() - cursorStartTime
 
-            // Send the cursor key event
             sendDownUpKeyEvents(cursorKeyCode)
             cursorKeyCount++
 
-            // Calculate accelerated delay (same as backspace)
             val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
             val currentDelay = (BACKSPACE_REPEAT_DELAY_START -
                 (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
 
-            // Log every 10 presses
             if (cursorKeyCount % 10 == 0) {
                 DebugLog.d("DictationKeyboardService: Cursor key count=$cursorKeyCount, delay=${currentDelay}ms, held=${holdDuration}ms")
             }
@@ -446,10 +387,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    // Single runnable instance that checks the flag to decide whether to continue
     private val backspaceRepeatRunnable = object : Runnable {
         override fun run() {
-            // Check flag - if button was released, stop immediately
             if (!isBackspaceHeld) {
                 DebugLog.d("DictationKeyboardService: Backspace released after $backspaceCount deletions, stopping repeat")
                 return
@@ -458,28 +397,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             val holdDuration = System.currentTimeMillis() - backspaceStartTime
 
             if (holdDuration >= BACKSPACE_WORD_DELETE_TIME) {
-                // After 2 seconds, delete words instead of characters
                 deleteWord()
                 backspaceCount++
-                // Continue word deletion as long as button is held
                 backspaceHandler.postDelayed(this, BACKSPACE_WORD_DELETE_DELAY)
             } else {
-                // Delete single character
                 sendBackspace()
                 backspaceCount++
 
-                // Calculate accelerated delay based on hold duration
-                // Linear interpolation from REPEAT_DELAY_START to REPEAT_DELAY_MIN
                 val accelerationProgress = (holdDuration.toFloat() / BACKSPACE_ACCELERATION_TIME).coerceIn(0f, 1f)
                 val currentDelay = (BACKSPACE_REPEAT_DELAY_START -
                     (BACKSPACE_REPEAT_DELAY_START - BACKSPACE_REPEAT_DELAY_MIN) * accelerationProgress).toLong()
 
-                // Log every 10 deletions to avoid spam but track progress
                 if (backspaceCount % 10 == 0) {
                     DebugLog.d("DictationKeyboardService: Backspace count=$backspaceCount, delay=${currentDelay}ms, held=${holdDuration}ms")
                 }
 
-                // Continue character deletion with current delay
                 backspaceHandler.postDelayed(this, currentDelay)
             }
         }
@@ -499,35 +431,25 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         )
         isScreenOffReceiverRegistered = true
 
-        // Register broadcast receiver for paste requests from HistoryActivity
         val filter = IntentFilter(ACTION_PASTE_TEXT)
         LocalBroadcastManager.getInstance(this).registerReceiver(pasteTextReceiver, filter)
 
-        // Initialize TranscriptionManager
         initializeTranscriptionManager()
 
-        // Load push-to-talk mode from preferences
         val pttPrefs = PreferenceManager(this)
         isPushToTalkMode = pttPrefs.getPushToTalkEnabled()
         if (isPushToTalkMode) {
             DebugLog.i("DictationKeyboardService: PTT mode loaded from preferences")
         }
 
-        // Initialize and start clipboard history manager
         clipboardHistoryManager = ClipboardHistoryManager.getInstance(this)
         clipboardHistoryManager?.startListening()
 
-        // Initialize text improver (uses Anthropic API)
         textImprover = TextImprover(this)
 
-        // Register audio playback callback to detect when phone plays audio
-        // (e.g., WhatsApp voice messages, YouTube, music) and auto-pause transcription
         registerAudioPlaybackCallback()
     }
 
-    /**
-     * Initializes the TranscriptionManager with callbacks.
-     */
     private fun initializeTranscriptionManager() {
         val prefs = PreferenceManager(this)
         val apiKey = prefs.getApiKey()
@@ -546,24 +468,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 Handler(Looper.getMainLooper()).post {
                     if (!isFinal && text.isNotBlank()) {
-                        // Skip interim results for terminal apps - they don't support
-                        // deleteSurroundingText, so interim text can't be replaced
-                        // and would show doubled text
                         if (isTerminalApp) return@post
 
-                        // Interim result: show text immediately, replacing previous interim
                         val ic = currentInputConnection ?: return@post
-                        // Delete previous interim text
                         if (lastInterimLength > 0) {
                             ic.deleteSurroundingText(lastInterimLength, 0)
                         }
-                        // Commit new interim text
                         ic.commitText(text, 1)
                         lastInterimLength = text.length
                     } else if (isFinal && text.isNotBlank()) {
                         val ic = currentInputConnection ?: return@post
 
-                        // Terminal dedup: skip duplicate final results within 2 seconds
                         if (isTerminalApp) {
                             val now = System.currentTimeMillis()
                             if (text == lastFinalText && now - lastFinalTime < 2000) {
@@ -574,13 +489,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             lastFinalTime = now
                         }
 
-                        // Delete previous interim text before committing final
                         if (lastInterimLength > 0) {
                             ic.deleteSurroundingText(lastInterimLength, 0)
                             lastInterimLength = 0
                         }
 
-                        // Check for voice commands first
                         val commandResult = VoiceCommandProcessor.process(
                             text,
                             currentInputConnection
@@ -589,7 +502,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         when (commandResult) {
                             is VoiceCommandProcessor.CommandResult.Executed -> {
                                 DebugLog.i("DictationKeyboardService: Voice command executed for '$text'")
-                                // Don't save commands to history
                             }
                             is VoiceCommandProcessor.CommandResult.Failed -> {
                                 DebugLog.w("DictationKeyboardService: Voice command failed - ${commandResult.reason}")
@@ -597,12 +509,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             is VoiceCommandProcessor.CommandResult.NotACommand -> {
                                 commitTextInternal(text + " ")
 
-                                // Save to transcription history
                                 val language = prefs.getLanguage()
                                 TranscriptionHistoryManager.getInstance(this@DictationKeyboardService).save(text, language)
                                 DebugLog.i("DictationKeyboardService: Saved transcription to history")
 
-                                // Skip auto-fix for dictated text - Deepgram already handles corrections
                             }
                         }
                     }
@@ -656,7 +566,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             },
             context = this,
             onSilenceAutoStop = {
-                // Called when silence auto-stop timeout expires
                 Log.i(TAG, "Silence auto-stop triggered")
                 DebugLog.i("DictationKeyboardService: Silence auto-stop triggered")
                 Handler(Looper.getMainLooper()).post {
@@ -668,8 +577,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         )
 
-        // Apply terminal mode if we're in a terminal app
-        // (onStartInputView runs before initializeTranscriptionManager, so we must set it here)
         if (isTerminalApp) {
             transcriptionManager?.setTerminalMode(true)
             DebugLog.i("DictationKeyboardService: Applied terminal mode to new TranscriptionManager")
@@ -680,7 +587,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService onDestroy")
         DebugLog.i("DictationKeyboardService: Service destroyed")
 
-        // Stop transcription if running
         stopDictation()
         transcriptionManager = null
 
@@ -689,18 +595,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             isScreenOffReceiverRegistered = false
         }
 
-        // Stop clipboard listening and unregister from updates
         clipboardHistoryManager?.removeOnHistoryChangedListener(this)
         clipboardHistoryManager?.stopListening()
         clipboardHistoryManager = null
 
-        // Unregister audio playback callback
         unregisterAudioPlaybackCallback()
 
-        // Unregister broadcast receiver
         LocalBroadcastManager.getInstance(this).unregisterReceiver(pasteTextReceiver)
 
-        // Release wake lock if held
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         isScreenAwake = false
@@ -728,7 +630,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService onCreateInputView")
         DebugLog.d("DictationKeyboardService: Creating input view")
 
-        // Force IME window to black (prevents white bar in light mode)
         window?.window?.let { w ->
             w.navigationBarColor = Color.BLACK
             w.decorView?.setBackgroundColor(Color.BLACK)
@@ -738,8 +639,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
 
         return try {
-            // Reset lazy-loaded panel state before creating new view
-            // This ensures panels are re-inflated and listeners re-registered
             clipboardHistoryManager?.removeOnHistoryChangedListener(this)
             claudePanel = null
             shellPanel = null
@@ -761,7 +660,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             languageText = keyboardView?.findViewById(R.id.tvLanguage)
             emojiPanelStub = keyboardView?.findViewById(R.id.emojiPanelStub)
 
-            // Tabbed keyboard panel (7 tabs)
             keyboardTabbedPanel = keyboardView?.findViewById(R.id.keyboardTabbedPanel)
             tabABC = keyboardTabbedPanel?.findViewById(R.id.tabABC)
             tabNumpad = keyboardTabbedPanel?.findViewById(R.id.tabNumpad)
@@ -773,7 +671,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             qwertyPanel = keyboardTabbedPanel?.findViewById(R.id.qwertyPanel)
             qwertyDisplayHelper = qwertyPanel?.let { QwertyDisplayHelper(it) }
             cursorNumpadPanel = keyboardTabbedPanel?.findViewById(R.id.cursorNumpadPanel)
-            // Claude, Shell, Snippets, Clipboard, History panels are lazy-loaded via ViewStub
 
             keyboardButton = keyboardView?.findViewById(R.id.btnKeyboard)
             keyboardIcon = keyboardView?.findViewById(R.id.ivKeyboard)
@@ -781,7 +678,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             emojiIcon = keyboardView?.findViewById(R.id.ivEmoji)
 
             setupButtonHandlers()
-            // Note: Emoji panel is lazy-loaded on first use
             setupQwertyKeyboard()
             setupCursorNumpadPanel()
             setupKeyboardTabs()
@@ -793,7 +689,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             setupVersionDisplay()
             scrollDictationBarToDefault()
 
-            // Force all parent views to black after attachment (fixes white bar in light mode)
             keyboardView!!.post {
                 var parent = keyboardView?.parent
                 while (parent is View) {
@@ -808,13 +703,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             val errorDetails = "Error: ${e.message}\n\n${e.stackTraceToString()}"
             DebugLog.e("DictationKeyboardService: Error creating view - ${e.message}\n${e.stackTraceToString()}")
 
-            // Create error view with copy button
             LinearLayout(this).apply {
                 orientation = LinearLayout.VERTICAL
                 setPadding(16, 16, 16, 16)
                 setBackgroundColor(android.graphics.Color.BLACK)
 
-                // Error message
                 addView(TextView(this@DictationKeyboardService).apply {
                     text = "Error: ${e.message}"
                     textSize = 12f
@@ -822,7 +715,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     setPadding(0, 0, 0, 16)
                 })
 
-                // Copy button
                 addView(android.widget.Button(this@DictationKeyboardService).apply {
                     text = "Copy Error Details"
                     setOnClickListener {
@@ -836,39 +728,31 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Applies the selected theme colors to the keyboard.
-     */
     private fun applyTheme() {
         val prefs = PreferenceManager(this)
         val themeSetting = prefs.getKeyboardTheme()
 
-        // Define colors based on theme
         val backgroundColor: Int
         val buttonColor: Int
         val iconColor: Int
 
         when (themeSetting) {
             PreferenceManager.THEME_AMOLED -> {
-                // AMOLED black theme - Samsung-style dark gray keys on black
-                backgroundColor = Color.parseColor("#000000")  // Pure black
-                buttonColor = Color.parseColor("#2D2D2F")      // Samsung exact color
-                iconColor = Color.parseColor("#FFFFFF")        // White
+                backgroundColor = Color.parseColor("#000000")
+                buttonColor = Color.parseColor("#2D2D2F")
+                iconColor = Color.parseColor("#FFFFFF")
             }
             PreferenceManager.THEME_DARK -> {
-                // Dark theme - use existing dark colors from colors.xml
                 backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
                 buttonColor = ContextCompat.getColor(this, R.color.surface)
                 iconColor = ContextCompat.getColor(this, R.color.on_surface)
             }
             PreferenceManager.THEME_LIGHT -> {
-                // Light theme - white background, gray buttons, black icons
                 backgroundColor = Color.parseColor("#F5F5F5")
                 buttonColor = Color.parseColor("#E0E0E0")
                 iconColor = Color.parseColor("#1C1B1F")
             }
             else -> {
-                // THEME_SYSTEM - follow system setting
                 val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
                 if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
                     backgroundColor = ContextCompat.getColor(this, R.color.surface_variant)
@@ -882,34 +766,23 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Apply AMOLED black background to dictation bar only
-        // (Dictation bar buttons keep their XML styling from keyboard_button_background.xml)
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardRoot)?.setBackgroundColor(Color.BLACK)
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.setBackgroundColor(Color.BLACK)
 
-        // Only the QWERTY panel gets theme-specific styling
 
-        // Apply theme to QWERTY keyboard buttons only
         applyQwertyTheme(buttonColor, iconColor, backgroundColor)
 
         DebugLog.d("DictationKeyboardService: Applied theme - $themeSetting")
     }
 
-    /**
-     * Applies theme colors to a button.
-     */
     private fun applyButtonTheme(button: FrameLayout?, buttonColor: Int, iconColor: Int) {
         button ?: return
 
-        // Create new background drawable with themed color
         val backgroundDrawable = GradientDrawable().apply {
             setColor(buttonColor)
-            cornerRadius = 6 * resources.displayMetrics.density  // 4dp Samsung-style
+            cornerRadius = 6 * resources.displayMetrics.density
         }
 
-        // Wrap in ripple for touch feedback
-        // Use mutate() to ensure each button has its own independent drawable state
-        // This prevents visual state from "bleeding" between buttons
         val rippleDrawable = RippleDrawable(
             android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
             backgroundDrawable,
@@ -917,8 +790,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         ).mutate() as RippleDrawable
         button.background = rippleDrawable
 
-        // Apply icon tint to ImageView children using a non-stateful ColorStateList
-        // This ensures the icon color doesn't change on press/active states
         val iconColorStateList = android.content.res.ColorStateList.valueOf(iconColor)
         for (i in 0 until button.childCount) {
             val child = button.getChildAt(i)
@@ -928,23 +799,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Applies theme colors to QWERTY keyboard buttons.
-     */
     private fun applyQwertyTheme(buttonColor: Int, textColor: Int, backgroundColor: Int) {
-        // Apply to QWERTY panel background
         qwertyPanel?.setBackgroundColor(backgroundColor)
 
-        // Apply to cursor/numpad panel background
         cursorNumpadPanel?.setBackgroundColor(backgroundColor)
 
-        // Get all Button views in the keyboard panels and apply theme
-        // Text keys (TextView)
         val textKeyIds = listOf(
-            // Number row
             R.id.key_1, R.id.key_2, R.id.key_3, R.id.key_4, R.id.key_5,
             R.id.key_6, R.id.key_7, R.id.key_8, R.id.key_9, R.id.key_0,
-            // QWERTY keys
             R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
             R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p,
             R.id.key_a, R.id.key_s, R.id.key_d, R.id.key_f, R.id.key_g,
@@ -954,15 +816,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_comma, R.id.key_space, R.id.key_period
         )
 
-        // Accent keys (shift, numbers) - use darker accent color #1A1A1A
         val accentKeyIds = listOf(R.id.key_shift, R.id.key_numbers)
 
         for (id in textKeyIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
-                // Create themed background
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 6 * resources.displayMetrics.density  // 6dp Samsung-style
+                    cornerRadius = 6 * resources.displayMetrics.density
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -974,10 +834,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Accent color for special keys (shift, numbers, backspace, enter)
         val accentColor = ContextCompat.getColor(this, R.color.dictation_bar_button)
 
-        // Accent text keys (shift, numbers)
         for (id in accentKeyIds) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 val backgroundDrawable = GradientDrawable().apply {
@@ -994,13 +852,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Icon keys (ImageView) - backspace and enter - use accent color
         val iconKeyIds = listOf(R.id.key_backspace, R.id.key_enter)
         for (id in iconKeyIds) {
             qwertyPanel?.findViewById<android.widget.ImageView>(id)?.let { imageView ->
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(accentColor)
-                    cornerRadius = 6 * resources.displayMetrics.density  // 6dp Samsung-style
+                    cornerRadius = 6 * resources.displayMetrics.density
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -1012,7 +869,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Apply to numpad/cursor keys
         val numpadIds = listOf(
             R.id.numpad_0, R.id.numpad_1, R.id.numpad_2, R.id.numpad_3,
             R.id.numpad_4, R.id.numpad_5, R.id.numpad_6, R.id.numpad_7,
@@ -1027,7 +883,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             cursorNumpadPanel?.findViewById<android.widget.TextView>(id)?.let { button ->
                 val backgroundDrawable = GradientDrawable().apply {
                     setColor(buttonColor)
-                    cornerRadius = 6 * resources.displayMetrics.density  // 4dp Samsung-style
+                    cornerRadius = 6 * resources.displayMetrics.density
                 }
                 val rippleDrawable = RippleDrawable(
                     android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this, R.color.primary)),
@@ -1040,46 +896,37 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Applies compact mode to the dictation bar if enabled.
-     * Reduces button sizes by ~40% for a minimalist look.
-     */
     private fun applyCompactMode() {
         val prefs = PreferenceManager(this)
         if (!prefs.getCompactDictationBar()) return
 
         val density = resources.displayMetrics.density
 
-        // Compact sizes (approximately 40% reduction)
-        val compactButtonSize = (32 * density).toInt()   // 48dp -> 32dp
-        val compactIconSize = (16 * density).toInt()     // 24dp -> 16dp
-        val compactSmallButtonWidth = (24 * density).toInt()  // 36dp -> 24dp for chevron
-        val compactSmallIconSize = (12 * density).toInt()     // 18dp -> 12dp for chevron icon
-        val compactPadding = (4 * density).toInt()       // 10dp -> 4dp vertical padding
-        val compactMargin = (4 * density).toInt()        // 6dp -> 4dp button margins
-        val compactMinHeight = (40 * density).toInt()    // 64dp -> 40dp
+        val compactButtonSize = (32 * density).toInt()
+        val compactIconSize = (16 * density).toInt()
+        val compactSmallButtonWidth = (24 * density).toInt()
+        val compactSmallIconSize = (12 * density).toInt()
+        val compactPadding = (4 * density).toInt()
+        val compactMargin = (4 * density).toInt()
+        val compactMinHeight = (40 * density).toInt()
 
-        // Apply to keyboard container
         keyboardView?.findViewById<LinearLayout>(R.id.keyboardContainer)?.apply {
             setPadding(paddingLeft, compactPadding, paddingRight, compactPadding)
             minimumHeight = compactMinHeight
         }
 
-        // Dictation bar button IDs (standard size buttons)
         val standardButtons = listOf(
             R.id.btnSelectAll, R.id.btnEmoji, R.id.btnSpace, R.id.btnLanguage,
             R.id.btnBackspace, R.id.btnKeyboardMic, R.id.btnEnter,
             R.id.btnKeyboard, R.id.btnHistory, R.id.btnImprove, R.id.btnScreenAwake
         )
 
-        // Standard icons inside those buttons
         val standardIcons = listOf(
             R.id.ivSelectAll, R.id.ivEmoji, R.id.ivSpace, R.id.ivBackspace,
             R.id.ivKeyboardMic, R.id.ivEnter, R.id.ivKeyboard, R.id.ivHistory, R.id.ivImprove,
             R.id.ivScreenAwake
         )
 
-        // Apply compact size to standard buttons
         for (id in standardButtons) {
             keyboardView?.findViewById<FrameLayout>(id)?.let { button ->
                 val layoutParams = button.layoutParams as LinearLayout.LayoutParams
@@ -1090,7 +937,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Apply compact size to icons
         for (id in standardIcons) {
             keyboardView?.findViewById<ImageView>(id)?.let { icon ->
                 val layoutParams = icon.layoutParams
@@ -1100,7 +946,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Handle chevron button (smaller button)
         keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.let { button ->
             val layoutParams = button.layoutParams as LinearLayout.LayoutParams
             layoutParams.width = compactSmallButtonWidth
@@ -1114,22 +959,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             icon.layoutParams = layoutParams
         }
 
-        // Handle language text (TextView, not ImageView)
         keyboardView?.findViewById<TextView>(R.id.tvLanguage)?.let { text ->
-            text.textSize = 11f  // 14sp -> 11sp
+            text.textSize = 11f
         }
 
         DebugLog.i("DictationKeyboardService: Compact mode applied")
     }
 
-    /**
-     * Applies button visibility settings to the dictation bar.
-     * Hides buttons that the user has disabled in settings.
-     */
     private fun applyButtonVisibility() {
         val prefs = PreferenceManager(this)
 
-        // Apply visibility to each button (MIC is always visible)
         keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.visibility =
             if (prefs.getBtnSwitchBackEnabled()) View.VISIBLE else View.GONE
         keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.visibility =
@@ -1155,35 +994,28 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun setupButtonHandlers() {
-        // Mic button - short press toggle, long press settings
         micButton?.setOnTouchListener { _, event ->
             handleMicTouch(event)
         }
 
-        // Language button
         keyboardView?.findViewById<FrameLayout>(R.id.btnLanguage)?.setOnClickListener {
             toggleLanguage()
         }
 
-        // Backspace button - with hold-to-repeat
         keyboardView?.findViewById<FrameLayout>(R.id.btnBackspace)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
 
-        // Select All button
         keyboardView?.findViewById<FrameLayout>(R.id.btnSelectAll)?.setOnClickListener {
             selectAll()
         }
 
-        // History button - shows keyboard panel and switches to History tab
-        // Long-press opens settings
         keyboardView?.findViewById<FrameLayout>(R.id.btnHistory)?.let { historyBtn ->
             historyBtn.setOnClickListener {
-                // Show keyboard panel if hidden, then switch to History tab
                 if (!isKeyboardPanelVisible) {
                     toggleKeyboardPanel()
                 }
-                switchToTab(4)  // History tab
+                switchToTab(4)
             }
             historyBtn.setOnLongClickListener {
                 openSettings()
@@ -1191,40 +1023,33 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Enter button
         keyboardView?.findViewById<FrameLayout>(R.id.btnEnter)?.setOnClickListener {
             sendEnterKey()
         }
 
-        // Space button - insert space
         keyboardView?.findViewById<FrameLayout>(R.id.btnSpace)?.setOnClickListener {
             autocorrectManager?.onWordBoundary()
             currentInputConnection?.commitText(" ", 1)
         }
 
-        // Emoji button - toggles emoji panel
         keyboardView?.findViewById<FrameLayout>(R.id.btnEmoji)?.setOnClickListener {
             toggleEmojiPanel()
         }
 
-        // Keyboard button - toggles tabbed keyboard panel
         keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboard)?.setOnClickListener {
             toggleKeyboardPanel()
         }
 
-        // Switch back to previous keyboard button
         keyboardView?.findViewById<FrameLayout>(R.id.btnSwitchBack)?.setOnClickListener {
             switchToPreviousKeyboard()
         }
 
-        // Improve button - AI-powered text improvement
         improveButton = keyboardView?.findViewById(R.id.btnImprove)
         improveIcon = keyboardView?.findViewById(R.id.ivImprove)
         improveButton?.setOnClickListener {
             improveText()
         }
 
-        // Screen awake button - toggle keep screen on
         screenAwakeButton = keyboardView?.findViewById(R.id.btnScreenAwake)
         screenAwakeIcon = keyboardView?.findViewById(R.id.ivScreenAwake)
         screenAwakeButton?.setOnClickListener {
@@ -1254,15 +1079,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun updateScreenAwakeButton() {
-        val color = if (isScreenAwake) Color.parseColor("#FFD700") else Color.WHITE  // Gold when active
+        val color = if (isScreenAwake) Color.parseColor("#FFD700") else Color.WHITE
         screenAwakeIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
     }
 
-    /**
-     * Handles touch events for mic button.
-     * Locks to the handler that received ACTION_DOWN for the entire touch sequence,
-     * so a mode switch mid-touch (e.g. long-press entering PTT) doesn't confuse the UP event.
-     */
     private fun handleMicTouch(event: MotionEvent): Boolean {
         if (event.action == MotionEvent.ACTION_DOWN) {
             micTouchStartedInPttMode = isPushToTalkMode
@@ -1282,9 +1102,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return result
     }
 
-    /**
-     * Normal mode: tap = toggle mute (with 300ms delay), double-tap = enter PTT mode.
-     */
     private fun handleMicTouchNormal(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
@@ -1297,13 +1114,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                 val now = System.currentTimeMillis()
                 if (now - lastMicTapTime < DOUBLE_TAP_TIMEOUT) {
-                    // Double-tap detected - enter PTT
                     lastMicTapTime = 0L
                     doubleTapRunnable?.let { doubleTapHandler?.removeCallbacks(it) }
                     DebugLog.i("DictationKeyboardService: Double-tap detected - entering PTT")
                     enterPushToTalkMode()
                 } else {
-                    // First tap - schedule toggleMute after timeout (cancelled if second tap comes)
                     lastMicTapTime = now
                     doubleTapHandler = Handler(Looper.getMainLooper())
                     doubleTapRunnable = Runnable {
@@ -1317,20 +1132,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * PTT mode: hold = record, double-tap = exit PTT, single tap = no-op.
-     */
     private fun handleMicTouchPTT(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Prevent scroll view from intercepting our hold gesture
                 micButton?.parent?.requestDisallowInterceptTouchEvent(true)
-                // Start buffering immediately on touch
                 isPttRecording = true
                 pttStreamingStarted = false
                 startPttBuffering()
 
-                // Schedule streaming start after 500ms hold
                 pttStreamingHandler = Handler(Looper.getMainLooper())
                 pttStreamingRunnable = Runnable {
                     pttStreamingStarted = true
@@ -1344,23 +1153,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 pttStreamingRunnable?.let { pttStreamingHandler?.removeCallbacks(it) }
 
                 if (!pttStreamingStarted && event.action == MotionEvent.ACTION_UP) {
-                    // Quick tap (<500ms) - check for double-tap to exit PTT
                     stopPttBuffering(discard = true)
                     isPttRecording = false
 
                     val now = System.currentTimeMillis()
                     if (now - lastMicTapTime < DOUBLE_TAP_TIMEOUT) {
-                        // Double-tap detected - exit PTT
                         lastMicTapTime = 0L
                         doubleTapRunnable?.let { doubleTapHandler?.removeCallbacks(it) }
                         DebugLog.i("DictationKeyboardService: Double-tap detected - exiting PTT")
                         exitPushToTalkMode()
                     } else {
-                        // First tap - just record time, no action on single tap in PTT
                         lastMicTapTime = now
                     }
                 } else {
-                    // Release after streaming = stop recording and transcribe
                     stopPttStreaming()
                     isPttRecording = false
                     pttStreamingStarted = false
@@ -1371,15 +1176,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Unified mute toggle for normal mode. Replaces old toggleDictation + toggleMuteLock.
-     */
     private fun toggleMute() {
         wasAutoMutedByPlayback = false
         isMuteLocked = !isMuteLocked
 
         if (isMuteLocked) {
-            // Stop dictation if running
             if (isRecording || isProcessing || isStandby) {
                 transcriptionManager?.stopListening()
                 isRecording = false
@@ -1392,7 +1193,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             Log.i(TAG, "Mic unmuted - starting dictation")
             DebugLog.i("DictationKeyboardService: Mic unmuted via tap")
 
-            // Start dictation on unmute
             if (transcriptionManager == null) {
                 initializeTranscriptionManager()
             }
@@ -1410,10 +1210,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateMicButton()
     }
 
-    /**
-     * Registers AudioPlaybackCallback to detect when the phone plays audio
-     * (WhatsApp voice messages, YouTube, music, etc.) and auto-pause transcription.
-     */
     private fun registerAudioPlaybackCallback() {
         val audioManager = getSystemService(Context.AUDIO_SERVICE) as? AudioManager ?: return
         audioPlaybackCallback = object : AudioManager.AudioPlaybackCallback() {
@@ -1422,7 +1218,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 Handler(Looper.getMainLooper()).post {
                     if (hasActivePlayback && !isMuteLocked && !isPushToTalkMode &&
                         (isRecording || isProcessing || isStandby)) {
-                        // Phone is playing audio — auto-mute to prevent transcribing it
                         wasAutoMutedByPlayback = true
                         isMuteLocked = true
                         transcriptionManager?.stopListening()
@@ -1432,7 +1227,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         updateMicButton()
                         DebugLog.i("DictationKeyboardService: Auto-muted — phone playing audio")
                     } else if (!hasActivePlayback && wasAutoMutedByPlayback && isMuteLocked) {
-                        // Audio stopped — auto-unmute
                         wasAutoMutedByPlayback = false
                         isMuteLocked = false
                         if (transcriptionManager == null) {
@@ -1469,7 +1263,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         isPushToTalkMode = true
         PreferenceManager(this).setPushToTalkEnabled(true)
 
-        // Stop any running dictation
         if (isRecording || isProcessing || isStandby) {
             transcriptionManager?.stopListening()
             isRecording = false
@@ -1495,7 +1288,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "Exited push-to-talk mode")
         DebugLog.i("DictationKeyboardService: Exited PTT mode")
 
-        // Auto-start dictation in normal mode
         if (transcriptionManager == null) {
             initializeTranscriptionManager()
         }
@@ -1585,14 +1377,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val prefs = PreferenceManager(this)
         val currentLang = prefs.getLanguage()
 
-        // Toggle between en and de (or extend for more languages)
         val newLang = if (currentLang == "en") "de" else "en"
         prefs.setLanguage(newLang)
 
-        // Switch autocorrect dictionary to match
         autocorrectManager?.setLanguage(newLang)
 
-        // If currently recording, restart mic to apply new language immediately
         if (isRecording || isProcessing) {
             Log.i(TAG, "Restarting mic to apply language change")
             DebugLog.i("DictationKeyboardService: Restarting mic for language change")
@@ -1602,7 +1391,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             isStandby = false
             updateMicButton()
 
-            // Brief delay then restart with new language
             Handler(Looper.getMainLooper()).postDelayed({
                 try {
                     transcriptionManager?.startListening()
@@ -1616,7 +1404,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 }
             }, 150)
         } else {
-            // Not recording, just update the engine's language setting
             transcriptionManager?.setLanguage(newLang)
         }
 
@@ -1626,23 +1413,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     private fun updateMicButton() {
         val color = when {
-            // PTT mode states
             isPushToTalkMode && isPttRecording && pttStreamingStarted ->
-                Color.parseColor(COLOR_MIC_STREAMING)  // PTT streaming (speaking)
+                Color.parseColor(COLOR_MIC_STREAMING)
             isPushToTalkMode && isPttRecording && !pttStreamingStarted ->
-                Color.parseColor(COLOR_MIC_BUFFERING)  // PTT buffering (keep holding...)
+                Color.parseColor(COLOR_MIC_BUFFERING)
             isPushToTalkMode ->
-                Color.parseColor(COLOR_MIC_PTT_IDLE)   // PTT idle (hold to talk)
-            // Normal mode states
-            isMuteLocked -> Color.parseColor(COLOR_MIC_MUTED)     // Muted
-            isProcessing -> Color.parseColor(COLOR_MIC_STREAMING)  // Actively transcribing
-            isStandby -> Color.parseColor(COLOR_MIC_STANDBY)      // Standby
-            isRecording -> Color.parseColor(COLOR_MIC_STREAMING)   // Legacy
-            else -> getThemedIconColor()  // White/themed - off
+                Color.parseColor(COLOR_MIC_PTT_IDLE)
+            isMuteLocked -> Color.parseColor(COLOR_MIC_MUTED)
+            isProcessing -> Color.parseColor(COLOR_MIC_STREAMING)
+            isStandby -> Color.parseColor(COLOR_MIC_STANDBY)
+            isRecording -> Color.parseColor(COLOR_MIC_STREAMING)
+            else -> getThemedIconColor()
         }
         micIcon?.imageTintList = android.content.res.ColorStateList.valueOf(color)
 
-        // Pulse animation only for PTT streaming
         if (isPushToTalkMode && isPttRecording && pttStreamingStarted) {
             startPulseAnimation(micIcon)
         } else {
@@ -1650,12 +1434,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Starts a pulsing alpha animation on the mic icon to indicate transcription processing.
-     */
     private fun startPulseAnimation(view: ImageView?) {
         view ?: return
-        if (pulseAnimator?.isRunning == true) return // Already running
+        if (pulseAnimator?.isRunning == true) return
         pulseAnimator?.cancel()
         pulseAnimator = ObjectAnimator.ofFloat(view, "alpha", 1f, 0.4f).apply {
             duration = 500
@@ -1665,27 +1446,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Stops the pulsing animation and resets the view to full opacity.
-     */
     private fun stopPulseAnimation(view: ImageView?) {
         pulseAnimator?.cancel()
         pulseAnimator = null
         view?.alpha = 1f
     }
 
-    /**
-     * Gets the appropriate icon color based on the current theme setting.
-     */
     private fun getThemedIconColor(): Int {
         val prefs = PreferenceManager(this)
         val themeSetting = prefs.getKeyboardTheme()
 
         return when (themeSetting) {
-            PreferenceManager.THEME_AMOLED -> Color.parseColor("#FFFFFF")  // White for AMOLED
+            PreferenceManager.THEME_AMOLED -> Color.parseColor("#FFFFFF")
             PreferenceManager.THEME_DARK -> ContextCompat.getColor(this, R.color.on_surface)
             PreferenceManager.THEME_LIGHT -> Color.parseColor("#1C1B1F")
-            else -> { // THEME_SYSTEM
+            else -> {
                 val nightModeFlags = resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
                 if (nightModeFlags == Configuration.UI_MODE_NIGHT_YES) {
                     ContextCompat.getColor(this, R.color.on_surface)
@@ -1696,16 +1471,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Updates the keyboard button visual state based on QWERTY panel visibility.
-     * When expanded: shows up-arrow icon variant and uses primary color for active look.
-     * When collapsed: shows normal icon with themed color.
-     */
     private fun updateKeyboardButtonState() {
         val iconRes = if (isKeyboardPanelVisible) R.drawable.ic_keyboard_expanded else R.drawable.ic_keyboard
         keyboardIcon?.setImageResource(iconRes)
 
-        // Apply active color (primary) when expanded, themed color when collapsed
         val iconColor = if (isKeyboardPanelVisible) {
             ContextCompat.getColor(this, R.color.primary)
         } else {
@@ -1714,16 +1483,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         keyboardIcon?.imageTintList = android.content.res.ColorStateList.valueOf(iconColor)
     }
 
-    /**
-     * Updates the emoji button visual state based on emoji panel visibility.
-     * When expanded: shows up-arrow icon variant and uses primary color for active look.
-     * When collapsed: shows normal icon with themed color.
-     */
     private fun updateEmojiButtonState() {
         val iconRes = if (isEmojiPanelVisible) R.drawable.ic_emoji_expanded else R.drawable.ic_emoji
         emojiIcon?.setImageResource(iconRes)
 
-        // Apply active color (primary) when expanded, themed color when collapsed
         val iconColor = if (isEmojiPanelVisible) {
             ContextCompat.getColor(this, R.color.primary)
         } else {
@@ -1738,10 +1501,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val lang = prefs.getLanguage().uppercase()
         val langName = getLanguageDisplayName(prefs.getLanguage())
 
-        // Update space bar language label (Samsung-style)
         spaceKeyButton?.text = langName
 
-        // Language button always visible - user controls language via button
         languageButton?.visibility = View.VISIBLE
         languageText?.text = lang
     }
@@ -1754,10 +1515,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the tiny version display in the corner of the keyboard.
-     * Shows version dynamically for dev/testing purposes.
-     */
     private fun setupVersionDisplay() {
         val versionText = keyboardView?.findViewById<TextView>(R.id.tvKeyboardVersion)
         try {
@@ -1775,17 +1532,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Scrolls the dictation bar to center the MIC button.
-     * Button order: Chevron | Keyboard | Emoji | Clipboard | Enter | MIC | Backspace | Language | SelectAll
-     */
     private fun scrollDictationBarToDefault() {
         val scrollView = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
         val micButton = keyboardView?.findViewById<FrameLayout>(R.id.btnKeyboardMic)
 
         scrollView?.post {
             micButton?.let { mic ->
-                // Calculate scroll position to center MIC button
                 val scrollViewWidth = scrollView.width
                 val micLeft = mic.left
                 val micWidth = mic.width
@@ -1796,9 +1548,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the emoji picker panel.
-     */
     private fun setupEmojiPanel() {
         emojiPanel?.let { panel ->
             val emojiPicker = panel.findViewById<androidx.emoji2.emojipicker.EmojiPickerView>(R.id.emojiPicker)
@@ -1811,20 +1560,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Toggles the emoji panel visibility.
-     * Hides keyboard panel if visible.
-     * Lazy-loads the panel on first use for fast keyboard startup.
-     */
     private fun toggleEmojiPanel() {
-        // Hide keyboard panel if showing
         if (isKeyboardPanelVisible) {
             isKeyboardPanelVisible = false
             keyboardTabbedPanel?.visibility = View.GONE
             updateKeyboardButtonState()
         }
 
-        // Lazy inflate the panel on first use
         if (!isEmojiPanelInflated) {
             DebugLog.i("DictationKeyboardService: Lazy-inflating emoji panel...")
             emojiPanel = emojiPanelStub?.inflate()
@@ -1839,12 +1581,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.i("DictationKeyboardService: Emoji panel ${if (isEmojiPanelVisible) "shown" else "hidden"}")
     }
 
-    /**
-     * Toggles the tabbed keyboard panel visibility.
-     * Hides emoji panel if visible.
-     */
     private fun toggleKeyboardPanel() {
-        // Hide emoji panel if showing
         if (isEmojiPanelVisible) {
             isEmojiPanelVisible = false
             emojiPanel?.visibility = View.GONE
@@ -1856,7 +1593,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         keyboardTabbedPanel?.visibility = if (isKeyboardPanelVisible) View.VISIBLE else View.GONE
         updateKeyboardButtonState()
 
-        // Auto-mute mic when opening keyboard panel for typing (user must manually unmute)
         if (isKeyboardPanelVisible && !isMuteLocked && !isPushToTalkMode) {
             isMuteLocked = true
             if (isRecording || isProcessing || isStandby) {
@@ -1869,17 +1605,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             DebugLog.i("DictationKeyboardService: Auto-muted mic for typing")
         }
 
-        // Reset to letters mode when closing the keyboard
         if (!isKeyboardPanelVisible && isNumbersMode) {
             isNumbersMode = false
             isShiftActive = false
             updateKeyboardMode()
         }
 
-        // Apply number row visibility when panel becomes visible
         if (isKeyboardPanelVisible) {
             updateNumberRowVisibility()
-            // Always reset to ABC tab when opening panel (no tab memory)
             if (currentKeyboardTab != 0) {
                 currentKeyboardTab = 0
                 updateKeyboardTabContent()
@@ -1890,11 +1623,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.i("DictationKeyboardService: Keyboard panel ${if (isKeyboardPanelVisible) "shown" else "hidden"}")
     }
 
-    /**
-     * Sets up the keyboard tab bar and swipe gestures.
-     */
     private fun setupKeyboardTabs() {
-        // Set initial visibility - QWERTY visible, others hidden
         qwertyPanel?.visibility = View.VISIBLE
         cursorNumpadPanel?.visibility = View.GONE
         claudePanel?.visibility = View.GONE
@@ -1903,10 +1632,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
-        // Load panel visibility preferences
         val prefs = PreferenceManager(this)
 
-        // Tab click listeners for all 7 tabs
         tabABC?.setOnClickListener { switchToTab(0) }
         tabNumpad?.setOnClickListener { switchToTab(1) }
         tabClaude?.setOnClickListener { switchToTab(2) }
@@ -1915,14 +1642,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         tabClipboard?.setOnClickListener { switchToTab(5) }
         tabHistory?.setOnClickListener { switchToTab(6) }
 
-        // Hide tabs based on preferences
         tabClaude?.visibility = if (prefs.getPanelClaudeEnabled()) View.VISIBLE else View.GONE
         tabShell?.visibility = if (prefs.getPanelShellEnabled()) View.VISIBLE else View.GONE
         tabSnippets?.visibility = if (prefs.getPanelSnippetsEnabled()) View.VISIBLE else View.GONE
         tabClipboard?.visibility = if (prefs.getPanelClipboardEnabled()) View.VISIBLE else View.GONE
         tabHistory?.visibility = if (prefs.getPanelHistoryEnabled()) View.VISIBLE else View.GONE
 
-        // Swipe overlay: detect swipe-down to close panel, pass other touches through
         val swipeOverlay = keyboardTabbedPanel?.findViewById<View>(R.id.swipeOverlay)
         var overlayDownY = 0f
         var overlayDownX = 0f
@@ -1949,9 +1674,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val dy = event.rawY - overlayDownY
                     val dx = Math.abs(event.rawX - overlayDownX)
                     if (!overlaySwipeHandled && dy > 80 && dy > dx) {
-                        // Swipe down detected — close keyboard panel
                         overlaySwipeHandled = true
-                        // Send cancel to target so it doesn't act on the partial gesture
                         val cancel = MotionEvent.obtain(event).apply { action = MotionEvent.ACTION_CANCEL }
                         targetPanel?.dispatchTouchEvent(cancel)
                         cancel.recycle()
@@ -1970,7 +1693,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             true
         }
 
-        // Swipe up on dictation bar to open keyboard panel
         val dictationBar = keyboardView?.findViewById<HorizontalScrollView>(R.id.dictationBarScrollView)
         var barDownY = 0f
         var barDownX = 0f
@@ -1981,11 +1703,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     barDownY = event.rawY
                     barDownX = event.rawX
                     barSwipeHandled = false
-                    // Let the ScrollView handle horizontal scrolling
                     v.onTouchEvent(event)
                 }
                 MotionEvent.ACTION_MOVE -> {
-                    val dy = barDownY - event.rawY  // positive = swipe up
+                    val dy = barDownY - event.rawY
                     val dx = Math.abs(event.rawX - barDownX)
                     if (!barSwipeHandled && dy > 80 && dy > dx) {
                         barSwipeHandled = true
@@ -2007,21 +1728,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateTabIndicator()
     }
 
-    /**
-     * Switches to the specified keyboard tab, inflating lazy panels if needed.
-     */
     private fun switchToTab(tab: Int) {
         if (tab == currentKeyboardTab) return
         currentKeyboardTab = tab
 
-        // Lazy-inflate new panels if needed
         when (tab) {
             2 -> inflateClaudePanelIfNeeded()
             3 -> inflateShellPanelIfNeeded()
             4 -> inflateSnippetsPanelIfNeeded()
             5 -> {
                 inflateClipboardPanelIfNeeded()
-                refreshClipboardPanel()  // Always refresh to show latest clipboard content
+                refreshClipboardPanel()
             }
             6 -> inflateHistoryTabPanelIfNeeded()
         }
@@ -2058,7 +1775,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     DebugLog.e("DictationKeyboardService: snippetsPanelStub not found!")
                     return
                 }
-                // Use themed LayoutInflater for Material components (FAB, MaterialButton)
                 val themedContext = android.view.ContextThemeWrapper(this, R.style.Theme_TinyDictation)
                 stub.setLayoutInflater(android.view.LayoutInflater.from(themedContext))
                 snippetsPanel = stub.inflate()
@@ -2110,11 +1826,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Updates the visible keyboard tab content for all 7 tabs.
-     */
     private fun updateKeyboardTabContent() {
-        // Hide all panels first
         qwertyPanel?.visibility = View.GONE
         cursorNumpadPanel?.visibility = View.GONE
         claudePanel?.visibility = View.GONE
@@ -2123,7 +1835,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clipboardPanel?.visibility = View.GONE
         historyTabPanel?.visibility = View.GONE
 
-        // Show the selected panel
         when (currentKeyboardTab) {
             0 -> qwertyPanel?.visibility = View.VISIBLE
             1 -> cursorNumpadPanel?.visibility = View.VISIBLE
@@ -2138,30 +1849,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("DictationKeyboardService: Switched to keyboard tab $currentKeyboardTab")
     }
 
-    /**
-     * Updates the tab indicator position and colors for 7 tabs.
-     */
     private fun updateTabIndicator() {
         val activeColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_active)
         val inactiveColor = androidx.core.content.ContextCompat.getColor(this, R.color.tab_inactive)
 
-        // Update tab colors - active tab gets light purple, inactive gets light gray (high contrast on black)
         val tabs = listOf(tabABC, tabNumpad, tabClaude, tabShell, tabSnippets, tabClipboard, tabHistory)
         tabs.forEachIndexed { index, tab ->
             tab?.setTextColor(if (index == currentKeyboardTab) activeColor else inactiveColor)
         }
     }
 
-    /**
-     * Sets up the QWERTY keyboard key handlers.
-     */
     private fun setupQwertyKeyboard() {
         qwertyPanel ?: return
 
-        // Number row and hints visibility (refreshed on each keyboard open)
         updateNumberRowVisibility()
 
-        // Number keys - simple click handlers
         val numberKeys = listOf(
             R.id.key_1 to "1", R.id.key_2 to "2", R.id.key_3 to "3",
             R.id.key_4 to "4", R.id.key_5 to "5", R.id.key_6 to "6",
@@ -2171,11 +1873,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         for ((id, char) in numberKeys) {
             qwertyPanel?.findViewById<android.widget.TextView>(id)?.setOnClickListener {
                 currentInputConnection?.commitText(char, 1)
-                trackTypedText(char)  // Track for terminal apps
+                trackTypedText(char)
             }
         }
 
-        // Letter keys - map button IDs to characters
         val letterKeys = mapOf(
             R.id.key_q to "q", R.id.key_w to "w", R.id.key_e to "e", R.id.key_r to "r",
             R.id.key_t to "t", R.id.key_y to "y", R.id.key_u to "u", R.id.key_i to "i",
@@ -2186,7 +1887,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             R.id.key_n to "n", R.id.key_m to "m"
         )
 
-        // Long-press number mappings for top row (Q=1, W=2, ... P=0)
         val longPressNumbers = mapOf(
             R.id.key_q to "1", R.id.key_w to "2", R.id.key_e to "3", R.id.key_r to "4",
             R.id.key_t to "5", R.id.key_y to "6", R.id.key_u to "7", R.id.key_i to "8",
@@ -2196,12 +1896,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         for ((id, _) in letterKeys) {
             val button = qwertyPanel?.findViewById<android.widget.TextView>(id)
             button?.setOnClickListener {
-                // Use the button's displayed text (works for both letters and numbers/symbols)
                 val textToCommit = button.text.toString()
                 currentInputConnection?.commitText(textToCommit, 1)
-                trackTypedText(textToCommit)  // Track for terminal apps
+                trackTypedText(textToCommit)
 
-                // Feed letter to autocorrect (only for actual letters, not numbers/symbols, not URL fields)
                 if (!isNumbersMode && !isTerminalApp && !isUrlField && textToCommit.length == 1 && textToCommit[0].isLetter()) {
                     cancelNextWordPrediction()
                     if (isAutocorrectEnabled || isPredictionStripEnabled) {
@@ -2212,105 +1910,81 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     }
                 }
 
-                // Turn off shift after one character (unless caps lock, and only in letters mode)
                 if (!isNumbersMode && isShiftActive && !isCapsLock) {
                     isShiftActive = false
                     updateShiftKeyDisplay()
                 }
             }
 
-            // Add long-press for numbers on top row (only in letters mode)
             longPressNumbers[id]?.let { number ->
                 button?.setOnLongClickListener {
                     if (!isNumbersMode) {
                         currentInputConnection?.commitText(number, 1)
-                        trackTypedText(number)  // Track for terminal apps
+                        trackTypedText(number)
                     }
                     true
                 }
             }
         }
 
-        // 'A' key - tap for 'a', long press for 'ä' (German umlaut)
         aKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_a)
         aKeyButton?.setOnTouchListener { _, event ->
             handleAKeyTouch(event)
         }
 
-        // 'O' key - tap for 'o', long press for 'ö' (German umlaut)
         oKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_o)
         oKeyButton?.setOnTouchListener { _, event ->
             handleOKeyTouch(event)
         }
 
-        // 'U' key - tap for 'u', long press for 'ü' (German umlaut)
         uKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_u)
         uKeyButton?.setOnTouchListener { _, event ->
             handleUKeyTouch(event)
         }
 
-        // Punctuation keys
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_comma)?.setOnClickListener {
             autocorrectManager?.onWordBoundary()
             currentInputConnection?.commitText(",", 1)
-            trackTypedText(",")  // Track for terminal apps
+            trackTypedText(",")
         }
-        // Period key - tap for ".", long press for punctuation popup (! and ?)
         periodButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_period)
         periodButton?.setOnTouchListener { view, event ->
             handlePeriodTouch(view, event)
         }
 
-        // Space bar - tap for space, long-press + drag for cursor trackpad mode
         spaceKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_space)
         spaceKeyButton?.text = getLanguageDisplayName(PreferenceManager(this).getLanguage())
         spaceKeyButton?.setOnTouchListener { _, event ->
             handleSpaceKeyTouch(event)
         }
 
-        // Enter key (ImageView)
         qwertyPanel?.findViewById<android.view.View>(R.id.key_enter)?.setOnClickListener {
             autocorrectManager?.onWordBoundary()
             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-            // Clear internal buffer after Enter (terminal command submitted)
             internalTextBuffer.clear()
             DebugLog.d("DictationKeyboardService: Enter pressed, cleared internal buffer")
         }
 
-        // Backspace key (ImageView) - with hold-to-repeat (same behavior as dictation bar backspace)
         qwertyPanel?.findViewById<android.view.View>(R.id.key_backspace)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
 
-        // Shift key - tap for shift, double-tap for caps lock, long-press for German mode toggle
         shiftKeyButton = qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_shift)
         shiftKeyButton?.setOnTouchListener { _, event ->
             handleShiftKeyTouch(event)
         }
 
-        // 123/ABC key - toggle between letters and numbers/symbols
         qwertyPanel?.findViewById<android.widget.TextView>(R.id.key_numbers)?.setOnClickListener {
             toggleNumbersMode()
         }
 
-        // Fat finger correction: intercept touches on QWERTY rows and route to nearest key
         setupProximityTouchOnRows()
 
-        // Autocorrect and prediction strip
         setupAutocorrect()
     }
 
-    /**
-     * Fat finger correction: intercepts touches on each QWERTY letter row
-     * and routes them to the nearest key by center distance.
-     * This means taps in the gap between keys (the 4dp margins) still register
-     * on the closest key, and edge taps on the wrong key get corrected.
-     */
     private fun setupProximityTouchOnRows() {
         val panel = qwertyPanel as? LinearLayout ?: return
-        // Letter rows are children 2,3,4 (index: 0=prediction, 1=number row, 2=QWERTY row1, 3=row2, 4=row3)
-        // But if prediction/number row are GONE, indices shift. Find rows by their letter key content.
-        // Safer approach: iterate children and find LinearLayouts that contain letter keys
         val letterRowIds = listOf(
             listOf(R.id.key_q, R.id.key_w, R.id.key_e, R.id.key_r, R.id.key_t,
                    R.id.key_y, R.id.key_u, R.id.key_i, R.id.key_o, R.id.key_p),
@@ -2322,17 +1996,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         for (i in 0 until panel.childCount) {
             val row = panel.getChildAt(i) as? LinearLayout ?: continue
-            // Check if this row contains any of our letter key IDs
             val rowKeyIds = letterRowIds.firstOrNull { ids ->
                 ids.any { row.findViewById<View>(it) != null }
             } ?: continue
 
-            // Collect the actual key views in this row (FrameLayouts or TextViews with letter IDs)
             val keyViews = mutableListOf<View>()
             for (id in rowKeyIds) {
-                // Keys are either direct TextViews or inside FrameLayouts
                 val view = row.findViewById<View>(id)
-                // Use the parent FrameLayout if it's a KeyboardKeyFrame, otherwise the view itself
                 val target = if (view?.parent is FrameLayout && view.parent != row) {
                     view.parent as View
                 } else {
@@ -2343,7 +2013,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
             row.setOnTouchListener { _, event ->
                 if (event.action == MotionEvent.ACTION_DOWN) {
-                    // Find the nearest key by center distance
                     var nearestKey: View? = null
                     var minDist = Float.MAX_VALUE
                     val touchX = event.x
@@ -2374,11 +2043,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the autocorrect manager and wires up the prediction strip.
-     */
     private fun setupAutocorrect() {
-        // Read user settings
         val prefs = PreferenceManager(this)
         isPredictionStripEnabled = prefs.getPredictionStripEnabled()
         isAutocorrectEnabled = prefs.getAutocorrectEnabled()
@@ -2386,24 +2051,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         isAiWordCompletionEnabled = prefs.getAiWordCompletionEnabled()
         isAutoFixEnabled = prefs.getAutoFixEnabled()
 
-        // Initialize autocorrect manager (loads dictionary)
         if (autocorrectManager == null) {
             autocorrectManager = AutocorrectManager(this)
         }
-        // Sync autocorrect language with current transcription language
         val currentLang = prefs.getLanguage()
         autocorrectManager?.setLanguage(currentLang)
 
-        // Find prediction strip views
         predictionStrip = qwertyPanel?.findViewById(R.id.predictionStrip)
         prediction1 = qwertyPanel?.findViewById(R.id.prediction1)
         prediction2 = qwertyPanel?.findViewById(R.id.prediction2)
         prediction3 = qwertyPanel?.findViewById(R.id.prediction3)
 
-        // Hide prediction strip AND shrink container so key sizes stay identical
         if (!isPredictionStripEnabled) {
             predictionStrip?.visibility = View.GONE
-            // Reduce container height by 50dp (43dp strip + 7dp margin) to keep keys same size
             val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
             container?.let {
                 val reducePx = (50 * resources.displayMetrics.density).toInt()
@@ -2413,46 +2073,31 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         DebugLog.d("setupAutocorrect: strip=${predictionStrip != null}, predictions=$isPredictionStripEnabled, autocorrect=$isAutocorrectEnabled")
 
-        // Set up suggestion callback (only updates strip if predictions enabled)
         autocorrectManager?.onSuggestionsUpdated = { typed, suggestions ->
             if (isPredictionStripEnabled) {
                 updatePredictionStrip(typed, suggestions)
             }
         }
 
-        // Set up prediction strip tap handlers
         prediction1?.setOnClickListener { applyPrediction(0) }
         prediction2?.setOnClickListener { applyPrediction(1) }
         prediction3?.setOnClickListener { applyPrediction(2) }
     }
 
-    /**
-     * Updates the prediction strip with current word and suggestions.
-     */
     private fun updatePredictionStrip(typed: String, suggestions: List<String>) {
         if (typed.isEmpty() && suggestions.isEmpty()) {
-            // Clear text but keep strip visible to prevent key resizing
             prediction1?.text = ""
             prediction2?.text = ""
-            // Only clear right slot if no AI completion is showing
             if (aiCompletionWord == null) {
                 prediction3?.text = ""
             }
             return
         }
 
-        // Layout: [left=alt] [MIDDLE=best] [right=AI completion]
-        // Left + Middle = offline dictionary predictions
-        // Right = AI (Haiku) word completion (managed separately)
         prediction1?.text = suggestions.getOrNull(1) ?: ""
         prediction2?.text = suggestions.getOrNull(0) ?: typed
-        // Don't overwrite right slot - it's managed by AI completion
     }
 
-    /**
-     * Applies a prediction strip suggestion.
-     * @param index 0 = left (offline alt), 1 = middle (offline best), 2 = right (AI completion)
-     */
     private fun applyPrediction(index: Int) {
         val manager = autocorrectManager ?: return
         val typed = manager.getCurrentWord()
@@ -2460,13 +2105,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         val replacement: String
         if (index == 2 && aiCompletionWord != null) {
-            // Right slot = AI completion
             replacement = aiCompletionWord!!
         } else {
-            // Left/middle = offline dictionary
             val suggestionIndex = when (index) {
-                0 -> 1  // left = second suggestion
-                1 -> 0  // middle = best suggestion
+                0 -> 1
+                1 -> 0
                 else -> return
             }
             replacement = manager.getCachedSuggestions().getOrNull(suggestionIndex) ?: return
@@ -2474,13 +2117,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         val ic = currentInputConnection ?: return
         ic.beginBatchEdit()
-        // Delete the typed word
         ic.deleteSurroundingText(typed.length, 0)
-        // Apply case: uppercase first letter if original was uppercase, or "i" → "I"
         val cased = if (typed.first().isUpperCase()) {
             replacement.replaceFirstChar { it.uppercase() }
         } else if (replacement == "i") {
-            "I"  // Standalone "i" is always capitalized in English
+            "I"
         } else {
             replacement
         }
@@ -2491,24 +2132,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         manager.onPredictionTapped(replacement)
         cancelAiCompletion()
 
-        // Trigger AI next-word prediction (word + space already committed)
         requestNextWordPrediction()
     }
 
-    /**
-     * Track typed character in internal buffer (for terminal apps).
-     */
     private fun trackTypedText(text: String) {
         internalTextBuffer.append(text)
-        // Keep buffer reasonable size (last 100 chars)
         if (internalTextBuffer.length > 100) {
             internalTextBuffer.delete(0, internalTextBuffer.length - 100)
         }
     }
 
-    /**
-     * Handle backspace in internal buffer.
-     */
     private fun trackBackspace(count: Int = 1) {
         val deleteCount = minOf(count, internalTextBuffer.length)
         if (deleteCount > 0) {
@@ -2516,13 +2149,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the cursor/numpad panel key handlers.
-     */
     private fun setupCursorNumpadPanel() {
         cursorNumpadPanel ?: return
 
-        // Number pad keys - commit text directly
         val numpadKeys = mapOf(
             R.id.numpad_0 to "0", R.id.numpad_1 to "1", R.id.numpad_2 to "2",
             R.id.numpad_3 to "3", R.id.numpad_4 to "4", R.id.numpad_5 to "5",
@@ -2536,7 +2165,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Cursor/navigation keys - with hold-to-repeat (same acceleration as backspace)
         cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_up)?.setOnTouchListener { _, event ->
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_UP)
         }
@@ -2550,7 +2178,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             handleCursorKeyTouch(event, KeyEvent.KEYCODE_DPAD_RIGHT)
         }
 
-        // Navigation keys
         cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_home)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_MOVE_HOME)
         }
@@ -2564,14 +2191,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             sendDownUpKeyEvents(KeyEvent.KEYCODE_PAGE_DOWN)
         }
 
-        // Additional keys
         cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_tab)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_TAB)
         }
         cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_del)?.setOnClickListener {
             sendDownUpKeyEvents(KeyEvent.KEYCODE_FORWARD_DEL)
         }
-        // Backspace - with hold-to-repeat (same behavior as dictation bar backspace)
         cursorNumpadPanel?.findViewById<android.widget.TextView>(R.id.cursor_bksp)?.setOnTouchListener { _, event ->
             handleBackspaceTouch(event)
         }
@@ -2586,13 +2211,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the Claude commands panel - buttons insert their tag text as commands.
-     */
     private fun setupClaudePanel() {
         claudePanel ?: return
 
-        // Find all TextViews with tags and set them up to insert their tag as text
         fun setupButtonsInViewGroup(viewGroup: android.view.ViewGroup) {
             for (i in 0 until viewGroup.childCount) {
                 val child = viewGroup.getChildAt(i)
@@ -2600,11 +2221,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     is android.widget.TextView -> {
                         val tag = child.tag as? String ?: continue
                         child.setOnClickListener {
-                            // Insert the command text followed by Enter to execute
                             currentInputConnection?.commitText(tag, 1)
-                            trackTypedText(tag)  // Track for terminal apps
+                            trackTypedText(tag)
                             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
-                            // Clear internal buffer after Enter (command submitted)
                             internalTextBuffer.clear()
                             DebugLog.d("DictationKeyboardService: Claude command '$tag' inserted")
                         }
@@ -2616,7 +2235,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // The panel has a ScrollView as root, get its child LinearLayout
         val scrollView = claudePanel as? ScrollView
         val contentLayout = scrollView?.getChildAt(0) as? android.view.ViewGroup ?: return
         setupButtonsInViewGroup(contentLayout)
@@ -2627,14 +2245,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     private fun setupShellPanel() {
         shellPanel ?: return
 
-        // Map button tags to actions - Ctrl combos send special key events
         val ctrlCombos = mapOf(
             "ctrl_c" to 'c', "ctrl_u" to 'u', "ctrl_z" to 'z', "ctrl_d" to 'd',
             "ctrl_l" to 'l', "ctrl_a" to 'a', "ctrl_e" to 'e', "ctrl_k" to 'k',
             "ctrl_r" to 'r'
         )
 
-        // Navigation keys
         val navKeys = mapOf(
             "up" to KeyEvent.KEYCODE_DPAD_UP,
             "down" to KeyEvent.KEYCODE_DPAD_DOWN,
@@ -2648,34 +2264,28 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             "esc" to KeyEvent.KEYCODE_ESCAPE
         )
 
-        // Set up all buttons by iterating through shell panel children
         fun setupButton(button: android.widget.TextView) {
             val tag = button.tag as? String ?: return
 
             button.setOnClickListener {
                 when {
                     tag.startsWith("ctrl_") -> {
-                        // Send Ctrl+key combination
                         val char = ctrlCombos[tag] ?: return@setOnClickListener
                         sendCtrlKey(char)
                     }
                     tag == "shift_tab" -> {
-                        // Send Shift+Tab
                         sendShiftTab()
                     }
                     navKeys.containsKey(tag) -> {
-                        // Send navigation key
                         sendDownUpKeyEvents(navKeys[tag]!!)
                     }
                     else -> {
-                        // Send as literal text (symbols)
                         currentInputConnection?.commitText(tag, 1)
                     }
                 }
             }
         }
 
-        // Find all buttons and set them up
         val shellPanelLayout = shellPanel as? android.view.ViewGroup ?: return
         for (i in 0 until shellPanelLayout.childCount) {
             val row = shellPanelLayout.getChildAt(i) as? android.view.ViewGroup ?: continue
@@ -2688,9 +2298,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.i("DictationKeyboardService: Shell panel set up")
     }
 
-    /**
-     * Sends a Ctrl+key combination.
-     */
     private fun sendCtrlKey(char: Char) {
         val keyCode = when (char) {
             'a' -> KeyEvent.KEYCODE_A
@@ -2713,9 +2320,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         currentInputConnection?.sendKeyEvent(upEvent)
     }
 
-    /**
-     * Sends Shift+Tab key combination.
-     */
     private fun sendShiftTab() {
         val now = android.os.SystemClock.uptimeMillis()
         val downEvent = KeyEvent(now, now, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_TAB, 0, KeyEvent.META_SHIFT_ON)
@@ -2724,9 +2328,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         currentInputConnection?.sendKeyEvent(upEvent)
     }
 
-    /**
-     * Sets up the Snippets panel with saved text snippets.
-     */
     private fun setupSnippetsPanel() {
         try {
             snippetsPanel ?: return
@@ -2739,19 +2340,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 return
             }
 
-            // Set up GridLayoutManager with 2 columns
             recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
 
-            // Load snippets and set up adapter
             loadSnippetsContent(recyclerView, emptyState)
 
-            // Set up FAB for adding new snippet
             val fabAddSnippet = snippetsPanel?.findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fabAddSnippet)
             fabAddSnippet?.setOnClickListener {
                 showAddSnippetDialog()
             }
 
-            // Set up empty state button for creating first snippet
             val btnCreateSnippetEmpty = snippetsPanel?.findViewById<com.google.android.material.button.MaterialButton>(R.id.btnCreateSnippetEmpty)
             btnCreateSnippetEmpty?.setOnClickListener {
                 showAddSnippetDialog()
@@ -2764,13 +2361,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Loads snippets into the Snippets tab RecyclerView.
-     * Snippets are sorted alphabetically (case-insensitive).
-     */
     private fun loadSnippetsContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
         val snippetManager = com.tinydictation.android.snippet.SnippetManager.getInstance(this)
-        // Returns alphabetically sorted snippets
         val snippets = snippetManager.getAll()
 
         if (snippets.isEmpty()) {
@@ -2783,7 +2375,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             recyclerView.adapter = SnippetsTabAdapter(
                 snippets = snippets,
                 onItemClick = { snippet ->
-                    // Tap to paste directly
                     commitTextInternal(snippet)
                 },
                 onItemDelete = { snippet ->
@@ -2795,18 +2386,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Refreshes the snippets panel content.
-     */
     private fun refreshSnippetsPanel() {
         val recyclerView = snippetsPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.snippetsRecyclerView)
         val emptyState = snippetsPanel?.findViewById<View>(R.id.snippetsEmptyState)
         recyclerView?.let { loadSnippetsContent(it, emptyState) }
     }
 
-    /**
-     * Shows a dialog for manually creating a new snippet.
-     */
     private fun showAddSnippetDialog() {
         try {
             val themedContext = android.view.ContextThemeWrapper(this, R.style.Theme_TinyDictation)
@@ -2845,9 +2430,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Adapter for Snippets tab RecyclerView.
-     */
     private inner class SnippetsTabAdapter(
         private val snippets: List<String>,
         private val onItemClick: (String) -> Unit,
@@ -2855,7 +2437,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) : androidx.recyclerview.widget.RecyclerView.Adapter<SnippetsTabAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
-            // Use themed context for Material components
             val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
             val inflater = android.view.LayoutInflater.from(themedContext)
             val view = inflater.inflate(R.layout.item_snippet, parent, false)
@@ -2874,10 +2455,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             fun bind(snippet: String) {
                 tvSnippetText?.text = snippet
 
-                // Tap item to paste
                 itemView.setOnClickListener { onItemClick(snippet) }
 
-                // Long-press for delete option
                 itemView.setOnLongClickListener { view ->
                     showSnippetItemMenu(view, snippet)
                     true
@@ -2902,9 +2481,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the Clipboard panel with clipboard history.
-     */
     private fun setupClipboardPanel() {
         try {
             clipboardPanel ?: return
@@ -2917,13 +2493,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 return
             }
 
-            // Register for real-time clipboard updates
             clipboardHistoryManager?.addOnHistoryChangedListener(this)
 
-            // Set up GridLayoutManager with 2 columns
             recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
 
-            // Load clipboard history and set up adapter
             loadClipboardContent(recyclerView, emptyState)
 
             DebugLog.i("DictationKeyboardService: Clipboard panel set up")
@@ -2933,12 +2506,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Loads clipboard history into the Clipboard tab RecyclerView.
-     */
     private fun loadClipboardContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
         val clipboardManager = ClipboardHistoryManager.getInstance(this)
-        // Returns pinned first, then by recency
         val entries = clipboardManager.getAll()
 
         if (entries.isEmpty()) {
@@ -2951,7 +2520,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             recyclerView.adapter = ClipboardTabAdapter(
                 entries = entries,
                 onItemClick = { entry ->
-                    // Tap to paste directly
                     commitTextInternal(entry.text)
                 },
                 onPinToggle = { entry ->
@@ -2977,21 +2545,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Refreshes the clipboard panel content.
-     */
     private fun refreshClipboardPanel() {
         val recyclerView = clipboardPanel?.findViewById<androidx.recyclerview.widget.RecyclerView>(R.id.clipboardRecyclerView)
         val emptyState = clipboardPanel?.findViewById<View>(R.id.clipboardEmptyState)
         recyclerView?.let { loadClipboardContent(it, emptyState) }
     }
 
-    /**
-     * Called when clipboard history changes (new item copied).
-     * Updates the clipboard panel in real-time if it's visible.
-     */
     override fun onClipboardHistoryChanged() {
-        // Run on main thread since this may be called from a background context
         Handler(Looper.getMainLooper()).post {
             if (isClipboardPanelInflated && clipboardPanel?.visibility == View.VISIBLE) {
                 refreshClipboardPanel()
@@ -3000,9 +2560,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Adapter for Clipboard tab RecyclerView with pin toggle support.
-     */
     private inner class ClipboardTabAdapter(
         private val entries: List<com.tinydictation.android.history.ClipboardEntry>,
         private val onItemClick: (com.tinydictation.android.history.ClipboardEntry) -> Unit,
@@ -3012,7 +2569,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) : androidx.recyclerview.widget.RecyclerView.Adapter<ClipboardTabAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
-            // Use themed context for Material components
             val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
             val inflater = android.view.LayoutInflater.from(themedContext)
             val view = inflater.inflate(R.layout.item_clipboard, parent, false)
@@ -3034,7 +2590,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 tvTimestamp?.text = formatTimestamp(entry.timestamp)
                 tvText?.text = entry.text
 
-                // Pin icon state - filled when pinned, outline when not
                 if (entry.isPinned) {
                     ivPinned?.setImageResource(R.drawable.ic_pin)
                     ivPinned?.setColorFilter(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.primary))
@@ -3043,13 +2598,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     ivPinned?.setColorFilter(androidx.core.content.ContextCompat.getColor(itemView.context, R.color.on_surface_variant))
                 }
 
-                // Tap item to paste
                 itemView.setOnClickListener { onItemClick(entry) }
 
-                // Tap pin icon to toggle pin
                 ivPinned?.setOnClickListener { onPinToggle(entry) }
 
-                // Long-press for options menu
                 itemView.setOnLongClickListener { view ->
                     showClipboardItemMenu(view, entry)
                     true
@@ -3089,23 +2641,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val then = java.util.Calendar.getInstance().apply { time = date }
 
                 return when {
-                    // Today - just show time
                     now.get(java.util.Calendar.DATE) == then.get(java.util.Calendar.DATE) &&
                     now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)
                     }
-                    // Yesterday
                     now.get(java.util.Calendar.DATE) - then.get(java.util.Calendar.DATE) == 1 &&
                     now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         "Yest ${java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)}"
                     }
-                    // Same year
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         java.text.SimpleDateFormat("M/d h:mm a", java.util.Locale.getDefault()).format(date)
                     }
-                    // Different year
                     else -> {
                         java.text.SimpleDateFormat("M/d/yy", java.util.Locale.getDefault()).format(date)
                     }
@@ -3114,9 +2662,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sets up the History tab panel with transcription history.
-     */
     private fun setupHistoryTabPanel() {
         try {
             historyTabPanel ?: return
@@ -3129,10 +2674,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 return
             }
 
-            // Set up GridLayoutManager with 2 columns
             recyclerView.layoutManager = androidx.recyclerview.widget.GridLayoutManager(this, 2)
 
-            // Load history and set up adapter
             loadHistoryTabContent(recyclerView, emptyState)
 
             DebugLog.i("DictationKeyboardService: History tab panel set up")
@@ -3142,13 +2685,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Loads transcription history into the History tab RecyclerView.
-     * Newest entries are shown first (top left).
-     */
     private fun loadHistoryTabContent(recyclerView: androidx.recyclerview.widget.RecyclerView, emptyState: View?) {
         val historyManager = com.tinydictation.android.history.TranscriptionHistoryManager.getInstance(this)
-        // Sort by timestamp descending (newest first) - scroll down to see older
         val entries = historyManager.getAll().sortedByDescending { it.timestamp }
 
         if (entries.isEmpty()) {
@@ -3159,23 +2697,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             recyclerView.visibility = View.VISIBLE
 
             recyclerView.adapter = HistoryTabAdapter(entries) { entry ->
-                // Tap to paste directly
                 commitTextInternal(entry.text)
             }
-            // Start at position 0 which is now the newest item
         }
     }
 
-    /**
-     * Simple adapter for History tab RecyclerView.
-     */
     private inner class HistoryTabAdapter(
         private val entries: List<com.tinydictation.android.history.TranscriptionEntry>,
         private val onItemClick: (com.tinydictation.android.history.TranscriptionEntry) -> Unit
     ) : androidx.recyclerview.widget.RecyclerView.Adapter<HistoryTabAdapter.ViewHolder>() {
 
         override fun onCreateViewHolder(parent: android.view.ViewGroup, viewType: Int): ViewHolder {
-            // Use themed context for Material components
             val themedContext = android.view.ContextThemeWrapper(parent.context, R.style.Theme_TinyDictation)
             val inflater = android.view.LayoutInflater.from(themedContext)
             val view = inflater.inflate(R.layout.item_history, parent, false)
@@ -3189,7 +2721,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         override fun getItemCount(): Int = entries.size
 
         inner class ViewHolder(itemView: View) : androidx.recyclerview.widget.RecyclerView.ViewHolder(itemView) {
-            // itemView IS the root element - use safe access
             private val tvTimestamp: android.widget.TextView? = itemView.findViewById(R.id.tvTimestamp)
             private val tvLanguage: android.widget.TextView? = itemView.findViewById(R.id.tvLanguage)
             private val tvText: android.widget.TextView? = itemView.findViewById(R.id.tvText)
@@ -3199,7 +2730,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 tvLanguage?.text = entry.language.uppercase()
                 tvText?.text = entry.text
 
-                // Set click listener on the entire item view
                 itemView.setOnClickListener { onItemClick(entry) }
             }
 
@@ -3209,23 +2739,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val then = java.util.Calendar.getInstance().apply { time = date }
 
                 return when {
-                    // Today - just show time
                     now.get(java.util.Calendar.DATE) == then.get(java.util.Calendar.DATE) &&
                     now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)
                     }
-                    // Yesterday
                     now.get(java.util.Calendar.DATE) - then.get(java.util.Calendar.DATE) == 1 &&
                     now.get(java.util.Calendar.MONTH) == then.get(java.util.Calendar.MONTH) &&
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         "Yest ${java.text.SimpleDateFormat("h:mm a", java.util.Locale.getDefault()).format(date)}"
                     }
-                    // Same year
                     now.get(java.util.Calendar.YEAR) == then.get(java.util.Calendar.YEAR) -> {
                         java.text.SimpleDateFormat("M/d h:mm a", java.util.Locale.getDefault()).format(date)
                     }
-                    // Different year
                     else -> {
                         java.text.SimpleDateFormat("M/d/yy", java.util.Locale.getDefault()).format(date)
                     }
@@ -3234,18 +2760,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Toggles between QWERTY letters and numbers/symbols mode.
-     */
     private fun toggleNumbersMode() {
         isNumbersMode = !isNumbersMode
         updateKeyboardMode()
         DebugLog.d("DictationKeyboardService: Numbers mode: $isNumbersMode")
     }
 
-    /**
-     * Updates all keyboard keys based on current mode (letters vs numbers/symbols).
-     */
     private fun updateKeyboardMode() {
         qwertyDisplayHelper?.updateKeyboardMode(isNumbersMode, isShiftActive, isCapsLock, isGermanMode)
         updateLongPressHints()
@@ -3274,37 +2794,21 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         qwertyDisplayHelper?.updateLetterKeyDisplays(isShiftActive, isCapsLock)
     }
 
-    /**
-     * Handles touch events for backspace button with hold-to-repeat.
-     *
-     * Behavior:
-     * - Tap: delete one character
-     * - Hold (0-1.5s): delete characters with accelerating speed (starts at 100ms, goes to 25ms)
-     * - Hold (after 2s): switch to word-by-word deletion (continues indefinitely)
-     *
-     * Uses flag-based control to ensure the repeat loop continues as long as
-     * the button is held, and stops immediately when released.
-     */
     private fun handleBackspaceTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_DOWN")
 
-                // Reset counter for this hold session
                 backspaceCount = 0
 
-                // Send first backspace immediately
                 sendBackspace()
                 backspaceCount++
 
-                // Record start time and set flag to indicate button is held
                 backspaceStartTime = System.currentTimeMillis()
                 isBackspaceHeld = true
 
-                // Remove any pending callbacks (in case of race condition)
                 backspaceHandler.removeCallbacks(backspaceRepeatRunnable)
 
-                // Start the repeat loop after initial delay
                 backspaceHandler.postDelayed(backspaceRepeatRunnable, BACKSPACE_INITIAL_DELAY)
                 return true
             }
@@ -3312,10 +2816,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val holdDuration = System.currentTimeMillis() - backspaceStartTime
                 DebugLog.d("DictationKeyboardService: Backspace ACTION_UP/CANCEL after ${holdDuration}ms, $backspaceCount deletions")
 
-                // Clear the flag - this will cause the runnable to stop on next iteration
                 isBackspaceHeld = false
 
-                // Also remove pending callbacks immediately for faster response
                 backspaceHandler.removeCallbacks(backspaceRepeatRunnable)
                 return true
             }
@@ -3323,36 +2825,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Handles touch events for cursor keys (up, down, left, right) with hold-to-repeat.
-     *
-     * Behavior:
-     * - Tap: send one cursor key event
-     * - Hold: send cursor key events with accelerating speed (same acceleration as backspace)
-     *
-     * Uses the same timing constants as backspace for consistent feel.
-     */
     private fun handleCursorKeyTouch(event: MotionEvent, keyCode: Int): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 DebugLog.d("DictationKeyboardService: Cursor key $keyCode ACTION_DOWN")
 
-                // Reset counter for this hold session
                 cursorKeyCount = 0
                 cursorKeyCode = keyCode
 
-                // Send first key event immediately
                 sendDownUpKeyEvents(keyCode)
                 cursorKeyCount++
 
-                // Record start time and set flag
                 cursorStartTime = System.currentTimeMillis()
                 isCursorKeyHeld = true
 
-                // Remove any pending callbacks
                 cursorHandler.removeCallbacks(cursorRepeatRunnable)
 
-                // Start the repeat loop after initial delay
                 cursorHandler.postDelayed(cursorRepeatRunnable, BACKSPACE_INITIAL_DELAY)
                 return true
             }
@@ -3360,10 +2848,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val holdDuration = System.currentTimeMillis() - cursorStartTime
                 DebugLog.d("DictationKeyboardService: Cursor key $cursorKeyCode ACTION_UP/CANCEL after ${holdDuration}ms, $cursorKeyCount presses")
 
-                // Clear the flag
                 isCursorKeyHeld = false
 
-                // Remove pending callbacks
                 cursorHandler.removeCallbacks(cursorRepeatRunnable)
                 return true
             }
@@ -3371,17 +2857,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    // Runnable for punctuation popup long-press
     private val punctuationLongPressRunnable = Runnable {
         showPunctuationPopup()
     }
 
-    /**
-     * Handles touch events for the 'a' key.
-     * - Tap: insert 'a' (or 'A' if shifted)
-     * - Long press (English): insert '@'
-     * - Long press (German): show popup with 'ä' and '@', drag to select
-     */
     private fun handleAKeyTouch(event: MotionEvent): Boolean {
         val moveThreshold = PUNCTUATION_MOVE_THRESHOLD_DP * resources.displayMetrics.density
 
@@ -3413,14 +2892,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 aKeyLongPressHandler.removeCallbacks(aKeyLongPressRunnable)
 
                 if (isAKeyPopupShowing) {
-                    // Popup mode: commit selected option or default to ä
                     val char = selectedAKeyOption ?: (if (isShiftActive || isCapsLock) "Ä" else "ä")
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
                     hideAKeyPopup()
                     DebugLog.d("DictationKeyboardService: A key popup selected '$char'")
                 } else if (!isAKeyLongPressTriggered) {
-                    // Short tap - use displayed text
                     val char = aKeyButton?.text?.toString() ?: "a"
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
@@ -3448,9 +2925,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Shows the A key popup above the key with ä and @ options.
-     */
     private fun showAKeyPopup() {
         isAKeyPopupShowing = true
         selectedAKeyOption = null
@@ -3491,9 +2965,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("DictationKeyboardService: Showing A key popup (ä / @)")
     }
 
-    /**
-     * Creates the A key popup view with ä and @ options.
-     */
     private fun createAKeyPopupView(): View {
         val density = resources.displayMetrics.density
         val popupWidth = (120 * density).toInt()
@@ -3547,9 +3018,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return container
     }
 
-    /**
-     * Updates the selected A key option based on finger position.
-     */
     private fun updateAKeySelection(rawX: Float, rawY: Float) {
         aKeyPopup ?: return
 
@@ -3562,22 +3030,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val normalColor = ContextCompat.getColor(this, R.color.on_surface)
 
         if (rawX < popupCenterX) {
-            // Left side: umlaut
             val umlautChar = if (isShiftActive || isCapsLock) "Ä" else "ä"
             selectedAKeyOption = umlautChar
             aKeyUmlautView?.setTextColor(highlightColor)
             aKeyAtView?.setTextColor(normalColor)
         } else {
-            // Right side: @
             selectedAKeyOption = "@"
             aKeyUmlautView?.setTextColor(normalColor)
             aKeyAtView?.setTextColor(highlightColor)
         }
     }
 
-    /**
-     * Hides and cleans up the A key popup.
-     */
     private fun hideAKeyPopup() {
         isAKeyPopupShowing = false
         selectedAKeyOption = null
@@ -3590,16 +3053,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         aKeyAtView = null
     }
 
-    /**
-     * Handles touch events for the 'o' key with long-press for ö (German umlaut).
-     * - Tap: insert 'o' (or 'O' if shifted)
-     * - Long press (200ms): insert 'ö' (or 'Ö' if shifted)
-     */
     private fun handleOKeyTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isOKeyLongPressTriggered = false
-                // Start long-press timer
                 oKeyLongPressHandler.postDelayed(
                     oKeyLongPressRunnable,
                     PUNCTUATION_LONG_PRESS_THRESHOLD
@@ -3610,10 +3067,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 oKeyLongPressHandler.removeCallbacks(oKeyLongPressRunnable)
 
                 if (!isOKeyLongPressTriggered) {
-                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
                     val char = oKeyButton?.text?.toString() ?: "o"
                     currentInputConnection?.commitText(char, 1)
-                    trackTypedText(char)  // Track for terminal apps
+                    trackTypedText(char)
 
                     if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
@@ -3622,7 +3078,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                     }
 
-                    // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
                         isShiftActive = false
                         updateShiftKeyDisplay()
@@ -3638,16 +3093,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Handles touch events for the 'u' key with long-press for ü (German umlaut).
-     * - Tap: insert 'u' (or 'U' if shifted)
-     * - Long press (200ms): insert 'ü' (or 'Ü' if shifted)
-     */
     private fun handleUKeyTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isUKeyLongPressTriggered = false
-                // Start long-press timer
                 uKeyLongPressHandler.postDelayed(
                     uKeyLongPressRunnable,
                     PUNCTUATION_LONG_PRESS_THRESHOLD
@@ -3658,10 +3107,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 uKeyLongPressHandler.removeCallbacks(uKeyLongPressRunnable)
 
                 if (!isUKeyLongPressTriggered) {
-                    // Short tap - use displayed text (handles both letters and numbers/symbols mode)
                     val char = uKeyButton?.text?.toString() ?: "u"
                     currentInputConnection?.commitText(char, 1)
-                    trackTypedText(char)  // Track for terminal apps
+                    trackTypedText(char)
 
                     if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
@@ -3670,7 +3118,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                     }
 
-                    // Turn off shift after one character (unless caps lock)
                     if (!isNumbersMode && isShiftActive && !isCapsLock) {
                         isShiftActive = false
                         updateShiftKeyDisplay()
@@ -3686,22 +3133,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    // Track last shift tap time for double-tap detection
     private var lastShiftTapTime = 0L
 
-    // Track last space tap time for double-tap correction trigger
 
-    /**
-     * Handles touch events for the shift key.
-     * - Tap: toggle shift (or secondary symbols in numbers mode)
-     * - Double-tap: toggle caps lock
-     * - Long press (200ms): toggle German umlaut mode
-     */
     private fun handleShiftKeyTouch(event: MotionEvent): Boolean {
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
                 isShiftLongPressTriggered = false
-                // Start long-press timer for German mode toggle
                 shiftLongPressHandler.postDelayed(
                     shiftLongPressRunnable,
                     PUNCTUATION_LONG_PRESS_THRESHOLD
@@ -3712,23 +3150,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 shiftLongPressHandler.removeCallbacks(shiftLongPressRunnable)
 
                 if (!isShiftLongPressTriggered) {
-                    // Short tap - normal shift behavior
                     if (isNumbersMode) {
-                        // In numbers mode, shift toggles secondary symbols
                         isShiftActive = !isShiftActive
                         updateSymbolsDisplay()
                     } else {
-                        // In letters mode, normal shift/caps behavior
                         val currentTime = System.currentTimeMillis()
                         if (currentTime - lastShiftTapTime < 300) {
-                            // Double tap - toggle caps lock
                             isCapsLock = !isCapsLock
                             isShiftActive = isCapsLock
                             DebugLog.d("DictationKeyboardService: Caps lock ${if (isCapsLock) "ON" else "OFF"}")
                         } else {
-                            // Single tap - toggle shift
                             if (isCapsLock) {
-                                // Turn off caps lock
                                 isCapsLock = false
                                 isShiftActive = false
                             } else {
@@ -3749,33 +3181,20 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Handles touch events for the space key with cursor trackpad mode.
-     * - Tap: insert space
-     * - Long press (250ms): enter cursor trackpad mode
-     * - Drag in trackpad mode: move cursor left/right (20dp = 1 cursor move)
-     * - Release: exit trackpad mode or insert space if not activated
-     */
     private fun handleSpaceKeyTouch(event: MotionEvent): Boolean {
         val moveThreshold = TRACKPAD_MOVE_THRESHOLD_DP * resources.displayMetrics.density
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Reset state
                 isSpaceTrackpadMode = false
                 spaceTrackpadStartX = event.rawX
                 spaceTrackpadLastX = event.rawX
                 spaceTrackpadAccumulatedDelta = 0f
                 spaceTrackpadLastMoveTime = System.currentTimeMillis()
 
-                // Snapshot the current word and clear the autocorrect buffer immediately.
-                // This prevents fast typing from appending the next word's letters to the
-                // previous word (e.g. "is" + fast "p" → "isp" instead of "is" + "p").
-                // The saved word is used on ACTION_UP for autocorrect.
                 spaceDownWord = autocorrectManager?.getCurrentWord() ?: ""
                 autocorrectManager?.onWordBoundary()
 
-                // Start long-press timer
                 spaceTrackpadHandler.postDelayed(
                     spaceTrackpadRunnable,
                     TRACKPAD_LONG_PRESS_THRESHOLD
@@ -3784,42 +3203,32 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isSpaceTrackpadMode) {
-                    // In trackpad mode - move cursor based on drag distance with velocity-based acceleration
                     val currentTime = System.currentTimeMillis()
                     val timeDelta = (currentTime - spaceTrackpadLastMoveTime).coerceAtLeast(1)
                     val deltaX = event.rawX - spaceTrackpadLastX
 
-                    // Calculate velocity (pixels per millisecond)
                     val velocity = Math.abs(deltaX) / timeDelta
 
-                    // Velocity-based acceleration: slow finger = 1x, fast finger = up to 4x
-                    // velocity of ~0.5 px/ms (moderate speed) = 1.5x
-                    // velocity of ~2.0 px/ms (fast swipe) = 3x
                     val acceleration = (1f + velocity * 1.5f).coerceIn(1f, 4f)
 
                     spaceTrackpadAccumulatedDelta += deltaX * acceleration
                     spaceTrackpadLastX = event.rawX
                     spaceTrackpadLastMoveTime = currentTime
 
-                    // Check if accumulated movement exceeds threshold
                     while (Math.abs(spaceTrackpadAccumulatedDelta) >= moveThreshold) {
                         if (spaceTrackpadAccumulatedDelta >= moveThreshold) {
-                            // Move cursor right
                             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_RIGHT)
                             spaceTrackpadAccumulatedDelta -= moveThreshold
                             spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         } else if (spaceTrackpadAccumulatedDelta <= -moveThreshold) {
-                            // Move cursor left
                             sendDownUpKeyEvents(KeyEvent.KEYCODE_DPAD_LEFT)
                             spaceTrackpadAccumulatedDelta += moveThreshold
                             spaceKeyButton?.performHapticFeedback(android.view.HapticFeedbackConstants.KEYBOARD_TAP)
                         }
                     }
                 } else {
-                    // Not in trackpad mode yet - check if moved too far before long press
                     val dx = event.rawX - spaceTrackpadStartX
                     if (Math.abs(dx) > moveThreshold * 2) {
-                        // Moved too far - cancel long press timer
                         spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
                     }
                 }
@@ -3829,20 +3238,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 spaceTrackpadHandler.removeCallbacks(spaceTrackpadRunnable)
 
                 if (!isSpaceTrackpadMode) {
-                    // Cancel any active AI predictions
                     cancelNextWordPrediction()
                     cancelAiCompletion()
 
-                    // Use the word captured on touch-down (not getCurrentWord which was
-                    // cleared on DOWN to prevent fast-typing race conditions)
                     val typed = spaceDownWord
 
                     if (isTerminalApp || isUrlField || !isAutocorrectEnabled) {
-                        // Terminal apps / URL fields / autocorrect disabled: no autocorrect, just space
                         currentInputConnection?.commitText(" ", 1)
                         trackTypedText(" ")
                     } else {
-                        // Check autocorrect using the saved word
                         val correction = if (typed.length >= 2 && !autocorrectManager?.isKnownWord(typed)!!) {
                             autocorrectManager?.tryCorrectWord(typed)
                         } else null
@@ -3852,7 +3256,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             if (ic != null) {
                                 ic.beginBatchEdit()
                                 ic.deleteSurroundingText(typed.length, 0)
-                                // Preserve case from original
                                 val cased = if (typed.first().isUpperCase()) {
                                     correction.replaceFirstChar { it.uppercase() }
                                 } else {
@@ -3864,7 +3267,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                                 autocorrectManager?.recordAutocorrect(typed, correction)
                             }
                         } else {
-                            // Auto-capitalize standalone "i" → "I"
                             if (typed == "i") {
                                 val ic = currentInputConnection
                                 if (ic != null) {
@@ -3880,7 +3282,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             }
                         }
 
-                        // Request AI predictions (non-terminal only)
                         requestNextWordPrediction()
 
                     }
@@ -3899,27 +3300,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Handles touch events for the period key with long-press punctuation popup.
-     * - Tap: insert "."
-     * - Long press: show popup with ! (upper-left) and ? (upper-right)
-     * - Drag: select punctuation based on finger position
-     * - Release: commit selected punctuation or "." if no selection
-     */
     private fun handlePeriodTouch(view: View, event: MotionEvent): Boolean {
         val moveThreshold = PUNCTUATION_MOVE_THRESHOLD_DP * resources.displayMetrics.density
 
         when (event.action) {
             MotionEvent.ACTION_DOWN -> {
-                // Reset state
                 selectedPunctuation = null
                 isPunctuationPopupShowing = false
 
-                // Record initial touch position
                 punctuationTouchStartX = event.rawX
                 punctuationTouchStartY = event.rawY
 
-                // Start long-press timer
                 punctuationLongPressHandler.postDelayed(
                     punctuationLongPressRunnable,
                     PUNCTUATION_LONG_PRESS_THRESHOLD
@@ -3928,10 +3319,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
             MotionEvent.ACTION_MOVE -> {
                 if (isPunctuationPopupShowing) {
-                    // Update selection based on drag position
                     updatePunctuationSelection(event.rawX, event.rawY)
                 } else {
-                    // Check if moved too far before long press triggered - cancel
                     val dx = event.rawX - punctuationTouchStartX
                     val dy = event.rawY - punctuationTouchStartY
                     if (Math.sqrt((dx * dx + dy * dy).toDouble()) > moveThreshold) {
@@ -3945,16 +3334,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 autocorrectManager?.onWordBoundary()
 
                 if (isPunctuationPopupShowing) {
-                    // Commit selected punctuation
                     val char = selectedPunctuation ?: "."
                     currentInputConnection?.commitText(char, 1)
                     hidePunctuationPopup()
                     DebugLog.d("DictationKeyboardService: Punctuation popup selected '$char'")
                     triggerAutoFix()
                 } else {
-                    // Short tap - insert period
                     currentInputConnection?.commitText(".", 1)
-                    // Trigger auto AI fix after sentence end
                     triggerAutoFix()
                 }
                 return true
@@ -3968,9 +3354,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return false
     }
 
-    /**
-     * Shows the punctuation popup above the period key.
-     */
     private fun showPunctuationPopup() {
         isPunctuationPopupShowing = true
         selectedPunctuation = null
@@ -3978,10 +3361,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         periodButton ?: return
         val density = resources.displayMetrics.density
 
-        // Create popup view programmatically
         punctuationPopup = createPunctuationPopupView()
 
-        // Measure popup
         punctuationPopup?.measure(
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED),
             View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
@@ -3989,7 +3370,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val popupWidth = punctuationPopup?.measuredWidth ?: 0
         val popupHeight = punctuationPopup?.measuredHeight ?: 0
 
-        // Get button position relative to keyboardTabbedPanel
         val buttonLocation = IntArray(2)
         val panelLocation = IntArray(2)
         periodButton?.getLocationInWindow(buttonLocation)
@@ -3999,7 +3379,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val relativeY = buttonLocation[1] - panelLocation[1]
         val buttonWidth = periodButton?.width ?: 0
 
-        // Position centered above button
         val params = FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.WRAP_CONTENT,
             FrameLayout.LayoutParams.WRAP_CONTENT
@@ -4008,31 +3387,24 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             topMargin = relativeY - popupHeight - (8 * density).toInt()
         }
 
-        // Add to keyboardPagesContainer (FrameLayout)
         val container = keyboardTabbedPanel?.findViewById<FrameLayout>(R.id.keyboardPagesContainer)
         container?.addView(punctuationPopup, params)
 
-        // Haptic feedback
         periodButton?.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
 
         DebugLog.d("DictationKeyboardService: Showing punctuation popup")
     }
 
-    /**
-     * Creates the punctuation popup view with ! and ? options.
-     */
     private fun createPunctuationPopupView(): View {
         val density = resources.displayMetrics.density
-        val popupWidth = (120 * density).toInt()  // 60dp per option
+        val popupWidth = (120 * density).toInt()
         val popupHeight = (56 * density).toInt()
 
-        // Root container
         val container = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             layoutParams = LinearLayout.LayoutParams(popupWidth, popupHeight)
             gravity = android.view.Gravity.CENTER
 
-            // Dark background with rounded corners
             background = GradientDrawable().apply {
                 setColor(ContextCompat.getColor(this@DictationKeyboardService, R.color.surface))
                 cornerRadius = 12 * density
@@ -4041,7 +3413,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             elevation = 8 * density
         }
 
-        // Exclamation mark (left)
         val exclamationText = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 (60 * density).toInt(),
@@ -4055,7 +3426,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             id = View.generateViewId()
         }
 
-        // Question mark (right)
         val questionText = TextView(this).apply {
             layoutParams = LinearLayout.LayoutParams(
                 (60 * density).toInt(),
@@ -4072,39 +3442,29 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         container.addView(exclamationText)
         container.addView(questionText)
 
-        // Store references for highlighting
         punctuationExclamationView = exclamationText
         punctuationQuestionView = questionText
 
         return container
     }
 
-    /**
-     * Updates the selected punctuation based on finger position.
-     */
     private fun updatePunctuationSelection(rawX: Float, rawY: Float) {
         punctuationPopup ?: return
 
-        // Get popup position on screen
         val location = IntArray(2)
         punctuationPopup?.getLocationOnScreen(location)
         val popupX = location[0]
         val popupCenterX = popupX + (punctuationPopup?.width ?: 0) / 2
 
-        // Determine selection based on X position relative to popup center
         val newSelection = if (rawX < popupCenterX) "!" else "?"
 
         if (newSelection != selectedPunctuation) {
             selectedPunctuation = newSelection
             updatePunctuationHighlight()
-            // Haptic feedback on selection change
             periodButton?.performHapticFeedback(android.view.HapticFeedbackConstants.VIRTUAL_KEY)
         }
     }
 
-    /**
-     * Updates visual highlighting of the selected punctuation option.
-     */
     private fun updatePunctuationHighlight() {
         val density = resources.displayMetrics.density
         val highlightColor = ContextCompat.getColor(this, R.color.primary)
@@ -4138,15 +3498,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Hides and cleans up the punctuation popup.
-     */
     private fun hidePunctuationPopup() {
         isPunctuationPopupShowing = false
         selectedPunctuation = null
 
         punctuationPopup?.let { popup ->
-            // Remove from parent
             (popup.parent as? android.view.ViewGroup)?.removeView(popup)
         }
         punctuationPopup = null
@@ -4154,36 +3510,26 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         punctuationQuestionView = null
     }
 
-    /**
-     * Deletes the word before the cursor.
-     * Finds the last word boundary (space) and deletes everything from there to cursor.
-     */
     private fun deleteWord() {
         Log.i(TAG, "DictationKeyboardService: Delete word")
         DebugLog.d("DictationKeyboardService: Deleting word")
 
         currentInputConnection?.let { ic ->
-            // Get text before cursor to find word boundary
             val textBefore = ic.getTextBeforeCursor(50, 0)
             if (textBefore.isNullOrEmpty()) {
-                // No text to delete
                 return
             }
 
-            // Find the last word boundary
-            // First, skip any trailing spaces
             var endIndex = textBefore.length
             while (endIndex > 0 && textBefore[endIndex - 1] == ' ') {
                 endIndex--
             }
 
-            // Then find the start of the word (last space before end)
             var startIndex = endIndex
             while (startIndex > 0 && textBefore[startIndex - 1] != ' ') {
                 startIndex--
             }
 
-            // Calculate how many characters to delete
             val charsToDelete = textBefore.length - startIndex
             if (charsToDelete > 0) {
                 ic.deleteSurroundingText(charsToDelete, 0)
@@ -4192,24 +3538,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Sends a backspace/delete key event.
-     *
-     * Uses sendDownUpKeyEvents() which is InputMethodService's built-in method.
-     * This is more reliable for terminal/SSH apps (like Connectbot) than manually
-     * constructing KeyEvents, as the system handles the proper event dispatch.
-     *
-     * If that fails, falls back to deleteSurroundingText() which works for regular apps.
-     */
     private fun sendBackspace() {
-        // Check if we should undo an autocorrect
         val undo = autocorrectManager?.lastAutocorrect
         if (undo != null && autocorrectManager?.onBackspace() == true) {
-            // Undo: delete the corrected word + space, re-insert original
             val ic = currentInputConnection
             if (ic != null) {
                 ic.beginBatchEdit()
-                ic.deleteSurroundingText(undo.replacement.length + 1, 0) // +1 for space
+                ic.deleteSurroundingText(undo.replacement.length + 1, 0)
                 ic.commitText(undo.original, 1)
                 ic.endBatchEdit()
                 DebugLog.d("DictationKeyboardService: Undid autocorrect '${undo.replacement}' → '${undo.original}'")
@@ -4217,10 +3552,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Normal backspace
         autocorrectManager?.onBackspace()
         sendDownUpKeyEvents(KeyEvent.KEYCODE_DEL)
-        trackBackspace(1)  // Track for terminal apps
+        trackBackspace(1)
     }
 
     private fun selectAll() {
@@ -4230,25 +3564,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         currentInputConnection?.performContextMenuAction(android.R.id.selectAll)
     }
 
-    /**
-     * Improves the readability of text in the current input field using AI.
-     *
-     * This function:
-     * 1. Gets all text from the current input field
-     * 2. Sends it to Anthropic API for improvement
-     * 3. Replaces the original text with the improved version
-     *
-     * Improvements include:
-     * - Making text 20-30% shorter
-     * - Adding bullet points where appropriate
-     * - Using clear, professional, nonviolent language
-     * - Preserving the user's tone and intent
-     */
-    /**
-     * Triggers automatic AI sentence fixing in the background.
-     * Called after a sentence ends (period/dictation) to fix grammar/spelling via Haiku.
-     * Shows progress in prediction strip and offers undo after completion.
-     */
     private fun triggerAutoFix() {
         if (!isAutoFixEnabled || isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
         if (textImprover == null) {
@@ -4257,11 +3572,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (!PreferenceManager(this).hasAnthropicApiKey()) return
 
         val ic = currentInputConnection ?: return
-        // Get the last sentence (text before cursor)
         val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: return
         if (textBefore.isBlank() || textBefore.length < 5) return
 
-        // Find the last sentence (from previous sentence end or start of text)
         val lastSentenceStart = findLastSentenceStart(textBefore)
         val sentence = textBefore.substring(lastSentenceStart).trim()
         if (sentence.length < 5) return
@@ -4269,7 +3582,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         isAutoFixRunning = true
         autoFixOriginalText = sentence
 
-        // Show "fixing" indicator in prediction strip
         showAutoFixProgress()
 
         CoroutineScope(Dispatchers.Main).launch {
@@ -4278,26 +3590,19 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 val improved = result?.getOrNull()
 
                 if (improved != null && improved != sentence && improved.isNotBlank()) {
-                    // Ensure first letter is capitalized (start of sentence)
                     val capitalizedImproved = improved.replaceFirstChar { it.uppercase() }
 
-                    // Apply the fix - recapture text to handle user typing during API call
                     val currentIc = currentInputConnection
                     if (currentIc != null) {
-                        // Re-read text before cursor to find the original sentence
-                        // (user may have typed more characters since we captured it)
                         val currentText = currentIc.getTextBeforeCursor(500, 0)?.toString() ?: ""
                         val sentencePos = currentText.lastIndexOf(sentence)
 
                         if (sentencePos >= 0) {
-                            // Calculate how many chars to delete: from sentence start to cursor
                             val charsToDelete = currentText.length - sentencePos
-                            // Text typed after the sentence that we need to preserve
                             val textAfterSentence = currentText.substring(sentencePos + sentence.length)
 
                             currentIc.beginBatchEdit()
                             currentIc.deleteSurroundingText(charsToDelete, 0)
-                            // Add trailing space so user can type the next word immediately
                             val improvedWithSpace = "$capitalizedImproved "
                             currentIc.commitText(improvedWithSpace + textAfterSentence, 1)
                             currentIc.endBatchEdit()
@@ -4306,14 +3611,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             autoFixUndoAvailable = true
                             showAutoFixUndo()
 
-                            // Auto-expire undo after timeout
                             autoFixHandler.postDelayed({
                                 clearAutoFixUndo()
                             }, AUTO_FIX_UNDO_TIMEOUT)
 
                             DebugLog.i("DictationKeyboardService: Auto-fix applied: '$sentence' → '$capitalizedImproved'")
                         } else {
-                            // Original sentence not found (user deleted it or moved cursor)
                             DebugLog.w("DictationKeyboardService: Auto-fix: original sentence not found, skipping")
                             clearAutoFixState()
                         }
@@ -4321,7 +3624,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                         clearAutoFixState()
                     }
                 } else {
-                    // No changes needed or error
                     clearAutoFixState()
                     DebugLog.d("DictationKeyboardService: Auto-fix: no changes needed")
                 }
@@ -4333,20 +3635,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /** Find the start index of the last sentence in text */
     private fun findLastSentenceStart(text: String): Int {
-        // Look for the last sentence-ending punctuation before the final one
         val trimmed = text.trimEnd()
-        // Find second-to-last sentence end
         for (i in trimmed.length - 2 downTo 0) {
             if (trimmed[i] == '.' || trimmed[i] == '!' || trimmed[i] == '?') {
                 return i + 1
             }
         }
-        return 0 // entire text is one sentence
+        return 0
     }
 
-    /** Show purple "Fixing..." indicator in prediction strip */
     private fun showAutoFixProgress() {
         prediction1?.text = ""
         prediction2?.text = "AI fixing..."
@@ -4355,7 +3653,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2?.setTextColor(Color.WHITE)
     }
 
-    /** Show green undo option in prediction strip */
     private fun showAutoFixUndo() {
         prediction1?.text = ""
         prediction2?.text = "Undo fix"
@@ -4363,13 +3660,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         predictionStrip?.setBackgroundColor(AUTO_FIX_DONE_COLOR)
         prediction2?.setTextColor(Color.WHITE)
 
-        // Make undo tappable
         prediction2?.setOnClickListener {
             undoAutoFix()
         }
     }
 
-    /** Undo the last auto-fix */
     private fun undoAutoFix() {
         val original = autoFixOriginalText ?: return
         val replacement = autoFixReplacementText ?: return
@@ -4384,14 +3679,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         clearAutoFixUndo()
     }
 
-    /** Clear auto-fix undo state and restore prediction strip */
     private fun clearAutoFixUndo() {
         autoFixUndoAvailable = false
         autoFixOriginalText = null
         autoFixReplacementText = null
         autoFixHandler.removeCallbacksAndMessages(null)
 
-        // Restore prediction strip to normal
         predictionStrip?.setBackgroundColor(Color.TRANSPARENT)
         prediction1?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
         prediction2?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
@@ -4400,19 +3693,16 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction2?.text = ""
         prediction3?.text = ""
 
-        // Re-attach normal prediction tap handlers
         prediction1?.setOnClickListener { applyPrediction(0) }
         prediction2?.setOnClickListener { applyPrediction(1) }
         prediction3?.setOnClickListener { applyPrediction(2) }
     }
 
-    /** Clear auto-fix state without restoring strip (for when fix didn't apply) */
     private fun clearAutoFixState() {
         isAutoFixRunning = false
         autoFixOriginalText = null
         autoFixReplacementText = null
         autoFixUndoAvailable = false
-        // Restore prediction strip colors
         predictionStrip?.setBackgroundColor(Color.TRANSPARENT)
         prediction1?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
         prediction2?.setTextColor(ContextCompat.getColor(this, R.color.keyboard_key_text))
@@ -4422,15 +3712,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         prediction3?.text = ""
     }
 
-    /**
-     * Request AI next-word prediction after space press.
-     * Fires a background Haiku call with recent context, updates prediction strip on response.
-     * Cancelled if user starts typing before response arrives.
-     */
     private fun requestNextWordPrediction() {
         if (!isAiNextWordEnabled || isAutoFixRunning || isTerminalApp) return
 
-        // Clear auto-fix undo if still showing - next-word prediction takes priority
         if (autoFixUndoAvailable) {
             clearAutoFixUndo()
         }
@@ -4443,14 +3727,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return
         }
 
-        // Cancel any existing prediction request
         activeNextWordJob?.cancel()
 
         val ic = currentInputConnection ?: return
         val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return
         if (contextText.isBlank()) return
 
-        // Show loading indicator immediately
         isNextWordPredictionActive = true
         prediction1?.text = ""
         prediction2?.text = "···"
@@ -4462,18 +3744,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             val predictions = nextWordPredictor?.predict(contextText) ?: emptyList()
             if (predictions.isNotEmpty() && isNextWordPredictionActive) {
                 DebugLog.d("NextWordPredictor: Got predictions: $predictions")
-                // Show predictions: middle = best, left = second, right = third
                 prediction2?.text = predictions.getOrNull(0) ?: ""
                 prediction1?.text = predictions.getOrNull(1) ?: ""
                 prediction3?.text = predictions.getOrNull(2) ?: ""
 
-                // Set up tap handlers for AI predictions
                 prediction1?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(1)) }
                 prediction2?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(0)) }
                 prediction3?.setOnClickListener { applyNextWordPrediction(predictions.getOrNull(2)) }
             } else if (predictions.isEmpty() && isNextWordPredictionActive) {
                 DebugLog.d("NextWordPredictor: No predictions returned")
-                // Clear the loading indicator
                 prediction1?.text = ""
                 prediction2?.text = ""
                 prediction3?.text = ""
@@ -4482,9 +3761,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }
     }
 
-    /**
-     * Apply a next-word prediction: insert the word + space, then request another prediction.
-     */
     private fun applyNextWordPrediction(word: String?) {
         if (word.isNullOrBlank()) return
 
@@ -4492,15 +3768,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         ic.commitText("$word ", 1)
         trackTypedText("$word ")
 
-        // Clear state and request another prediction
         isNextWordPredictionActive = false
         autocorrectManager?.onWordBoundary()
         requestNextWordPrediction()
     }
 
-    /**
-     * Cancel any active next-word prediction and clear the strip if showing AI predictions.
-     */
     private fun cancelNextWordPrediction() {
         activeNextWordJob?.cancel()
         activeNextWordJob = null
@@ -4509,17 +3781,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             prediction1?.text = ""
             prediction2?.text = ""
             prediction3?.text = ""
-            // Restore normal tap handlers
             prediction1?.setOnClickListener { applyPrediction(0) }
             prediction2?.setOnClickListener { applyPrediction(1) }
             prediction3?.setOnClickListener { applyPrediction(2) }
         }
     }
 
-    /**
-     * Request AI word completion for the right prediction slot.
-     * Debounced: waits 400ms after last keystroke before firing API call.
-     */
     private fun requestAiCompletion() {
         if (!isAiWordCompletionEnabled || isAutoFixRunning || isTerminalApp || isNextWordPredictionActive) return
 
@@ -4531,10 +3798,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         val partialWord = autocorrectManager?.getCurrentWord() ?: return
         if (partialWord.isEmpty()) return
 
-        // Debounce: cancel previous timer, start new one
         aiCompletionHandler.removeCallbacksAndMessages(null)
         aiCompletionHandler.postDelayed({
-            // Re-check the word hasn't changed
             val currentWord = autocorrectManager?.getCurrentWord() ?: return@postDelayed
             if (currentWord.isEmpty()) return@postDelayed
 
@@ -4544,7 +3809,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             aiCompletionJob?.cancel()
             aiCompletionJob = CoroutineScope(Dispatchers.Main).launch {
                 val completed = nextWordPredictor?.completeWord(contextText, currentWord)
-                // Only show if user is still typing the same word
                 val stillTyping = autocorrectManager?.getCurrentWord() ?: ""
                 if (completed != null && stillTyping.isNotEmpty() && completed.startsWith(stillTyping.lowercase())) {
                     aiCompletionWord = completed
@@ -4555,9 +3819,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         }, AI_COMPLETION_DEBOUNCE)
     }
 
-    /**
-     * Cancel any active AI word completion request and clear the right slot.
-     */
     private fun cancelAiCompletion() {
         aiCompletionHandler.removeCallbacksAndMessages(null)
         aiCompletionJob?.cancel()
@@ -4582,7 +3843,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return
         }
 
-        // Get all text from the input field
         val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
         val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
         var fullText = "$before$after"
@@ -4590,7 +3850,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         DebugLog.d("DictationKeyboardService: Improve - before='${before.take(50)}' (${before.length}), after='${after.take(50)}' (${after.length})")
 
-        // Fallback to internal buffer for apps that don't expose text (like terminal apps, Beeper)
         if (fullText.isBlank() && internalTextBuffer.isNotEmpty()) {
             fullText = internalTextBuffer.toString()
             useBuffer = true
@@ -4608,9 +3867,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         isImproving = true
         val originalLength = fullText.length
-        val textToImprove = fullText  // Capture for coroutine
+        val textToImprove = fullText
 
-        // Visual feedback - change icon tint to indicate processing
         improveIcon?.let { icon ->
             icon.setColorFilter(ContextCompat.getColor(this, R.color.bubble_recording))
         }
@@ -4624,30 +3882,22 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val improvedText = result.getOrNull() ?: textToImprove
 
                     if (useBuffer) {
-                        // For apps that don't expose text, delete old text by sending backspaces
-                        // then type the improved text
                         DebugLog.d("DictationKeyboardService: Using backspace method for replacement")
 
-                        // Delete all characters
                         for (i in 0 until originalLength) {
                             sendDownUpKeyEvents(android.view.KeyEvent.KEYCODE_DEL)
                         }
 
-                        // Type improved text
                         ic.commitText(improvedText, 1)
 
-                        // Update internal buffer
                         internalTextBuffer.clear()
                         internalTextBuffer.append(improvedText)
                     } else {
-                        // Standard approach: Select all and replace
                         ic.beginBatchEdit()
                         try {
-                            // Select all text
                             val totalLength = before.length + after.length
                             ic.setSelection(0, totalLength)
 
-                            // Replace with improved text
                             ic.commitText(improvedText, 1)
                         } finally {
                             ic.endBatchEdit()
@@ -4677,7 +3927,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             } finally {
                 isImproving = false
 
-                // Reset icon color
                 improveIcon?.let { icon ->
                     icon.setColorFilter(ContextCompat.getColor(this@DictationKeyboardService, R.color.keyboard_key_text))
                 }
@@ -4705,15 +3954,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.i(TAG, "DictationKeyboardService: Enter key")
         DebugLog.d("DictationKeyboardService: Sending enter key")
 
-        // Use the built-in InputMethodService method for consistency with sendBackspace
         sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
     }
 
-    /**
-     * Switches back to the previously used keyboard.
-     * Uses switchToNextInputMethod() which cycles through available keyboards.
-     * Falls back to showing the keyboard picker if that fails.
-     */
     private fun switchToPreviousKeyboard() {
         Log.i(TAG, "DictationKeyboardService: Switching to previous keyboard")
         DebugLog.i("DictationKeyboardService: Switching to previous keyboard")
@@ -4725,12 +3968,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             DebugLog.d("DictationKeyboardService: Window token present: ${token != null}")
 
             if (token != null) {
-                // Try switchToLastInputMethod first (switches to previously used keyboard)
                 var switched = imm.switchToLastInputMethod(token)
                 DebugLog.d("DictationKeyboardService: switchToLastInputMethod result: $switched")
 
                 if (!switched) {
-                    // If no "last" keyboard, try switching to the next available keyboard
                     switched = imm.switchToNextInputMethod(token, false)
                     DebugLog.d("DictationKeyboardService: switchToNextInputMethod result: $switched")
                 }
@@ -4769,7 +4010,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.d(TAG, "DictationKeyboardService onStartInputView - field: ${info?.fieldName}")
         DebugLog.d("DictationKeyboardService: onStartInputView called, restarting=$restarting")
 
-        // Detect URL/URI/email input fields - disable autocorrect for these
         val inputType = info?.inputType ?: 0
         val variation = inputType and android.text.InputType.TYPE_MASK_VARIATION
         val wasUrlField = isUrlField
@@ -4780,22 +4020,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             DebugLog.d("DictationKeyboardService: URL field detection: $isUrlField (variation=$variation)")
         }
 
-        // Clear autocorrect state on any input view start to prevent word accumulation
-        // (e.g. search bars that trigger restarts, switching fields, etc.)
         autocorrectManager?.onWordBoundary()
 
-        // Clear internal text buffer on new input session (for terminal app tracking)
         if (!restarting) {
             internalTextBuffer.clear()
             useInternalBuffer = false
             DebugLog.d("DictationKeyboardService: Cleared internal text buffer (new session)")
         }
 
-        // Detect terminal apps
         val currentPackage = info?.packageName ?: ""
         val wasTerminalApp = isTerminalApp
         isTerminalApp = isTerminalPackage(currentPackage)
-        // Set terminal mode on transcription engine (disables formatting, interims)
         if (isTerminalApp != wasTerminalApp) {
             transcriptionManager?.setTerminalMode(isTerminalApp)
             if (isTerminalApp) {
@@ -4804,11 +4039,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             }
         }
 
-        // Check for pending paste from HistoryActivity
         pendingPasteText?.let { text ->
             Log.i(TAG, "Pasting pending text: ${text.take(50)}...")
             DebugLog.i("DictationKeyboardService: Pasting pending text (${text.length} chars)")
-            pendingPasteText = null  // Clear before pasting to avoid loops
+            pendingPasteText = null
             commitTextInternal(text)
         }
 
@@ -4818,22 +4052,17 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateEmojiButtonState()
         updateNumberRowVisibility()
 
-        // Reset to ABC tab when starting new input (no tab memory between sessions)
         if (!restarting && currentKeyboardTab != 0) {
             currentKeyboardTab = 0
             updateKeyboardTabContent()
         }
 
-        // Auto-start dictation when keyboard opens (mic red/active by default)
-        // Skip auto-start if mute is locked or in PTT mode
         if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
-            // Small delay to let UI settle before starting audio
             dictationStartHandler.postDelayed({
                 if (!isRecording && !isProcessing && !isMuteLocked && !isPushToTalkMode) {
                     Log.i(TAG, "Auto-starting dictation on keyboard open")
                     DebugLog.i("DictationKeyboardService: Auto-starting dictation")
 
-                    // Initialize TranscriptionManager if needed
                     if (transcriptionManager == null) {
                         initializeTranscriptionManager()
                     }
@@ -4860,11 +4089,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         Log.d(TAG, "DictationKeyboardService onStartInput - inputType: ${attribute?.inputType}")
     }
 
-    /**
-     * Called when the cursor position or text selection changes.
-     * We use this to update predictions regardless of how text was input
-     * (typing, dictation, paste, terminal apps like Termius, etc.)
-     */
     override fun onUpdateSelection(
         oldSelStart: Int, oldSelEnd: Int,
         newSelStart: Int, newSelEnd: Int,
@@ -4872,16 +4096,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     ) {
         super.onUpdateSelection(oldSelStart, oldSelEnd, newSelStart, newSelEnd, candidatesStart, candidatesEnd)
 
-        // Clear autocorrect state on unexpected cursor movement
-        // (e.g., user tapped elsewhere, search bar replaced text, app autocomplete)
-        val expectedDelta = 1 // normal single char movement
+        val expectedDelta = 1
         if (Math.abs(newSelStart - oldSelStart) > expectedDelta + 1) {
             autocorrectManager?.clearUndoState()
             autocorrectManager?.onWordBoundary()
         }
 
-        // Also detect backwards cursor movement (e.g. search bar cleared/replaced text)
-        // or cursor jumping to start (newSelStart == 0 while we had a word building)
         if (newSelStart < oldSelStart && autocorrectManager?.getCurrentWord()?.isNotEmpty() == true) {
             autocorrectManager?.onWordBoundary()
         }
@@ -4917,18 +4137,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateMicButton()
     }
 
-    /**
-     * Computes the insets that the keyboard occupies.
-     * This tells apps how much space the keyboard takes so they can resize content.
-     *
-     * We use the default implementation which properly calculates insets based on
-     * the keyboard view's height. The system handles this correctly for both
-     * regular apps and PWAs.
-     */
     override fun onComputeInsets(outInsets: Insets) {
         super.onComputeInsets(outInsets)
-        // Let the system handle inset calculation based on view height
-        // Don't override with custom values - that breaks regular apps
     }
 
     private fun commitTextInternal(text: String): Boolean {
@@ -4961,9 +4171,6 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         updateLanguageButton()
     }
 
-    /**
-     * Refreshes the theme immediately. Called when user changes theme in settings.
-     */
     fun refreshTheme() {
         DebugLog.i("DictationKeyboardService: Refreshing theme from settings change")
         applyTheme()

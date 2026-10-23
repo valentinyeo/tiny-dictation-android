@@ -12,20 +12,15 @@ import com.tinydictation.android.transcription.engines.VoskEngine
 import com.tinydictation.android.transcription.models.ModelManager
 import kotlinx.coroutines.launch
 
-/**
- * Activity for downloading and managing offline transcription models.
- */
 class OfflineModelsActivity : AppCompatActivity() {
 
     private lateinit var modelManager: ModelManager
 
-    // Vosk
     private lateinit var tvVoskEnStatus: TextView
     private lateinit var tvVoskDeStatus: TextView
     private lateinit var btnDownloadVoskEn: MaterialButton
     private lateinit var btnDownloadVoskDe: MaterialButton
 
-    // Whisper
     private lateinit var tvWhisperTinyStatus: TextView
     private lateinit var tvWhisperBaseStatus: TextView
     private lateinit var tvWhisperSmallStatus: TextView
@@ -80,7 +75,6 @@ class OfflineModelsActivity : AppCompatActivity() {
     }
 
     private fun updateModelStatus() {
-        // Vosk English
         val voskEnAvailable = modelManager.isModelAvailable("vosk", "en")
         if (voskEnAvailable) {
             tvVoskEnStatus.text = "Downloaded"
@@ -91,7 +85,6 @@ class OfflineModelsActivity : AppCompatActivity() {
             btnDownloadVoskEn.text = "Download"
         }
 
-        // Vosk German
         val voskDeAvailable = modelManager.isModelAvailable("vosk", "de")
         if (voskDeAvailable) {
             tvVoskDeStatus.text = "Downloaded"
@@ -102,7 +95,6 @@ class OfflineModelsActivity : AppCompatActivity() {
             btnDownloadVoskDe.text = "Download"
         }
 
-        // Whisper Tiny
         val whisperTinyAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-tiny")
         if (whisperTinyAvailable) {
             tvWhisperTinyStatus.text = "Downloaded"
@@ -113,7 +105,6 @@ class OfflineModelsActivity : AppCompatActivity() {
             btnDownloadWhisperTiny.text = "Download"
         }
 
-        // Whisper Base
         val whisperBaseAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-base")
         if (whisperBaseAvailable) {
             tvWhisperBaseStatus.text = "Downloaded"
@@ -124,7 +115,6 @@ class OfflineModelsActivity : AppCompatActivity() {
             btnDownloadWhisperBase.text = "Download"
         }
 
-        // Whisper Small
         val whisperSmallAvailable = modelManager.isModelAvailable("sherpa-onnx", "whisper-small")
         if (whisperSmallAvailable) {
             tvWhisperSmallStatus.text = "Downloaded"
@@ -140,7 +130,6 @@ class OfflineModelsActivity : AppCompatActivity() {
         val isAvailable = modelManager.isModelAvailable(engineId, modelId)
 
         if (isAvailable) {
-            // Delete model
             lifecycleScope.launch {
                 button.isEnabled = false
                 button.text = "Deleting..."
@@ -156,7 +145,6 @@ class OfflineModelsActivity : AppCompatActivity() {
                 button.isEnabled = true
             }
         } else {
-            // Download model
             lifecycleScope.launch {
                 button.isEnabled = false
                 button.text = "Downloading..."

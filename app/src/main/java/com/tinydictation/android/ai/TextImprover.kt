@@ -13,12 +13,6 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 
-/**
- * AI-powered text improvement using Anthropic's Claude API.
- *
- * Corrects grammar, spelling, and punctuation only.
- * Does NOT rephrase, shorten, or restructure text.
- */
 class TextImprover(private val context: Context) {
 
     companion object {
@@ -35,12 +29,6 @@ class TextImprover(private val context: Context) {
             .build()
     }
 
-    /**
-     * Improve the given text by fixing grammar, spelling, and punctuation.
-     *
-     * @param text The text to improve
-     * @return Result containing improved text or error
-     */
     suspend fun improve(text: String): Result<String> = withContext(Dispatchers.IO) {
         if (text.isBlank()) {
             return@withContext Result.failure(IllegalArgumentException("No text to improve"))
@@ -50,7 +38,6 @@ class TextImprover(private val context: Context) {
         DebugLog.i("$TAG: Improving text (${text.length} chars)")
 
         try {
-            // Anthropic API only
             if (!prefs.hasAnthropicApiKey()) {
                 return@withContext Result.failure(
                     IllegalStateException("Anthropic API key required. Set it in Settings → API Keys.")

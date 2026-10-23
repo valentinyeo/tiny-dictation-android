@@ -9,10 +9,6 @@ import com.google.android.material.textfield.TextInputEditText
 import com.tinydictation.android.R
 import com.tinydictation.android.util.PreferenceManager
 
-/**
- * Activity for managing API keys.
- * Supports Deepgram (transcription) and Anthropic (text improvement).
- */
 class ApiKeysSettingsActivity : AppCompatActivity() {
 
     private lateinit var preferenceManager: PreferenceManager

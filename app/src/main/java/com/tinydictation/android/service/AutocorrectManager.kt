@@ -5,33 +5,16 @@ import com.tinydictation.android.util.DebugLog
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-/**
- * Offline word completion and autocorrect using a frequency-ranked dictionary.
- * Supports multiple languages (en, de) with per-language dictionary files.
- *
- * Dictionary format: word\trank (lower rank = more common, 99999 = no frequency data)
- *
- * Prediction priority:
- * 1. Prefix completions sorted by frequency (typing "that" → "that's" not "thatch")
- * 2. Spell corrections via QWERTY-weighted Levenshtein distance (typing "hrlp" → "help")
- *
- * Results shown in prediction strip: [left=alt] [MIDDLE=best] [right=alt]
- */
 class AutocorrectManager(private val context: Context) {
 
     private var dictionary = HashSet<String>(65536)
-    // Word → frequency rank (lower = more common). 99999 = unranked.
     private var wordFrequency = HashMap<String, Int>(65536)
-    // Sorted list for efficient prefix search
     private var sortedWords: List<String> = emptyList()
-    // Words grouped by first letter for fast spell correction
     private var wordsByFirstLetter = HashMap<Char, MutableList<String>>()
     private val currentWord = StringBuilder()
 
-    // Current language
     private var currentLanguage: String = "en"
 
-    // Cache loaded dictionaries to avoid reloading on every language switch
     private val dictionaryCache = HashMap<String, DictionaryData>()
 
     private data class DictionaryData(
@@ -41,14 +24,11 @@ class AutocorrectManager(private val context: Context) {
         val wordsByFirstLetter: HashMap<Char, MutableList<String>>
     )
 
-    // Last autocorrect for undo-on-backspace
     var lastAutocorrect: AutocorrectRecord? = null
         private set
 
-    // Callback when suggestions change (for prediction strip)
     var onSuggestionsUpdated: ((typed: String, suggestions: List<String>) -> Unit)? = null
 
-    // Cached suggestions for current word (updated as user types)
     private var cachedSuggestions: List<String> = emptyList()
 
     data class AutocorrectRecord(
@@ -60,16 +40,11 @@ class AutocorrectManager(private val context: Context) {
         loadDictionary("en")
     }
 
-    /**
-     * Switch to a different language dictionary.
-     * Caches previously loaded dictionaries for instant switching.
-     */
     fun setLanguage(language: String) {
         if (language == currentLanguage) return
         DebugLog.d("AutocorrectManager: Switching language from $currentLanguage to $language")
         currentLanguage = language
         loadDictionary(language)
-        // Clear current word state on language switch
         onWordBoundary()
     }
 
@@ -78,12 +53,11 @@ class AutocorrectManager(private val context: Context) {
     private fun getDictionaryFilename(language: String): String {
         return when (language) {
             "de" -> "dictionary_de.txt"
-            else -> "dictionary.txt"  // English is the default
+            else -> "dictionary.txt"
         }
     }
 
     private fun loadDictionary(language: String) {
-        // Check cache first
         val cached = dictionaryCache[language]
         if (cached != null) {
             dictionary = cached.dictionary
@@ -108,7 +82,6 @@ class AutocorrectManager(private val context: Context) {
                         val trimmed = line.trim()
                         if (trimmed.isEmpty()) return@forEachLine
 
-                        // Format: word\trank or just word
                         val parts = trimmed.split('\t')
                         val word = parts[0].lowercase()
                         val rank = parts.getOrNull(1)?.toIntOrNull() ?: 99999
@@ -118,7 +91,6 @@ class AutocorrectManager(private val context: Context) {
                             newWordFrequency[word] = rank
                             words.add(word)
 
-                            // Group by first letter
                             newWordsByFirstLetter.getOrPut(word[0]) { mutableListOf() }.add(word)
                         }
                     }
@@ -127,7 +99,6 @@ class AutocorrectManager(private val context: Context) {
 
             val newSortedWords = words.sorted()
 
-            // Cache this dictionary
             dictionaryCache[language] = DictionaryData(
                 dictionary = newDictionary,
                 wordFrequency = newWordFrequency,
@@ -135,7 +106,6 @@ class AutocorrectManager(private val context: Context) {
                 wordsByFirstLetter = newWordsByFirstLetter
             )
 
-            // Set as active
             dictionary = newDictionary
             wordFrequency = newWordFrequency
             sortedWords = newSortedWords
@@ -146,7 +116,6 @@ class AutocorrectManager(private val context: Context) {
             DebugLog.d("AutocorrectManager: Loaded ${dictionary.size} words for '$language' ($rankedCount with frequency data)")
         } catch (e: Exception) {
             DebugLog.e("AutocorrectManager: Failed to load dictionary for '$language': ${e.message}")
-            // If non-English fails, fall back to English
             if (language != "en" && dictionary.isEmpty()) {
                 DebugLog.d("AutocorrectManager: Falling back to English dictionary")
                 loadDictionary("en")
@@ -154,13 +123,12 @@ class AutocorrectManager(private val context: Context) {
         }
     }
 
-    /** Get frequency rank for a word (lower = more common, 99999 = unknown) */
     private fun getFrequency(word: String): Int = wordFrequency[word.lowercase()] ?: 99999
 
     fun isKnownWord(word: String): Boolean = dictionary.contains(word.lowercase())
 
     fun onLetterTyped(char: Char) {
-        currentWord.append(char)  // Preserve original case for capitalization detection
+        currentWord.append(char)
         clearUndoState()
         updateSuggestions()
     }
@@ -193,8 +161,6 @@ class AutocorrectManager(private val context: Context) {
         if (typed.isEmpty() || typed.length < 2) return null
         if (isKnownWord(typed)) return null
 
-        // 1. Try word segmentation (missing space detection)
-        // e.g., "thisis" → "this is", "ofthe" → "of the"
         val split = tryWordSplit(typed)
         if (split != null) {
             lastAutocorrect = AutocorrectRecord(original = typed, replacement = split)
@@ -202,7 +168,6 @@ class AutocorrectManager(private val context: Context) {
             return split
         }
 
-        // 2. Try spell correction
         val corrections = getSpellCorrections(typed, 1)
         if (corrections.isEmpty()) return null
 
@@ -215,25 +180,18 @@ class AutocorrectManager(private val context: Context) {
         return best
     }
 
-    /**
-     * Try splitting an unknown word into two known words (missing space detection).
-     * e.g., "thisis" → "this is", "ofthe" → "of the"
-     * Returns the best split as "word1 word2", or null if no valid split found.
-     * Prefers splits where both words are common (low frequency rank).
-     */
     private fun tryWordSplit(word: String): String? {
         val lower = word.lowercase()
-        if (lower.length < 3) return null // minimum 1+2 chars (e.g. "iwant" → "i want")
+        if (lower.length < 3) return null
 
         var bestSplit: String? = null
-        var bestScore = Int.MAX_VALUE // lower = better (sum of frequency ranks)
+        var bestScore = Int.MAX_VALUE
 
         for (i in 1..lower.length - 2) {
             val left = lower.substring(0, i)
             val right = lower.substring(i)
 
             if (isKnownWord(left) && isKnownWord(right)) {
-                // Both parts are valid words - score by combined frequency
                 val score = getFrequency(left) + getFrequency(right)
                 if (score < bestScore) {
                     bestScore = score
@@ -242,30 +200,22 @@ class AutocorrectManager(private val context: Context) {
             }
         }
 
-        // Only accept splits where both words are reasonably common
-        // (prevents splitting "together" into "to get her")
         if (bestSplit != null && bestScore < 50000) {
             return bestSplit
         }
         return null
     }
 
-    /**
-     * Try to correct a word (spell correction + word split) without modifying internal state.
-     * Used when the word was already captured on space touch-down.
-     */
     fun tryCorrectWord(typed: String): String? {
         if (typed.isEmpty() || typed.length < 2) return null
         if (isKnownWord(typed)) return null
 
-        // 1. Try word segmentation (missing space detection)
         val split = tryWordSplit(typed)
         if (split != null) {
             DebugLog.d("AutocorrectManager: Split '$typed' → '$split'")
             return split
         }
 
-        // 2. Try spell correction
         val corrections = getSpellCorrections(typed, 1)
         if (corrections.isEmpty()) return null
 
@@ -277,9 +227,6 @@ class AutocorrectManager(private val context: Context) {
         return best
     }
 
-    /**
-     * Record an autocorrect for undo-on-backspace support.
-     */
     fun recordAutocorrect(original: String, replacement: String) {
         lastAutocorrect = AutocorrectRecord(original = original, replacement = replacement)
     }
@@ -295,7 +242,6 @@ class AutocorrectManager(private val context: Context) {
         currentWord.clear()
         cachedSuggestions = emptyList()
         onSuggestionsUpdated?.invoke("", emptyList())
-        // Only record autocorrect if the suggestion differs from what was typed (case-insensitive)
         if (typed.isNotEmpty() && !suggestion.equals(typed, ignoreCase = true)) {
             lastAutocorrect = AutocorrectRecord(original = typed, replacement = suggestion)
         }
@@ -318,40 +264,30 @@ class AutocorrectManager(private val context: Context) {
             return
         }
 
-        // All candidates: typed word (if valid) + prefix completions + spell corrections
-        // Sorted by frequency. The typed word competes fairly with completions.
         val candidates = mutableListOf<String>()
 
-        // Include the typed word itself if it's a dictionary word
         if (isKnownWord(typed)) {
             candidates.add(typed.lowercase())
         }
 
-        // Add prefix completions (excluding exact match)
         val completions = getPrefixCompletions(typed, 5)
             .filter { it != typed.lowercase() }
         candidates.addAll(completions)
 
-        // Check for missing space (e.g. "andstill" → "and still")
-        // Only show split if there are NO good prefix completions
-        // (prevents "reall" → "re all" when "really" is available)
         val wordSplit = if (!isKnownWord(typed) && completions.isEmpty()) {
             tryWordSplit(typed.lowercase())
         } else null
 
         if (wordSplit != null) {
-            // Insert split as first candidate
             candidates.add(0, wordSplit)
         }
 
-        // Add spell corrections as fallback
         if (candidates.size < 3) {
             val corrections = getSpellCorrections(typed, 3 - candidates.size)
                 .filter { it !in candidates }
             candidates.addAll(corrections)
         }
 
-        // Sort by frequency, but keep word split first if present
         cachedSuggestions = if (wordSplit != null && candidates.firstOrNull() == wordSplit) {
             listOf(wordSplit) + candidates.drop(1).sortedBy { getFrequency(it) }.take(2)
         } else {
@@ -360,14 +296,9 @@ class AutocorrectManager(private val context: Context) {
         onSuggestionsUpdated?.invoke(typed, cachedSuggestions)
     }
 
-    /**
-     * Find dictionary words that start with the given prefix.
-     * Returns results sorted by frequency (most common first).
-     */
     private fun getPrefixCompletions(prefix: String, limit: Int): List<String> {
         val lower = prefix.lowercase()
 
-        // Binary search for prefix range start
         var lo = 0
         var hi = sortedWords.size
         while (lo < hi) {
@@ -375,7 +306,6 @@ class AutocorrectManager(private val context: Context) {
             if (sortedWords[mid] < lower) lo = mid + 1 else hi = mid
         }
 
-        // Collect all words starting with prefix
         val matches = mutableListOf<String>()
         var i = lo
         while (i < sortedWords.size && sortedWords[i].startsWith(lower)) {
@@ -383,17 +313,11 @@ class AutocorrectManager(private val context: Context) {
             i++
         }
 
-        // Sort by frequency (lower rank = more common first)
         return matches
             .sortedBy { getFrequency(it) }
             .take(limit)
     }
 
-    /**
-     * Find dictionary words closest to the input using QWERTY-weighted Levenshtein distance.
-     * Uses first-letter index for performance. Also checks adjacent first-letter keys.
-     * Results sorted by: edit distance first, then frequency for ties.
-     */
     private fun getSpellCorrections(word: String, limit: Int): List<String> {
         val lower = word.lowercase()
         if (lower.length < 2) return emptyList()
@@ -412,7 +336,7 @@ class AutocorrectManager(private val context: Context) {
             .filter { it.length in minLen..maxLen }
             .map { Triple(it, weightedLevenshtein(lower, it), getFrequency(it)) }
             .filter { it.second <= 2.0f && it.second > 0f }
-            .sortedWith(compareBy({ it.second }, { it.third })) // edit distance, then frequency
+            .sortedWith(compareBy({ it.second }, { it.third }))
             .take(limit)
             .map { it.first }
             .toList()
@@ -493,7 +417,6 @@ class AutocorrectManager(private val context: Context) {
             'b' to setOf('v', 'g', 'h', 'n'),
             'n' to setOf('b', 'h', 'j', 'm'),
             'm' to setOf('n', 'j', 'k'),
-            // German umlauts - adjacent to their base letters
             'ä' to setOf('a', 's', 'q', 'w'),
             'ö' to setOf('o', 'i', 'p', 'k', 'l'),
             'ü' to setOf('u', 'y', 'i', 'h', 'j'),
