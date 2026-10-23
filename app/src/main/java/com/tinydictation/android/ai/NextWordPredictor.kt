@@ -68,7 +68,7 @@ class NextWordPredictor(private val context: Context) {
 
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string() ?: "Unknown error"
-                DebugLog.e("$TAG: API error ${response.code}: $errorBody")
+                DebugLog.e("$TAG: API error ${response.code}:", errorBody)
                 return@withContext emptyList()
             }
 
@@ -87,11 +87,11 @@ class NextWordPredictor(private val context: Context) {
                 .take(3)
 
             val elapsedMs = System.currentTimeMillis() - startTime
-            DebugLog.d("$TAG: Predicted $words in ${elapsedMs}ms")
+            DebugLog.d("$TAG: Predicted", "$words in ${elapsedMs}ms")
             words
         } catch (e: Exception) {
             val elapsedMs = System.currentTimeMillis() - startTime
-            DebugLog.e("$TAG: Failed after ${elapsedMs}ms - ${e.message}")
+            DebugLog.e("$TAG: Failed after ${elapsedMs}ms -", "${e.message}")
             emptyList()
         }
     }
@@ -156,11 +156,11 @@ class NextWordPredictor(private val context: Context) {
             }
 
             val elapsedMs = System.currentTimeMillis() - startTime
-            DebugLog.d("$TAG: Completed '$partialWord' → '$word' in ${elapsedMs}ms")
+            DebugLog.d("$TAG: Completed", "'$partialWord' → '$word' in ${elapsedMs}ms")
             word
         } catch (e: Exception) {
             val elapsedMs = System.currentTimeMillis() - startTime
-            DebugLog.e("$TAG: completeWord failed after ${elapsedMs}ms - ${e.message}")
+            DebugLog.e("$TAG: completeWord failed after ${elapsedMs}ms -", "${e.message}")
             null
         }
     }

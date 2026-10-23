@@ -334,7 +334,7 @@ class SherpaOnnxEngine : TranscriptionEngine {
 
             if (text.isNotEmpty()) {
                 Log.d(TAG, "SherpaOnnxEngine: Transcribed: $text")
-                DebugLog.d("SherpaOnnxEngine: Result: $text")
+                DebugLog.d("SherpaOnnxEngine: Result:", text)
 
                 onTranscriptCallback?.invoke(text, true)
             }

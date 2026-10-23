@@ -164,7 +164,7 @@ class AutocorrectManager(private val context: Context) {
         val split = tryWordSplit(typed)
         if (split != null) {
             lastAutocorrect = AutocorrectRecord(original = typed, replacement = split)
-            DebugLog.d("AutocorrectManager: Split '$typed' → '$split'")
+            DebugLog.d("AutocorrectManager: Split", "'$typed' → '$split'")
             return split
         }
 
@@ -176,7 +176,7 @@ class AutocorrectManager(private val context: Context) {
         if (dist > 2 || dist >= typed.length) return null
 
         lastAutocorrect = AutocorrectRecord(original = typed, replacement = best)
-        DebugLog.d("AutocorrectManager: Corrected '$typed' → '$best'")
+        DebugLog.d("AutocorrectManager: Corrected", "'$typed' → '$best'")
         return best
     }
 
@@ -212,7 +212,7 @@ class AutocorrectManager(private val context: Context) {
 
         val split = tryWordSplit(typed)
         if (split != null) {
-            DebugLog.d("AutocorrectManager: Split '$typed' → '$split'")
+            DebugLog.d("AutocorrectManager: Split", "'$typed' → '$split'")
             return split
         }
 
@@ -223,7 +223,7 @@ class AutocorrectManager(private val context: Context) {
         val dist = levenshteinDistance(typed, best)
         if (dist > 2 || dist >= typed.length) return null
 
-        DebugLog.d("AutocorrectManager: Corrected '$typed' → '$best'")
+        DebugLog.d("AutocorrectManager: Corrected", "'$typed' → '$best'")
         return best
     }
 
