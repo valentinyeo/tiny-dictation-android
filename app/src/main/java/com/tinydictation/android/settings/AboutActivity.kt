@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.1:
+            • Steadier model install, keyboard and diagnostics handling
+
             v1.43.0:
             • The app can now update itself
             • Checks for new versions and shows a notification

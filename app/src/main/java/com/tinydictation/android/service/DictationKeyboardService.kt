@@ -3566,7 +3566,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun allowsCloudText(): Boolean {
-        val info = currentInputEditorInfo ?: return true
+        val info = currentInputEditorInfo ?: return false
         return EditorPrivacy.allowsCloudText(info.inputType, info.imeOptions)
     }
 
@@ -4097,6 +4097,14 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
+        if (!restarting) {
+            cancelNextWordPrediction()
+            cancelAiCompletion()
+            autocorrectManager?.onWordBoundary()
+            autocorrectManager?.clearUndoState()
+            clearAutoFixState()
+            internalTextBuffer.clear()
+        }
         Log.d(TAG, "DictationKeyboardService onStartInput - inputType: ${attribute?.inputType}")
     }
 
@@ -4120,6 +4128,8 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     override fun onFinishInputView(finishingInput: Boolean) {
         super.onFinishInputView(finishingInput)
+        cancelNextWordPrediction()
+        cancelAiCompletion()
         Log.d(TAG, "DictationKeyboardService onFinishInputView")
         DebugLog.d("DictationKeyboardService: Finished input view")
 
