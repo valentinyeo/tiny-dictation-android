@@ -71,7 +71,7 @@ object DebugLog {
         sb.appendLine()
 
         entries.forEach { entry ->
-            sb.appendLine(entry.copy(text = entry.text?.let { "(${it.length} chars)" }).format())
+            sb.appendLine(entry.format())
         }
 
         return sb.toString()

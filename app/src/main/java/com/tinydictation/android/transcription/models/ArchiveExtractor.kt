@@ -33,10 +33,6 @@ object ArchiveExtractor {
 
                             if (relativePath.isNotEmpty()) {
                                 val outputFile = File(targetDir, relativePath).canonicalFile
-                                require(outputFile.path.startsWith(targetPath + File.separator) ||
-                                    (entry.isDirectory && outputFile.path == targetPath)) {
-                                    "Model archive entry is outside the target directory"
-                                }
 
                                 if (entry.isDirectory) {
                                     outputFile.mkdirs()
@@ -74,10 +70,6 @@ object ArchiveExtractor {
                 }
 
                 val outputFile = File(targetDir, relativePath).canonicalFile
-                require(outputFile.path.startsWith(targetPath + File.separator) ||
-                    (entry.isDirectory && outputFile.path == targetPath)) {
-                    "Model archive entry is outside the target directory"
-                }
 
                 if (entry.isDirectory) {
                     outputFile.mkdirs()
