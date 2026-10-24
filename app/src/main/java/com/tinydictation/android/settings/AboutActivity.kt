@@ -31,6 +31,11 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.2:
+            • Fix Deepgram Nova-3 keyword prompting and automatic language selection
+            • Show Deepgram errors in the keyboard until transcription resumes
+            • Report Deepgram error frames and connections closed without a status
+
             v1.43.1:
             • Steadier model install, keyboard and diagnostics handling
 

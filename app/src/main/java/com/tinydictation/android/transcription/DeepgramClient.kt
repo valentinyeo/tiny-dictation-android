@@ -45,9 +45,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
                 params.append("&interim_results=true")
                 params.append("&endpointing=150")
             }
-            if (language != "auto") {
-                params.append("&language=$language")
-            }
+            val apiLanguage = if (language == "auto") "multi" else language
+            params.append("&language=$apiLanguage")
 
             if (numerals) {
                 params.append("&numerals=true")
@@ -57,7 +56,8 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
             }
             for (keyword in keywords) {
                 val encoded = URLEncoder.encode(keyword, "UTF-8")
-                params.append("&keywords=$encoded")
+                val parameter = if (model == "nova-3") "keyterm" else "keywords"
+                params.append("&$parameter=$encoded")
             }
             for ((find, replace) in replacements) {
                 val encodedFind = URLEncoder.encode(find, "UTF-8")
@@ -215,6 +215,11 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
         if (text.isBlank()) return
         try {
             val json = JSONObject(text)
+            if (json.optString("type") == "Error") {
+                val description = json.optString("description", "Unknown error")
+                onError(TranscriptionError("Deepgram error: $description"))
+                return
+            }
             if (json.has("error")) {
                 onError(TranscriptionError(json.optString("error", "Unknown error")))
                 return
