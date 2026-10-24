@@ -24,6 +24,10 @@ jobs:
           node-version: 22
       - name: No code comments
         run: node tools/strip-comments.mjs --check
+      - name: Release workflow check
+        run: |
+          python3 -m pip install --quiet pyyaml==6.0.2
+          python3 tools/check_release_workflow.py
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
