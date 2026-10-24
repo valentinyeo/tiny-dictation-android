@@ -46,18 +46,25 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           if [ -n "$KEYSTORE_BASE64" ]; then
+            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "RELEASE_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "RELEASE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
+            echo "RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
+            echo "SIGNED=yes" >> "$GITHUB_ENV"
             echo "Using release signing configuration"
           else
+            echo "SIGNED=no" >> "$GITHUB_ENV"
             echo "Using debug signing (no secrets configured)"
           fi
 
-      - name: Build Release APK
-        env:
-          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
-          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
-          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
-          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew assembleDebug
+      - name: Build APK
+        run: |
+          if [ "$SIGNED" = "yes" ]; then
+            ./gradlew assembleRelease
+          else
+            ./gradlew assembleDebug
+          fi
 
       - name: Get version info
         id: version
@@ -78,21 +85,24 @@ jobs:
 
       - name: Rename APKs
         run: |
-          # With ABI splits, APKs are named app-{abi}-debug.apk
-          cd app/build/outputs/apk/debug
-          for apk in app-*-debug.apk; do
+          if [ "$SIGNED" = "yes" ]; then
+            SRC="app/build/outputs/apk/release"
+            MODE="release"
+          else
+            SRC="app/build/outputs/apk/debug"
+            MODE="debug"
+          fi
+          mkdir -p dist
+          cd "$SRC"
+          for apk in *-"$MODE".apk; do
             if [ -f "$apk" ]; then
-              ABI=$(echo "$apk" | sed 's/app-\(.*\)-debug.apk/\1/')
+              ABI=$(echo "$apk" | sed "s/app-\(.*\)-$MODE.apk/\1/")
               NEW_NAME="TinyDictation-${{ steps.version.outputs.version }}-${ABI}.apk"
-              mv "$apk" "$NEW_NAME"
+              mv "$apk" "$GITHUB_WORKSPACE/dist/$NEW_NAME"
               echo "Renamed $apk to $NEW_NAME"
             fi
           done
-          # Fallback for universal APK
-          if [ -f "app-debug.apk" ]; then
-            mv app-debug.apk "TinyDictation-${{ steps.version.outputs.version }}.apk"
-          fi
-          ls -la
+          ls -la "$GITHUB_WORKSPACE/dist"
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -114,7 +124,7 @@ jobs:
             2. Enable "Install from unknown sources" if prompted
             3. Open the APK to install
             4. Grant permissions when asked
-          files: app/build/outputs/apk/debug/TinyDictation-*.apk
+          files: dist/TinyDictation-*.apk
           draft: false
           prerelease: false
         env:
