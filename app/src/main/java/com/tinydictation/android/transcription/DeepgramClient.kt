@@ -1,6 +1,8 @@
 package com.tinydictation.android.transcription
 
 import android.util.Log
+import com.google.gson.JsonParseException
+import com.google.gson.JsonParser
 import com.tinydictation.android.util.DebugLog
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -10,6 +12,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import org.json.JSONObject
+import java.io.IOException
 import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
@@ -197,9 +200,24 @@ class DeepgramClient(private val onStreamClosed: (Long) -> Unit = {}) {
                 connected = false
                 accountUsage(session)
                 DebugLog.e("DeepgramClient: WebSocket failure - ${t.message}")
+                val refusalReason = try {
+                    response?.body?.string()?.let { body ->
+                        val json = JsonParser.parseString(body)
+                            .takeIf { it.isJsonObject }?.asJsonObject
+                        sequenceOf("err_msg", "description", "message").mapNotNull { key ->
+                            json?.get(key)
+                                ?.takeIf { it.isJsonPrimitive && it.asJsonPrimitive.isString }
+                                ?.asString?.takeIf { it.isNotBlank() }
+                        }.firstOrNull()?.take(200)
+                    }
+                } catch (e: IOException) {
+                    null
+                } catch (e: JsonParseException) {
+                    null
+                }
                 reportError(mapDeepgramError(
                     httpCode = response?.code,
-                    dgError = response?.header("dg-error"),
+                    dgError = refusalReason ?: response?.header("dg-error"),
                     causeMessage = t.message
                 ))
             }
