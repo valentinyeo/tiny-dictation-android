@@ -128,11 +128,12 @@ jobs:
         run: |
           if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_CHAT_ID" ]; then
             BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}"
+            TITLE="<b>Tiny Dictation v${{ steps.version.outputs.version }}</b>"
+            LINKS="<a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-arm64-v8a.apk\">Download (ARM64)</a> | <a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-armeabi-v7a.apk\">ARM32</a>"
+            printf -v MESSAGE '%s\n\n%s' "$TITLE" "$LINKS"
             curl -s -X POST "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
               --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
-              --data-urlencode "text=<b>Tiny Dictation v${{ steps.version.outputs.version }}</b>
-
-<a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-arm64-v8a.apk\">Download (ARM64)</a> | <a href=\"${BASE_URL}/TinyDictation-${{ steps.version.outputs.version }}-armeabi-v7a.apk\">ARM32</a>" \
+              --data-urlencode "text=${MESSAGE}" \
               --data-urlencode "parse_mode=HTML"
           else
             echo "Telegram secrets not configured, skipping notification"
