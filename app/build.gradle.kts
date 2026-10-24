@@ -39,17 +39,6 @@ android {
                 keyPassword = "android"
             }
         }
-
-        val releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_FILE")
-        val releaseKeystore = releaseKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
-        if (releaseKeystore != null && releaseKeystore.exists()) {
-            create("release") {
-                storeFile = releaseKeystore
-                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
-            }
-        }
     }
 
     buildTypes {
