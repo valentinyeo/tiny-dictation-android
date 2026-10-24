@@ -31,7 +31,7 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
-            v1.43.4:
+            v1.43.5:
             • Show Deepgram's own reason when a connection is refused
 
             v1.43.3:
