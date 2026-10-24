@@ -26,7 +26,7 @@ class DeepgramProtocolTest {
     }
 
     @Test
-    fun featureParamsAndAutoLanguageArePreserved() {
+    fun nova3UsesKeytermsAndMultilingualLanguage() {
         val params = DeepgramClient.buildParams(
             language = "auto",
             model = "nova-3",
@@ -35,12 +35,26 @@ class DeepgramProtocolTest {
             numerals = true,
             dictation = true
         )
-        assertFalse(params.contains("&language="))
+        assertTrue(params.contains("&language=multi"))
         assertTrue(params.contains("model=nova-3"))
-        assertTrue(params.contains("&keywords=hello+world"))
+        assertTrue(params.contains("&keyterm=hello+world"))
+        assertFalse(params.contains("&keywords="))
         assertTrue(params.contains("&replace=old+word:new+word"))
         assertTrue(params.contains("&numerals=true&dictation=true"))
     }
+
+    @Test
+    fun nova2PreservesKeywordsAndExplicitLanguage() {
+        val params = DeepgramClient.buildParams(
+            language = "de",
+            model = "nova-2",
+            keywords = listOf("Deepgram", "hello world")
+        )
+        assertTrue(params.contains("&language=de"))
+        assertTrue(params.contains("&keywords=Deepgram&keywords=hello+world"))
+        assertFalse(params.contains("&keyterm="))
+    }
+
     @Test
     fun formattingTogglesRemainIndependentWithSpeechOnlyStreaming() {
         for (smartFormat in listOf(false, true)) {

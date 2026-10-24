@@ -29,6 +29,16 @@
         android:layout_height="wrap_content"
         android:visibility="gone" />
 
+    <TextView
+        android:id="@+id/tvTranscriptionError"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="8dp"
+        android:textColor="#FFFFFF"
+        android:background="#8B0000"
+        android:accessibilityLiveRegion="polite"
+        android:visibility="gone" />
+
     <!-- Dictation bar wrapper (FrameLayout for version overlay) -->
     <FrameLayout
         android:layout_width="match_parent"

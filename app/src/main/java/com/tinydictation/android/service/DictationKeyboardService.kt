@@ -467,6 +467,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             onTranscript = { text, isFinal ->
                 Log.d(TAG, "Transcript received - isFinal: $isFinal, text: $text")
                 Handler(Looper.getMainLooper()).post {
+                    if (text.isNotBlank()) {
+                        keyboardView?.findViewById<TextView>(R.id.tvTranscriptionError)
+                            ?.visibility = View.GONE
+                    }
                     if (!isFinal && text.isNotBlank()) {
                         if (isTerminalApp) return@post
 
@@ -523,6 +527,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                 DebugLog.e("DictationKeyboardService: Transcription error -", error)
                 Handler(Looper.getMainLooper()).post {
                     Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+                    keyboardView?.findViewById<TextView>(R.id.tvTranscriptionError)?.apply {
+                        text = error
+                        visibility = View.VISIBLE
+                    }
                     val state = transcriptionManager?.getState()
                     isRecording = transcriptionManager?.isListening() == true
                     isProcessing = state == TranscriptionManager.TranscriptionState.TRANSCRIBING

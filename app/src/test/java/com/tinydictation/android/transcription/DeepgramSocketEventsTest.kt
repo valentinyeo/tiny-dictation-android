@@ -58,8 +58,15 @@ class DeepgramSocketEventsTest {
     }
 
     @Test
-    fun normalCloseCodesDoNotReportErrors() {
+    fun normalCloseDoesNotReportAnError() {
         assertNull(mapDeepgramError(closeCode = 1000))
-        assertNull(mapDeepgramError(closeCode = 1005))
+    }
+
+    @Test
+    fun closeWithoutStatusReportsConnectionLoss() {
+        val error = requireNotNull(mapDeepgramError(closeCode = 1005))
+
+        assertEquals("Deepgram closed the connection (1005: Unknown reason)", error.message)
+        assertFalse(error.fatal)
     }
 }
