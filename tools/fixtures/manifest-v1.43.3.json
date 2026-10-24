@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "packageName": "com.tinydictation.android",
+  "versionCode": 372,
+  "versionName": "1.43.3",
+  "date": "2026-10-24",
+  "abi": "arm64-v8a",
+  "apkUrl": "https://pub-bc49d639ec0a4a4382ac076d5e94916c.r2.dev/android-latest/TinyDictation-1.43.3-arm64.apk",
+  "sha256": "389e2432661d10316817308228f1416e0038cf37e700a0e1291e295f5bb60f1d",
+  "sizeBytes": 49489871,
+  "notes": "• Release workflow publishes the APK on a version tag again",
+  "history": [
+    {
+      "schemaVersion": 1,
+      "packageName": "com.tinydictation.android",
+      "versionCode": 369,
+      "versionName": "1.43.0",
+      "date": "2026-10-22",
+      "abi": "arm64-v8a",
+      "apkUrl": "https://pub-bc49d639ec0a4a4382ac076d5e94916c.r2.dev/android-latest/TinyDictation-1.43.0-arm64.apk",
+      "sha256": "3f9ca90c3b4885055651a3a8bc8da502cd3ef90f9df21b6827aa6f3dcabac32b",
+      "sizeBytes": 47170275,
+      "notes": "• The app can now update itself\n• Checks for new versions and shows a notification\n• Settings has Download and update"
+    }
+  ]
+}

@@ -47,3 +47,18 @@ jobs:
         with:
           name: test-reports
           path: app/build/reports/tests
+
+  update-channel:
+    name: update-channel
+    needs: [android-test]
+    if: ${{ always() && github.event_name == 'push' && github.ref == 'refs/heads/master' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update channel regression tests
+        run: bash tools/check_update_channel.test.sh
+      - name: Check published update channel
+        run: python3 tools/check_update_channel.py
