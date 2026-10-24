@@ -2234,7 +2234,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                             trackTypedText(tag)
                             sendDownUpKeyEvents(KeyEvent.KEYCODE_ENTER)
                             internalTextBuffer.clear()
-                            DebugLog.d("DictationKeyboardService: Claude command '$tag' inserted")
+                            DebugLog.d("DictationKeyboardService: Claude command inserted")
                         }
                     }
                     is android.view.ViewGroup -> {
@@ -2905,7 +2905,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
                     hideAKeyPopup()
-                    DebugLog.d("DictationKeyboardService: A key popup selected '$char'")
+                    DebugLog.d("DictationKeyboardService: A key popup selected")
                 } else if (!isAKeyLongPressTriggered) {
                     val char = aKeyButton?.text?.toString() ?: "a"
                     currentInputConnection?.commitText(char, 1)
@@ -3346,7 +3346,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     val char = selectedPunctuation ?: "."
                     currentInputConnection?.commitText(char, 1)
                     hidePunctuationPopup()
-                    DebugLog.d("DictationKeyboardService: Punctuation popup selected '$char'")
+                    DebugLog.d("DictationKeyboardService: Punctuation popup selected")
                     triggerAutoFix()
                 } else {
                     currentInputConnection?.commitText(".", 1)
