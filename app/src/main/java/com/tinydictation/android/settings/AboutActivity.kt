@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.3:
+            • Release workflow publishes the APK on a version tag again
+
             v1.43.2:
             • Fix Deepgram Nova-3 keyword prompting and automatic language selection
             • Show Deepgram errors in the keyboard until transcription resumes
