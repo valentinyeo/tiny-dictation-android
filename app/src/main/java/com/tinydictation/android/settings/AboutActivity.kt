@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.4:
+            • Show Deepgram's own reason when a connection is refused
+
             v1.43.3:
             • Release workflow publishes the APK on a version tag again
 
