@@ -12,7 +12,7 @@ Measured historical red case from `bash tools/check_update_channel.test.sh`:
 real stale manifest: exit 1
 Update channel FAIL: manifest 1.43.0, release 1.43.3; newest GitHub release is ahead of the published manifest; fix: tools/publish-update.sh <apk>
 current manifest: exit 0
-Update channel OK: manifest 1.43.3, release 1.43.3; manifest is up to date; fix: tools/publish-update.sh <apk>
+Update channel OK: manifest 1.43.3, release 1.43.3
 ```
 
 The test script expects the stale check to exit 1, also rejects missing/corrupt
@@ -23,7 +23,7 @@ Measured live green check (default R2 manifest and public GitHub API):
 
 ```text
 $ python3 tools/check_update_channel.py
-Update channel OK: manifest 1.43.3, release 1.43.3; manifest is up to date; fix: tools/publish-update.sh <apk>
+Update channel OK: manifest 1.43.3, release 1.43.3
 $ echo $?
 0
 ```

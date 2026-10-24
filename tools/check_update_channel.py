@@ -67,12 +67,11 @@ def main():
         if release > manifest:
             errors.append("newest GitHub release is ahead of the published manifest")
 
-    status = "Update channel FAIL" if errors else "Update channel OK"
-    detail = "; ".join(errors) if errors else "manifest is up to date"
-    print(
-        f"{status}: manifest {versions['manifest']}, release {versions['release']}; "
-        f"{detail}; fix: tools/publish-update.sh <apk>"
-    )
+    prefix = f"manifest {versions['manifest']}, release {versions['release']}"
+    if errors:
+        print(f"Update channel FAIL: {prefix}; {'; '.join(errors)}; fix: tools/publish-update.sh <apk>")
+    else:
+        print(f"Update channel OK: {prefix}")
     return 1 if errors else 0
 
 

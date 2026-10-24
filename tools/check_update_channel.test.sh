@@ -24,7 +24,7 @@ def check(name, expected, manifest_args, release_file=release, versions=()):
     assert result.returncode == expected, (name, result.returncode, output, result.stderr)
     assert not result.stderr, (name, result.stderr)
     assert len(output.splitlines()) == 1, (name, output)
-    assert "tools/publish-update.sh <apk>" in output, (name, output)
+    assert ("tools/publish-update.sh <apk>" in output) == (expected != 0), (name, output)
     assert ("Update channel OK:" if expected == 0 else "Update channel FAIL:") in output
     for version in versions:
         assert version in output, (name, version, output)
