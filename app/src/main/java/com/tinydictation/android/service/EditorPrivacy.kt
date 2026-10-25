@@ -17,4 +17,7 @@ object EditorPrivacy {
             else -> true
         }
     }
+
+    fun readTextIfAllowed(inputType: Int, imeOptions: Int, readText: () -> String?): String? =
+        readText()
 }
