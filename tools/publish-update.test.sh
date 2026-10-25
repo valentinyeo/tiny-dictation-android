@@ -99,7 +99,7 @@ elif command in ("yeo-key", "npx", "wrangler"):
         if is_manifest:
             expected += ["--cache-control", "no-cache"]
             assert (state / "remote/TinyDictation-1.2.3-arm64.apk").is_file()
-        assert args[6:] == expected + ["--remote"]
+        assert args[6:] == expected
         assert content_type == ("application/json" if is_manifest else
                                 "application/vnd.android.package-archive")
         if settings.get("fail_upload") == ("manifest" if is_manifest else "apk"):
