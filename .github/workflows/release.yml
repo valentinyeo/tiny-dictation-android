@@ -44,8 +44,9 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          RELEASE_SIGNING: ${{ vars.RELEASE_SIGNING }}
         run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
+          if [ "$RELEASE_SIGNING" = "on" ] && [ -n "$KEYSTORE_BASE64" ]; then
             printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
             echo "RELEASE_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
             echo "RELEASE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
@@ -55,7 +56,7 @@ jobs:
             echo "Using release signing configuration"
           else
             echo "SIGNED=no" >> "$GITHUB_ENV"
-            echo "Using debug signing (no secrets configured)"
+            echo "Using debug signing so installed copies keep updating"
           fi
 
       - name: Build APK
