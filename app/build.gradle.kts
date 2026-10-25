@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 377
-        versionName = "1.43.8"
+        versionCode = 378
+        versionName = "1.44.0"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",
@@ -40,14 +40,27 @@ android {
             }
         }
 
-        val releaseKeystorePath = System.getenv("RELEASE_KEYSTORE_FILE")
-        val releaseKeystore = releaseKeystorePath?.takeIf { it.isNotBlank() }?.let { file(it) }
-        if (releaseKeystore != null && releaseKeystore.exists()) {
-            create("release") {
-                storeFile = releaseKeystore
-                storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
-                keyAlias = System.getenv("RELEASE_KEY_ALIAS")
-                keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+        create("release") {
+            storeFile = System.getenv("RELEASE_KEYSTORE_FILE")
+                ?.takeIf { it.isNotBlank() }?.let { file(it) }
+            storePassword = System.getenv("RELEASE_KEYSTORE_PASSWORD")
+            keyAlias = System.getenv("RELEASE_KEY_ALIAS")
+            keyPassword = System.getenv("RELEASE_KEY_PASSWORD")
+
+            gradle.taskGraph.whenReady {
+                if (allTasks.any { it.project == project && it.name.contains("Release") }) {
+                    mapOf(
+                        "RELEASE_KEYSTORE_FILE" to storeFile?.path,
+                        "RELEASE_KEYSTORE_PASSWORD" to storePassword,
+                        "RELEASE_KEY_ALIAS" to keyAlias,
+                        "RELEASE_KEY_PASSWORD" to keyPassword
+                    ).forEach { (name, value) ->
+                        check(!value.isNullOrBlank()) { "Missing required release signing variable: $name" }
+                    }
+                    check(storeFile?.isFile == true) {
+                        "RELEASE_KEYSTORE_FILE must point to an existing keystore file"
+                    }
+                }
             }
         }
     }
@@ -58,7 +71,7 @@ android {
         }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

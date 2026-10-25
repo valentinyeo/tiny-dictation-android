@@ -44,28 +44,35 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          RELEASE_SIGNING: ${{ vars.RELEASE_SIGNING }}
         run: |
-          if [ "$RELEASE_SIGNING" = "on" ] && [ -n "$KEYSTORE_BASE64" ]; then
-            printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
-            echo "RELEASE_KEYSTORE_FILE=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
-            echo "RELEASE_KEYSTORE_PASSWORD=$KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
-            echo "RELEASE_KEY_ALIAS=$KEY_ALIAS" >> "$GITHUB_ENV"
-            echo "RELEASE_KEY_PASSWORD=$KEY_PASSWORD" >> "$GITHUB_ENV"
-            echo "SIGNED=yes" >> "$GITHUB_ENV"
-            echo "Using release signing configuration"
-          else
-            echo "SIGNED=no" >> "$GITHUB_ENV"
-            echo "Using debug signing so installed copies keep updating"
-          fi
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?Missing KEYSTORE_BASE64 secret}"
+          : "${KEYSTORE_PASSWORD:?Missing KEYSTORE_PASSWORD secret}"
+          : "${KEY_ALIAS:?Missing KEY_ALIAS secret}"
+          : "${KEY_PASSWORD:?Missing KEY_PASSWORD secret}"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          {
+            printf 'RELEASE_KEYSTORE_FILE=%s\n' "$RUNNER_TEMP/release.keystore"
+            printf 'RELEASE_KEYSTORE_PASSWORD=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'RELEASE_KEY_ALIAS=%s\n' "$KEY_ALIAS"
+            printf 'RELEASE_KEY_PASSWORD=%s\n' "$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
 
       - name: Build APK
+        run: ./gradlew assembleRelease
+
+      - name: Remove signing credentials
+        if: always()
         run: |
-          if [ "$SIGNED" = "yes" ]; then
-            ./gradlew assembleRelease
-          else
-            ./gradlew assembleDebug
-          fi
+          rm -f "$RUNNER_TEMP/release.keystore"
+          unset RELEASE_KEYSTORE_FILE RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD
+          {
+            printf 'RELEASE_KEYSTORE_FILE=\n'
+            printf 'RELEASE_KEYSTORE_PASSWORD=\n'
+            printf 'RELEASE_KEY_ALIAS=\n'
+            printf 'RELEASE_KEY_PASSWORD=\n'
+          } >> "$GITHUB_ENV"
 
       - name: Get version info
         id: version
@@ -85,25 +92,19 @@ jobs:
           echo "date=$(date +'%Y-%m-%d')" >> $GITHUB_OUTPUT
 
       - name: Rename APKs
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
         run: |
-          if [ "$SIGNED" = "yes" ]; then
-            SRC="app/build/outputs/apk/release"
-            MODE="release"
-          else
-            SRC="app/build/outputs/apk/debug"
-            MODE="debug"
-          fi
+          set -euo pipefail
           mkdir -p dist
-          cd "$SRC"
-          for apk in *-"$MODE".apk; do
-            if [ -f "$apk" ]; then
-              ABI=$(echo "$apk" | sed "s/app-\(.*\)-$MODE.apk/\1/")
-              NEW_NAME="TinyDictation-${{ steps.version.outputs.version }}-${ABI}.apk"
-              mv "$apk" "$GITHUB_WORKSPACE/dist/$NEW_NAME"
-              echo "Renamed $apk to $NEW_NAME"
-            fi
+          for apk in app/build/outputs/apk/release/*.apk; do
+            ABI=${apk##*/app-}
+            ABI=${ABI%-release.apk}
+            mv "$apk" "dist/TinyDictation-${VERSION}-${ABI}.apk"
           done
-          ls -la "$GITHUB_WORKSPACE/dist"
+
+      - name: Verify release APK signers
+        run: python3 tools/check_release_apk_signer.py dist/TinyDictation-*.apk
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
@@ -126,6 +127,7 @@ jobs:
             3. Open the APK to install
             4. Grant permissions when asked
           files: dist/TinyDictation-*.apk
+          fail_on_unmatched_files: true
           draft: false
           prerelease: false
         env:
