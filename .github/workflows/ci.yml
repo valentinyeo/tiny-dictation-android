@@ -42,7 +42,44 @@ jobs:
           distribution: temurin
       - uses: gradle/actions/setup-gradle@v3
       - run: chmod +x gradlew
+      - name: Setup signing configuration
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          : "${KEYSTORE_BASE64:?Missing KEYSTORE_BASE64 secret}"
+          : "${KEYSTORE_PASSWORD:?Missing KEYSTORE_PASSWORD secret}"
+          : "${KEY_ALIAS:?Missing KEY_ALIAS secret}"
+          : "${KEY_PASSWORD:?Missing KEY_PASSWORD secret}"
+          umask 077
+          printf '%s' "$KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+          {
+            printf 'RELEASE_KEYSTORE_FILE=%s\n' "$RUNNER_TEMP/release.keystore"
+            printf 'RELEASE_KEYSTORE_PASSWORD=%s\n' "$KEYSTORE_PASSWORD"
+            printf 'RELEASE_KEY_ALIAS=%s\n' "$KEY_ALIAS"
+            printf 'RELEASE_KEY_PASSWORD=%s\n' "$KEY_PASSWORD"
+          } >> "$GITHUB_ENV"
+
       - run: ./gradlew testDebugUnitTest assembleDebug assembleRelease --no-daemon -Dorg.gradle.jvmargs="-Xmx1024m -XX:MaxMetaspaceSize=1g"
+      - name: Remove signing credentials
+        if: always()
+        run: |
+          rm -f "$RUNNER_TEMP/release.keystore"
+          unset RELEASE_KEYSTORE_FILE RELEASE_KEYSTORE_PASSWORD RELEASE_KEY_ALIAS RELEASE_KEY_PASSWORD
+          {
+            printf 'RELEASE_KEYSTORE_FILE=\n'
+            printf 'RELEASE_KEYSTORE_PASSWORD=\n'
+            printf 'RELEASE_KEY_ALIAS=\n'
+            printf 'RELEASE_KEY_PASSWORD=\n'
+          } >> "$GITHUB_ENV"
+
+      - name: Verify release APK signers
+        run: python3 tools/check_release_apk_signer.py app/build/outputs/apk/release/*.apk
+      - name: Release APK signer fixtures
+        run: bash tools/check_release_apk_signer.test.sh
       - uses: actions/upload-artifact@v4
         with:
           name: release-apk-arm64

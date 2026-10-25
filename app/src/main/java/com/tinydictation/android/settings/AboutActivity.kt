@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.44.0:
+            • Releases now carry a private signing key kept outside the code.
+
             v1.43.8:
             • Typed text never leaves the phone in diagnostics or model archives
 

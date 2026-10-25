@@ -1,0 +1,25 @@
+name: Check APK signing identity
+
+on:
+  workflow_dispatch:
+    inputs:
+      apk_url:
+        description: APK URL to verify against the private release identity
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  signing-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download APK
+        env:
+          APK_URL: ${{ inputs.apk_url }}
+        run: curl -fL --proto '=https' --proto-redir '=https' --output "$RUNNER_TEMP/check.apk" "$APK_URL"
+      - name: Verify APK signer
+        run: python3 tools/check_release_apk_signer.py "$RUNNER_TEMP/check.apk"
