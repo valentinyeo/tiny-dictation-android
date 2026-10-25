@@ -11,8 +11,8 @@ android {
         applicationId = "com.tinydictation.android"
         minSdk = 26
         targetSdk = 34
-        versionCode = 376
-        versionName = "1.43.7"
+        versionCode = 377
+        versionName = "1.43.8"
         buildConfigField(
             "String",
             "UPDATE_MANIFEST_URL",

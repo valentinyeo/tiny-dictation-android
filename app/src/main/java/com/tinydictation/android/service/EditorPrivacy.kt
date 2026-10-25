@@ -8,6 +8,8 @@ object EditorPrivacy {
     fun allowsCloudText(inputType: Int, imeOptions: Int): Boolean {
         if (imeOptions and EditorInfo.IME_FLAG_NO_PERSONALIZED_LEARNING != 0) return false
 
+        if (inputType and InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS != 0) return false
+
         val variation = inputType and InputType.TYPE_MASK_VARIATION
         return when (inputType and InputType.TYPE_MASK_CLASS) {
             InputType.TYPE_CLASS_TEXT -> variation != InputType.TYPE_TEXT_VARIATION_PASSWORD &&
@@ -16,5 +18,9 @@ object EditorPrivacy {
             InputType.TYPE_CLASS_NUMBER -> variation != InputType.TYPE_NUMBER_VARIATION_PASSWORD
             else -> true
         }
+    }
+
+    fun readTextIfAllowed(inputType: Int, imeOptions: Int, readText: () -> String?): String? {
+        return if (allowsCloudText(inputType, imeOptions)) readText() else null
     }
 }
