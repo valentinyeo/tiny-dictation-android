@@ -2,17 +2,16 @@ package com.tinydictation.android.transcription.models
 
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
+import org.apache.commons.compress.archivers.zip.ZipFile
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorInputStream
 import java.io.BufferedInputStream
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
-import java.util.zip.ZipInputStream
 
 object ArchiveExtractor {
 
     fun extractTarBz2(tarBz2File: File, targetDir: File) {
-        val targetPath = targetDir.canonicalPath
         targetDir.mkdirs()
 
         FileInputStream(tarBz2File).use { fis ->
@@ -25,19 +24,9 @@ object ArchiveExtractor {
                                 (entry.isDirectory || entry.isFile)) {
                                 "Unsupported model archive entry type"
                             }
-                            val relativePath = if (entry.name.contains("/")) {
-                                entry.name.substringAfter("/")
-                            } else {
-                                entry.name
-                            }
+                            val outputFile = entryFile(targetDir, entry.name, entry.isDirectory)
 
-                            if (relativePath.isNotEmpty()) {
-                                val outputFile = File(targetDir, relativePath).canonicalFile
-                                require(outputFile.path.startsWith(targetPath + File.separator) ||
-                                    (entry.isDirectory && outputFile.path == targetPath)) {
-                                    "Model archive entry is outside the target directory"
-                                }
-
+                            if (outputFile != null) {
                                 if (entry.isDirectory) {
                                     outputFile.mkdirs()
                                 } else {
@@ -56,39 +45,46 @@ object ArchiveExtractor {
     }
 
     fun extractZip(zipFile: File, targetDir: File) {
-        val targetPath = targetDir.canonicalPath
         targetDir.mkdirs()
 
-        ZipInputStream(zipFile.inputStream()).use { zis ->
-            var entry = zis.nextEntry
-            while (entry != null) {
-                val relativePath = if (entry.name.contains("/")) {
-                    entry.name.substringAfter("/")
-                } else {
-                    entry.name
-                }
-
-                if (relativePath.isEmpty()) {
-                    entry = zis.nextEntry
-                    continue
-                }
-
-                val outputFile = File(targetDir, relativePath).canonicalFile
-                require(outputFile.path.startsWith(targetPath + File.separator) ||
-                    (entry.isDirectory && outputFile.path == targetPath)) {
-                    "Model archive entry is outside the target directory"
-                }
+        ZipFile.builder().setFile(zipFile).get().use { zip ->
+            val entries = zip.entries
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
+                require(!entry.isUnixSymlink) { "Unsupported model archive entry type" }
+                val outputFile = entryFile(targetDir, entry.name, entry.isDirectory) ?: continue
 
                 if (entry.isDirectory) {
                     outputFile.mkdirs()
                 } else {
                     outputFile.parentFile?.mkdirs()
-                    FileOutputStream(outputFile).use { fos ->
-                        zis.copyTo(fos)
+                    zip.getInputStream(entry).use { input ->
+                        FileOutputStream(outputFile).use { output ->
+                            input.copyTo(output)
+                        }
                     }
                 }
-                entry = zis.nextEntry
             }
         }
+    }
+
+    private fun entryFile(targetDir: File, name: String, isDirectory: Boolean): File? {
+        val normalizedName = name.replace('\\', '/')
+        val segments = normalizedName.split('/')
+        require(!File(normalizedName).isAbsolute && !normalizedName.startsWith('/') &&
+            !Regex("^[A-Za-z]:").containsMatchIn(normalizedName) &&
+            segments.none { it == ".." }) {
+            "Invalid model archive entry name"
+        }
+        val relativePath = normalizedName.substringAfter('/', normalizedName)
+        if (relativePath.isEmpty()) return null
+
+        val targetPath = targetDir.canonicalPath
+        val outputFile = File(targetDir, relativePath).canonicalFile
+        require(outputFile.path.startsWith(targetPath + File.separator) ||
+            (isDirectory && outputFile.path == targetPath)) {
+            "Model archive entry is outside the target directory"
+        }
+        return outputFile
     }
 }

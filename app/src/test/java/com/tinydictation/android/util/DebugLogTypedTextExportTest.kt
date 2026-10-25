@@ -3,7 +3,6 @@ package com.tinydictation.android.util
 import java.io.File
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
@@ -45,7 +44,7 @@ class DebugLogTypedTextExportTest {
         val exported = DebugLog.exportLog()
 
         markers.forEach { marker -> assertFalse(exported.contains(marker), marker) }
-        messages.forEach { message -> assertTrue(exported.contains(message), message) }
-        assertTrue(exported.contains("Model ready for dictation"))
+        messages.forEach { message -> assertFalse(exported.contains(message), message) }
+        assertFalse(exported.contains("Model ready for dictation"))
     }
 }

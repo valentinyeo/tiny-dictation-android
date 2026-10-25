@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.8:
+            • Typed text never leaves the phone in diagnostics or model archives
+
             v1.43.7:
             • Every release now reaches the in-app updater by itself
 
@@ -1021,25 +1024,34 @@ class AboutActivity : AppCompatActivity() {
             return
         }
 
-        shareDebugLogButton.isEnabled = false
-        shareDebugLogButton.text = getString(R.string.uploading_logs)
+        AlertDialog.Builder(this)
+            .setTitle("Upload diagnostics?")
+            .setMessage("Only timestamps and severity levels will be uploaded to dpaste.com " +
+                "or paste.rs. Editor text and diagnostic messages are excluded. " +
+                "The uploaded log may be publicly accessible.\n\n$logText")
+            .setPositiveButton("Upload") { _, _ ->
+                shareDebugLogButton.isEnabled = false
+                shareDebugLogButton.text = getString(R.string.uploading_logs)
 
-        lifecycleScope.launch {
-            try {
-                val url = uploadToPaste(logText)
-                if (url != null) {
-                    showShareDialog(url)
-                } else {
-                    Toast.makeText(this@AboutActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
+                lifecycleScope.launch {
+                    try {
+                        val url = uploadToPaste(logText)
+                        if (url != null) {
+                            showShareDialog(url)
+                        } else {
+                            Toast.makeText(this@AboutActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
+                        }
+                    } catch (e: Exception) {
+                        DebugLog.e("Failed to upload logs: ${e.message}")
+                        Toast.makeText(this@AboutActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
+                    } finally {
+                        shareDebugLogButton.isEnabled = true
+                        shareDebugLogButton.text = getString(R.string.share_debug_log)
+                    }
                 }
-            } catch (e: Exception) {
-                DebugLog.e("Failed to upload logs: ${e.message}")
-                Toast.makeText(this@AboutActivity, R.string.upload_failed, Toast.LENGTH_SHORT).show()
-            } finally {
-                shareDebugLogButton.isEnabled = true
-                shareDebugLogButton.text = getString(R.string.share_debug_log)
             }
-        }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private suspend fun uploadToPaste(content: String): String? = withContext(Dispatchers.IO) {

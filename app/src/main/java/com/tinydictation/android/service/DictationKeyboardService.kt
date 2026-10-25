@@ -2911,7 +2911,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
-                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && allowsCloudText() && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3080,7 +3080,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
-                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && allowsCloudText() && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3120,7 +3120,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
                     currentInputConnection?.commitText(char, 1)
                     trackTypedText(char)
 
-                    if (!isNumbersMode && !isTerminalApp && !isUrlField && char.length == 1 && char[0].isLetter()) {
+                    if (!isNumbersMode && !isTerminalApp && !isUrlField && allowsCloudText() && char.length == 1 && char[0].isLetter()) {
                         cancelNextWordPrediction()
                         autocorrectManager?.onLetterTyped(char[0])
                         requestAiCompletion()
@@ -3520,6 +3520,10 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
     }
 
     private fun deleteWord() {
+        if (!allowsCloudText()) {
+            sendBackspace()
+            return
+        }
         Log.i(TAG, "DictationKeyboardService: Delete word")
         DebugLog.d("DictationKeyboardService: Deleting word")
 
@@ -3578,6 +3582,11 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         return EditorPrivacy.allowsCloudText(info.inputType, info.imeOptions)
     }
 
+    private fun readEditorText(readText: () -> String?): String? {
+        val info = currentInputEditorInfo ?: return null
+        return EditorPrivacy.readTextIfAllowed(info.inputType, info.imeOptions, readText)
+    }
+
     private fun triggerAutoFix() {
         if (!allowsCloudText()) return
         if (!isAutoFixEnabled || isAutoFixRunning || autoFixUndoAvailable || isTerminalApp) return
@@ -3587,7 +3596,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         if (!PreferenceManager(this).hasAnthropicApiKey()) return
 
         val ic = currentInputConnection ?: return
-        val textBefore = ic.getTextBeforeCursor(500, 0)?.toString() ?: return
+        val textBefore = readEditorText { ic.getTextBeforeCursor(500, 0)?.toString() } ?: return
         if (textBefore.isBlank() || textBefore.length < 5) return
 
         val lastSentenceStart = findLastSentenceStart(textBefore)
@@ -3601,7 +3610,15 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                if (!allowsCloudText()) {
+                    clearAutoFixState()
+                    return@launch
+                }
                 val result = textImprover?.improve(sentence)
+                if (!allowsCloudText()) {
+                    clearAutoFixState()
+                    return@launch
+                }
                 val improved = result?.getOrNull()
 
                 if (improved != null && improved != sentence && improved.isNotBlank()) {
@@ -3609,7 +3626,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
                     val currentIc = currentInputConnection
                     if (currentIc != null) {
-                        val currentText = currentIc.getTextBeforeCursor(500, 0)?.toString() ?: ""
+                        val currentText = readEditorText {
+                            currentIc.getTextBeforeCursor(500, 0)?.toString() ?: ""
+                        } ?: return@launch
                         val sentencePos = currentText.lastIndexOf(sentence)
 
                         if (sentencePos >= 0) {
@@ -3746,7 +3765,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         activeNextWordJob?.cancel()
 
         val ic = currentInputConnection ?: return
-        val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return
+        val contextText = readEditorText { ic.getTextBeforeCursor(100, 0)?.toString() } ?: return
         if (contextText.isBlank()) return
 
         isNextWordPredictionActive = true
@@ -3757,7 +3776,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
         DebugLog.d("NextWordPredictor: Requesting prediction for:", "\"${contextText.takeLast(30)}\"")
 
         activeNextWordJob = CoroutineScope(Dispatchers.Main).launch {
+            if (!allowsCloudText()) return@launch
             val predictions = nextWordPredictor?.predict(contextText) ?: emptyList()
+            if (!allowsCloudText()) return@launch
             if (predictions.isNotEmpty() && isNextWordPredictionActive) {
                 DebugLog.d("NextWordPredictor: Got predictions:", predictions.toString())
                 prediction2?.text = predictions.getOrNull(0) ?: ""
@@ -3822,11 +3843,13 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             if (currentWord.isEmpty()) return@postDelayed
 
             val ic = currentInputConnection ?: return@postDelayed
-            val contextText = ic.getTextBeforeCursor(100, 0)?.toString() ?: return@postDelayed
+            val contextText = readEditorText { ic.getTextBeforeCursor(100, 0)?.toString() } ?: return@postDelayed
 
             aiCompletionJob?.cancel()
             aiCompletionJob = CoroutineScope(Dispatchers.Main).launch {
+                if (!allowsCloudText()) return@launch
                 val completed = nextWordPredictor?.completeWord(contextText, currentWord)
+                if (!allowsCloudText()) return@launch
                 val stillTyping = autocorrectManager?.getCurrentWord() ?: ""
                 if (completed != null && stillTyping.isNotEmpty() && completed.startsWith(stillTyping.lowercase())) {
                     aiCompletionWord = completed
@@ -3862,8 +3885,12 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
             return
         }
 
-        val before = ic.getTextBeforeCursor(Int.MAX_VALUE, 0) ?: ""
-        val after = ic.getTextAfterCursor(Int.MAX_VALUE, 0) ?: ""
+        val before = readEditorText {
+            ic.getTextBeforeCursor(Int.MAX_VALUE, 0)?.toString() ?: ""
+        } ?: return
+        val after = readEditorText {
+            ic.getTextAfterCursor(Int.MAX_VALUE, 0)?.toString() ?: ""
+        } ?: return
         var fullText = "$before$after"
         var useBuffer = false
 
@@ -3895,7 +3922,9 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
         CoroutineScope(Dispatchers.Main).launch {
             try {
+                if (!allowsCloudText()) return@launch
                 val result = textImprover?.improve(textToImprove)
+                if (!allowsCloudText()) return@launch
 
                 if (result?.isSuccess == true) {
                     val improvedText = result.getOrNull() ?: textToImprove
@@ -4105,7 +4134,7 @@ class DictationKeyboardService : InputMethodService(), ClipboardHistoryManager.O
 
     override fun onStartInput(attribute: EditorInfo?, restarting: Boolean) {
         super.onStartInput(attribute, restarting)
-        if (!restarting) {
+        if (!restarting || !allowsCloudText()) {
             cancelNextWordPrediction()
             cancelAiCompletion()
             autocorrectManager?.onWordBoundary()

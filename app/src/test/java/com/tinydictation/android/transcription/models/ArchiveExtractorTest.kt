@@ -1,5 +1,7 @@
 package com.tinydictation.android.transcription.models
 
+import org.apache.commons.compress.archivers.zip.ZipArchiveEntry
+import org.apache.commons.compress.archivers.zip.ZipArchiveOutputStream
 import org.apache.commons.compress.compressors.bzip2.BZip2CompressorOutputStream
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -8,6 +10,7 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 import java.io.OutputStream
+import java.nio.file.Files
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
@@ -79,6 +82,91 @@ class ArchiveExtractorTest {
 
         assertFalse(File(target, "link").exists())
         assertFalse(File(tempDir, "escape.txt").exists())
+    }
+
+    @Test
+    fun zipUnprefixedTraversalIsRejected() {
+        val target = File(tempDir, "target")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ArchiveExtractor.extractZip(zipArchive("../evil"), target)
+        }
+
+        assertEquals("contents", File(target, "a.txt").readText())
+        assertFalse(File(target, "evil").exists())
+        assertFalse(File(tempDir, "evil").exists())
+    }
+
+    @Test
+    fun zipAbsoluteEntryIsRejected() {
+        for (name in listOf("/abs/evil", File(tempDir, "evil").absolutePath)) {
+            val target = File(tempDir, "target")
+
+            assertThrows(IllegalArgumentException::class.java) {
+                ArchiveExtractor.extractZip(zipArchive(name), target)
+            }
+
+            assertEquals("contents", File(target, "a.txt").readText())
+            assertEquals(listOf("a.txt"), target.list()?.sorted())
+            assertFalse(File(tempDir, "evil").exists())
+        }
+    }
+
+    @Test
+    fun zipInternalParentSegmentIsRejected() {
+        val target = File(tempDir, "target")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ArchiveExtractor.extractZip(zipArchive("model/nested/../evil"), target)
+        }
+
+        assertFalse(File(target, "evil").exists())
+        assertFalse(File(tempDir, "evil").exists())
+    }
+
+    @Test
+    fun zipSymlinkIsRejected() {
+        val archive = File(tempDir, "links.zip")
+        ZipArchiveOutputStream(archive).use { zip ->
+            val entry = ZipArchiveEntry("model/link")
+            entry.unixMode = 0xA1FF
+            zip.putArchiveEntry(entry)
+            zip.write("../evil".toByteArray())
+            zip.closeArchiveEntry()
+        }
+        val target = File(tempDir, "target")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ArchiveExtractor.extractZip(archive, target)
+        }
+
+        assertFalse(Files.exists(File(target, "link").toPath()))
+        assertFalse(File(tempDir, "evil").exists())
+    }
+
+    @Test
+    fun tarAbsoluteEntryIsRejected() {
+        val target = File(tempDir, "target")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ArchiveExtractor.extractTarBz2(tarArchive("/abs/evil"), target)
+        }
+
+        assertEquals("contents", File(target, "a.txt").readText())
+        assertEquals(listOf("a.txt"), target.list()?.sorted())
+        assertFalse(File(tempDir, "evil").exists())
+    }
+
+    @Test
+    fun tarInternalParentSegmentIsRejected() {
+        val target = File(tempDir, "target")
+
+        assertThrows(IllegalArgumentException::class.java) {
+            ArchiveExtractor.extractTarBz2(tarArchive("model/nested/../evil"), target)
+        }
+
+        assertFalse(File(target, "evil").exists())
+        assertFalse(File(tempDir, "evil").exists())
     }
 
     private fun tarArchive(member: String): File {
