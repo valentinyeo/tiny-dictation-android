@@ -81,11 +81,12 @@ elif command == "apksigner":
 elif command in ("yeo-key", "npx", "wrangler"):
     assert settings.get("uploads"), "FORBIDDEN credential read or upload in dry-run"
     if command == "yeo-key":
+        assert not settings.get("env_token"), "FORBIDDEN vault access with environment token"
         assert args in (["Tiny Dictation Updates R2"],
                         ["Tiny Dictation Updates R2", "first label with spaces"])
         print("first label with spaces\nunused label" if len(args) == 1 else "fixture-token")
     elif command == "npx":
-        assert os.environ.get("CLOUDFLARE_API_TOKEN") == "fixture-token"
+        assert os.environ.get("CLOUDFLARE_API_TOKEN") == (settings.get("env_token") or "fixture-token")
         assert os.environ.get("CLOUDFLARE_ACCOUNT_ID") == "7865043d9ae730882b77f3d5d670c158"
         assert args[:5] == ["--yes", "wrangler@3", "r2", "object", "put"]
         key = args[5]
@@ -98,7 +99,7 @@ elif command in ("yeo-key", "npx", "wrangler"):
         if is_manifest:
             expected += ["--cache-control", "no-cache"]
             assert (state / "remote/TinyDictation-1.2.3-arm64.apk").is_file()
-        assert args[6:] == expected + ["--remote"]
+        assert args[6:] == expected
         assert content_type == ("application/json" if is_manifest else
                                 "application/vnd.android.package-archive")
         if settings.get("fail_upload") == ("manifest" if is_manifest else "apk"):
@@ -160,12 +161,14 @@ sha_shim.chmod(0o755)
 
 cases = 0
 
-def run(name, *, previous=None, settings=None, dry=True, error=None, md=markdown):
+def run(name, *, previous=None, settings=None, dry=True, error=None, md=markdown,
+        env_token=None, trace=False):
     global cases
     state = work / name
     state.mkdir()
     config = dict(settings or {})
     config["uploads"] = not dry
+    config["env_token"] = env_token
     (state / "settings.json").write_text(json.dumps(config))
     if previous is not None:
         (state / "previous.json").write_text(
@@ -173,15 +176,23 @@ def run(name, *, previous=None, settings=None, dry=True, error=None, md=markdown
     (repo / "CHANGELOG.md").write_text(md, encoding="utf-8")
     env = dict(os.environ, PATH=str(bin_dir) + os.pathsep + os.environ["PATH"],
                ANDROID_HOME=str(sdk), PUBLISH_TEST_STATE=str(state),
-               CLOUDFLARE_API_TOKEN="inherited-fixture-token",
                CLOUDFLARE_ACCOUNT_ID="inherited-fixture-account")
-    args = ["bash", str(repo / "tools/publish-update.sh"), str(apk)]
+    env.pop("CLOUDFLARE_API_TOKEN", None)
+    if env_token is not None:
+        env["CLOUDFLARE_API_TOKEN"] = env_token
+    args = ["bash", *(["-x"] if trace else []), str(repo / "tools/publish-update.sh"), str(apk)]
     if dry:
         args += ["--dry-run", str(state / "output with spaces")]
     result = subprocess.run(args, env=env, capture_output=True, text=True)
     output = result.stdout + result.stderr
     assert "fixture-token" not in output, name + ": credential printed"
+    if env_token:
+        assert env_token not in output, name + ": environment credential printed"
     calls = [json.loads(line) for line in (state / "calls.jsonl").read_text().splitlines()]
+    assert "fixture-token" not in json.dumps(calls), name + ": credential in command arguments"
+    if env_token:
+        assert env_token not in json.dumps(calls), name + ": environment credential in arguments"
+        assert not any(call["command"] == "yeo-key" for call in calls), name + ": vault accessed"
     if error is None:
         assert result.returncode == 0, name + ": " + output
     else:
@@ -239,8 +250,25 @@ if os.environ.get("PUBLISH_UPDATE_WRITE_FIXTURE") == "1":
     fixture_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(fixture, fixture_path)
 assert fixture_path.read_bytes() == fixture.read_bytes(), "publisher/parser fixture drift"
-for code in (900, 901):
-    run("reject-version-" + str(code), previous={"versionCode": code}, error="must be greater")
+for env_token in (None, "ci-fixture-token"):
+    for dry in (False, True):
+        state, calls = run("identical-rerun-" + str(cases), previous=manifest, dry=dry,
+                           env_token=env_token, trace=True)
+        assert [call["command"] for call in calls] == ["apksigner", "aapt2", "date", "curl"]
+        assert not (state / "remote").exists()
+        assert not (state / "output with spaces").exists()
+    for code, sha in ((900, None), (900, "f" * 64), (901, manifest["sha256"])):
+        state, calls = run("reject-version-" + str(cases), dry=False,
+                           previous=dict(manifest, versionCode=code, sha256=sha),
+                           env_token=env_token, error="must be greater")
+        assert not any(call["command"] in ("yeo-key", "npx", "wrangler") for call in calls)
+state, calls = run("ci-env-publish", dry=False, previous=previous,
+                   env_token="ci-fixture-token", trace=True)
+assert manifest_at(state, dry=False)["history"] == history
+assert [call["command"] for call in calls] == [
+    "apksigner", "aapt2", "date", "curl", "npx", "npx", "curl", "curl"]
+assert all(call["token_present"] == (call["command"] == "npx") for call in calls)
+run("ci-env-dry-run", previous=previous, env_token="ci-fixture-token")
 state, calls = run("reject-before-credentials", dry=False,
                    previous={"versionCode": 900}, error="must be greater")
 assert not any(call["command"] in ("yeo-key", "npx", "wrangler") for call in calls)
@@ -256,7 +284,7 @@ run("invalid-version-code", settings={"versionCode": 2147483648}, error="Invalid
 run("missing-notes", settings={"versionName": "9.9.9"}, error="No changelog bullets found")
 run("empty-matching-notes", md="## [1.2.3]\nNo bullets\n", error="No changelog bullets found")
 
-state, calls = run("publish-success", dry=False, previous=previous)
+state, calls = run("publish-success", dry=False, previous=previous, trace=True)
 assert manifest_at(state, dry=False)["history"] == history
 assert [call["command"] for call in calls] == [
     "apksigner", "aapt2", "date", "curl", "yeo-key", "yeo-key", "npx", "npx", "curl", "curl"]
@@ -267,6 +295,9 @@ assert calls[7]["args"][5].endswith(manifest_name)
 assert calls[-2]["args"][-1] == base + manifest_name
 assert calls[-1]["args"][-1] == base + apk_name
 assert all(call["token_present"] == (call["command"] == "npx") for call in calls)
+
+state, calls = run("empty-env-vault-fallback", dry=False, env_token="")
+assert sum(call["command"] == "yeo-key" for call in calls) == 2
 
 for key, message in (("corrupt_apk", "SHA-256 mismatch"),
                      ("truncate_apk", "SHA-256 mismatch"),

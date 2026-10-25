@@ -30,6 +30,12 @@ jobs:
           python3 tools/check_release_workflow.py
       - name: Release signing check
         run: python3 tools/check_release_signing.py
+      - name: Release workflow tests
+        run: |
+          python3 -m pip install --quiet pyyaml==6.0.2
+          bash tools/check_release_workflow.test.sh
+      - name: Publish update tests
+        run: bash tools/publish-update.test.sh
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
