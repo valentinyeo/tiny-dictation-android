@@ -22,7 +22,7 @@ Scope: Publish the built ARM64 APK through the existing publisher after GitHub r
 - [x] G3: current manifests are accepted and stale or invalid manifests are rejected
   CHECK: bash tools/check_update_channel.test.sh
   EXPECT: All update-channel tests passed
-  EVIDENCE: automatic-evidence=v1; definition-sha256=8c258fcc4ae4d151db6095a39515079fd8523af6a6506b39f37cba823f5c2b8c; exit=0; EXPECT=matched; output-sha256=276e67a3dc4e61e9c847cf4d1ced3ed903f15225207fe67ac59576d8adf81ea7; output-bytes=3982; shell=/bin/sh; cwd=/home/valentin/projects/tiny-dictation-android-r5-778; path=433695eed2f1/23 entries
+  EVIDENCE: automatic-evidence=v1; definition-sha256=8c258fcc4ae4d151db6095a39515079fd8523af6a6506b39f37cba823f5c2b8c; exit=0; EXPECT=matched; output-sha256=dc6587841db09cd44d11db38ca74b00d92fdbac24b67684e6cbfbe14757096bd; output-bytes=3982; shell=/bin/sh; cwd=/home/valentin/projects/tiny-dictation-android-r5-778; path=433695eed2f1/23 entries
 
 - [x] G4: no code comments are added and release signing checks still pass
   CHECK: node tools/strip-comments.mjs --check && python3 tools/check_release_signing.py
@@ -34,10 +34,10 @@ Scope: Publish the built ARM64 APK through the existing publisher after GitHub r
   EXPECT: SCOPE_CHECK_OK
   EVIDENCE: automatic-evidence=v1; definition-sha256=1cca67685c5ac8de97dc39683f13704386ff998018b1ca4bc8076129bc913cbf; exit=0; EXPECT=matched; output-sha256=1a1620390e57511178189d050288ac177e4c15e2027c278c710295b458f72cef; output-bytes=15; shell=/bin/sh; cwd=/home/valentin/projects/tiny-dictation-android-r5-778; path=433695eed2f1/23 entries
 
-- [ ] G6: the ticket branch is committed and pushed with no outstanding changes outside the gate evidence
+- [x] G6: the ticket branch is committed and pushed with no outstanding changes outside the gate evidence
   CHECK: test "$(git branch --show-current)" = ceo/IGSH-778 && test "$(git rev-parse HEAD)" = "$(git ls-remote --exit-code origin refs/heads/ceo/IGSH-778 | cut -f1)" && test -z "$(git status --porcelain --untracked-files=all -- . ':!GATES.md')" && printf 'BRANCH_PUSH_OK\n'
   EXPECT: BRANCH_PUSH_OK
-  EVIDENCE: pending
+  EVIDENCE: automatic-evidence=v1; definition-sha256=9c1e129954f54722640a6f1a601f7475191f4d42615676abaac663e75e20c009; exit=0; EXPECT=matched; output-sha256=3f7e9d29a5d69d254df915542eb2ce670efbfa39fd5686ca9a51477db3d1993a; output-bytes=15; shell=/bin/sh; cwd=/home/valentin/projects/tiny-dictation-android-r5-778; path=433695eed2f1/23 entries
 
 - [x] G7: workflow checks reject a missing or misplaced publisher, wrong APK or secret, suppressed failures, and lost release triggers
   CHECK: bash tools/check_release_workflow.test.sh
