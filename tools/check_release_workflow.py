@@ -31,4 +31,27 @@ inputs = dispatch.get("inputs") if isinstance(dispatch, dict) else None
 if not isinstance(inputs, dict) or "version" not in inputs:
     sys.exit("Release workflow check failed: workflow_dispatch requires a version input")
 
+jobs = workflow.get("jobs")
+release = jobs.get("release") if isinstance(jobs, dict) else None
+steps = release.get("steps") if isinstance(release, dict) else None
+if not isinstance(steps, list):
+    sys.exit("Release workflow check failed: missing release steps")
+
+release_index = next((index for index, step in enumerate(steps)
+                      if isinstance(step, dict) and
+                      str(step.get("uses", "")).startswith("softprops/action-gh-release@")), None)
+publish_command = ('bash tools/publish-update.sh '
+                   '"dist/TinyDictation-${{ steps.version.outputs.version }}-arm64-v8a.apk"')
+publish_index = next((index for index, step in enumerate(steps)
+                      if isinstance(step, dict) and step.get("run", "").strip() == publish_command), None)
+if release_index is None or publish_index is None or publish_index <= release_index:
+    sys.exit("Release workflow check failed: publish the built ARM64 APK after the GitHub release")
+
+publish = steps[publish_index]
+env = publish.get("env")
+if not isinstance(env, dict) or env.get("CLOUDFLARE_API_TOKEN") != "${{ secrets.CLOUDFLARE_API_TOKEN }}":
+    sys.exit("Release workflow check failed: publisher requires the CLOUDFLARE_API_TOKEN secret")
+if "if" in publish or publish.get("continue-on-error", False):
+    sys.exit("Release workflow check failed: update publishing must not be skipped or allowed to fail")
+
 print("Release workflow check ok")

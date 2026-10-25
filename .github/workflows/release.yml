@@ -131,6 +131,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Publish in-app update
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: bash tools/publish-update.sh "dist/TinyDictation-${{ steps.version.outputs.version }}-arm64-v8a.apk"
+
       - name: Send Telegram notification
         if: success()
         env:

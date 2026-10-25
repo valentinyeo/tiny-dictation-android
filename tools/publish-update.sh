@@ -10,7 +10,8 @@ fail() {
 [[ $# == 1 || ( $# == 3 && ${2:-} == --dry-run && -n ${3:-} ) ]] ||
     fail "Usage: $0 <apk-path> [--dry-run <out-dir>]"
 [[ -f $1 ]] || fail "APK not found: $1"
-unset CLOUDFLARE_API_TOKEN CLOUDFLARE_ACCOUNT_ID
+export -n CLOUDFLARE_API_TOKEN
+unset CLOUDFLARE_ACCOUNT_ID
 
 root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 sdk=${ANDROID_HOME:-/home/valentin/tools/android-sdk}
@@ -43,6 +44,8 @@ jq -en --argjson code "$version_code" '$code <= 2147483647' >/dev/null ||
 
 base=https://pub-bc49d639ec0a4a4382ac076d5e94916c.r2.dev/android-latest
 manifest_name=tinydictation-update.json
+sha256=$(sha256sum "$work/release.apk")
+sha256=${sha256%% *}
 release_date=$(date -u +%F)
 apk_name="TinyDictation-$version_name-arm64.apk"
 status=$(curl --silent --show-error --location --header 'Cache-Control: no-cache' \
@@ -54,6 +57,12 @@ case $status in
             (.versionCode == (.versionCode | floor)) and
             ((.history // []) | type == "array" and all(.[]; type == "object"))' \
             "$work/previous.json" >/dev/null || fail "Invalid published manifest"
+        if jq -e --argjson code "$version_code" --arg sha256 "$sha256" \
+            '$code == .versionCode and $sha256 == .sha256' \
+            "$work/previous.json" >/dev/null; then
+            printf 'Update already published: %s (%s)\n' "$version_name" "$version_code"
+            exit 0
+        fi
         jq -e --argjson code "$version_code" '$code > .versionCode' \
             "$work/previous.json" >/dev/null ||
             fail "versionCode must be greater than the published versionCode"
@@ -96,8 +105,6 @@ if not notes:
 print("\n".join("• " + note for note in notes))
 PY
 
-sha256=$(sha256sum "$work/release.apk")
-sha256=${sha256%% *}
 size_bytes=$(stat -c %s "$work/release.apk")
 jq -n --arg packageName "$package_name" --argjson versionCode "$version_code" \
     --arg versionName "$version_name" --arg apkUrl "$base/$apk_name" \
@@ -116,19 +123,21 @@ if [[ $# == 3 ]]; then
     exit 0
 fi
 
-labels=$(yeo-key "Tiny Dictation Updates R2")
-label=${labels%%$'\n'*}
-[[ -n $label ]] || fail "No Cloudflare token label found"
-CLOUDFLARE_API_TOKEN=$(yeo-key "Tiny Dictation Updates R2" "$label")
+if [[ -z ${CLOUDFLARE_API_TOKEN:-} ]]; then
+    labels=$(yeo-key "Tiny Dictation Updates R2")
+    label=${labels%%$'\n'*}
+    [[ -n $label ]] || fail "No Cloudflare token label found"
+    CLOUDFLARE_API_TOKEN=$(yeo-key "Tiny Dictation Updates R2" "$label")
+fi
 [[ -n $CLOUDFLARE_API_TOKEN ]] || fail "Empty Cloudflare token"
 CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID=7865043d9ae730882b77f3d5d670c158 \
     npx --yes wrangler@3 r2 object put "tinydictation-updates/android-latest/$apk_name" \
-    --file "$work/release.apk" --content-type application/vnd.android.package-archive
+    --file "$work/release.apk" --content-type application/vnd.android.package-archive --remote
 CLOUDFLARE_API_TOKEN="$CLOUDFLARE_API_TOKEN" \
     CLOUDFLARE_ACCOUNT_ID=7865043d9ae730882b77f3d5d670c158 \
     npx --yes wrangler@3 r2 object put "tinydictation-updates/android-latest/$manifest_name" \
-    --file "$work/$manifest_name" --content-type application/json --cache-control no-cache
+    --file "$work/$manifest_name" --content-type application/json --cache-control no-cache --remote
 unset CLOUDFLARE_API_TOKEN
 
 status=$(curl --silent --show-error --location --header 'Cache-Control: no-cache' \
