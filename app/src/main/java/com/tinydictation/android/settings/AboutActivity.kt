@@ -31,6 +31,9 @@ class AboutActivity : AppCompatActivity() {
 
     companion object {
         private val CHANGELOG = """
+            v1.43.7:
+            • Every release now reaches the in-app updater by itself
+
             v1.43.6:
             • Show Deepgram's own reason when a connection is refused
 
